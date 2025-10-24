@@ -1,9 +1,11 @@
 import { ObjectId } from 'mongodb';
 
+// ========== MongoDB Documents (Backend) ==========
+
 // User document
 export interface User {
   _id?: ObjectId;
-  userId: string; // Unique user identifier
+  userId: string; // Unique user identifier (from external auth)
   username: string;
   createdAt: Date;
   updatedAt: Date;
@@ -12,19 +14,16 @@ export interface User {
 // Monster document
 export interface Monster {
   _id?: ObjectId;
-  monsterId: string; // Unique monster identifier
   name: string;
   imageUrl: string; // URL or path to monster PNG
   clicksRequired: number; // Number of clicks needed to defeat
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  lootTableIds: string[]; // References to possible loot drops
   createdAt: Date;
 }
 
 // NFT Loot document
 export interface NFTLoot {
   _id?: ObjectId;
-  lootId: string; // Unique loot identifier
   name: string;
   description: string;
   imageUrl: string; // URL or path to NFT image
@@ -38,21 +37,44 @@ export interface NFTLoot {
 export interface UserInventory {
   _id?: ObjectId;
   userId: string; // Reference to User.userId
-  lootId: string; // Reference to NFTLoot.lootId
+  lootId: ObjectId; // Reference to NFTLoot._id
   acquiredAt: Date;
-  fromMonsterId: string; // Which monster dropped this
+  fromMonsterId: ObjectId; // Reference to Monster._id
   transactionId?: string; // BSV transaction ID
 }
 
 // Battle Session document
 export interface BattleSession {
   _id?: ObjectId;
-  sessionId: string; // Unique session identifier
   userId: string; // Reference to User.userId
-  monsterId: string; // Reference to Monster.monsterId
+  monsterId: ObjectId; // Reference to Monster._id
   clickCount: number;
   isDefeated: boolean;
-  lootDropped?: string[]; // Array of lootIds that were dropped
+  lootDropped?: ObjectId[]; // Array of NFTLoot._id that were dropped
   startedAt: Date;
   completedAt?: Date;
+}
+
+// ========== Frontend Types (with string IDs) ==========
+
+// Frontend Monster type (IDs as strings)
+export interface MonsterFrontend {
+  _id?: string;
+  name: string;
+  imageUrl: string;
+  clicksRequired: number;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  createdAt: Date | string;
+}
+
+// Frontend Battle Session type (IDs as strings)
+export interface BattleSessionFrontend {
+  _id?: string;
+  userId: string;
+  monsterId: string;
+  clickCount: number;
+  isDefeated: boolean;
+  lootDropped?: string[];
+  startedAt: Date | string;
+  completedAt?: Date | string;
 }

@@ -80,11 +80,10 @@ async function connectToMongo() {
       await usersCollection.createIndex({ username: 1 });
 
       // Monsters indexes
-      await monstersCollection.createIndex({ monsterId: 1 }, { unique: true });
       await monstersCollection.createIndex({ rarity: 1 });
+      await monstersCollection.createIndex({ createdAt: -1 });
 
       // NFT Loot indexes
-      await nftLootCollection.createIndex({ lootId: 1 }, { unique: true });
       await nftLootCollection.createIndex({ rarity: 1 });
       await nftLootCollection.createIndex({ mintTransactionId: 1 }, {
         sparse: true,
@@ -95,13 +94,13 @@ async function connectToMongo() {
       await userInventoryCollection.createIndex({ userId: 1 });
       await userInventoryCollection.createIndex({ lootId: 1 });
       await userInventoryCollection.createIndex({ userId: 1, acquiredAt: -1 });
+      await userInventoryCollection.createIndex({ fromMonsterId: 1 });
       await userInventoryCollection.createIndex({ transactionId: 1 }, {
         sparse: true,
         partialFilterExpression: { transactionId: { $exists: true } }
       });
 
       // Battle Sessions indexes
-      await battleSessionsCollection.createIndex({ sessionId: 1 }, { unique: true });
       await battleSessionsCollection.createIndex({ userId: 1, startedAt: -1 });
       await battleSessionsCollection.createIndex({ userId: 1, isDefeated: 1 });
       await battleSessionsCollection.createIndex({ monsterId: 1 });
