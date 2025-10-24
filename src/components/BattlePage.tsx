@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export default function HomePage() {
+export default function BattlePage() {
   const [clicks, setClicks] = useState(0);
 
   const handleClick = () => {

@@ -56,6 +56,7 @@ Note: This project explicitly uses webpack bundler (not Turbopack) via the `--we
 
 - `src/`: src directory
   - `app/`: App Router-
+    - `api/`: API routes
     - `layout.tsx`: Root layout with Geist font configuration
     - `page.tsx`: Homepage component
     - `globals.css`: Global styles and TailwindCSS imports
