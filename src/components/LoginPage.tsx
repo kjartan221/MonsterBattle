@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleLoginWithWallet = async () => {
     // TODO: Implement wallet login functionality
     // For now, this will use a placeholder identity key
     setIsLoading(true);
-    setError('');
+
+    const loadingToast = toast.loading('Connecting wallet...');
 
     try {
       const walletUserId = 'wallet_' + Math.random().toString(36).substring(7);
@@ -37,9 +38,11 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
+      toast.success('Login successful!', { id: loadingToast });
       router.push('/battle');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      toast.error(errorMessage, { id: loadingToast });
       console.error('Wallet login error:', err);
     } finally {
       setIsLoading(false);
@@ -48,19 +51,19 @@ export default function LoginPage() {
 
   const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
 
     if (!username.trim()) {
-      setError('Please enter a username');
+      toast.error('Please enter a username');
       return;
     }
 
     if (!identityKey.trim()) {
-      setError('Please enter your identity key');
+      toast.error('Please enter your identity key');
       return;
     }
 
     setIsLoading(true);
+    const loadingToast = toast.loading('Logging in...');
 
     try {
       const response = await fetch('/api/login', {
@@ -80,9 +83,11 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
+      toast.success('Login successful!', { id: loadingToast });
       router.push('/battle');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      toast.error(errorMessage, { id: loadingToast });
       console.error('Manual login error:', err);
     } finally {
       setIsLoading(false);
@@ -97,13 +102,6 @@ export default function LoginPage() {
             Monster Battle
           </h1>
           <p className="text-white/70 text-center mb-8">Login to start battling</p>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg">
-              <p className="text-red-200 text-sm text-center">{error}</p>
-            </div>
-          )}
 
           {/* Login with Wallet Button */}
           <button

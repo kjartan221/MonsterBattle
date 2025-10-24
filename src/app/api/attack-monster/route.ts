@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount, timeElapsed } = body;
+    const { sessionId, clickCount } = body;
 
     // Validate input
-    if (!sessionId || typeof clickCount !== 'number' || typeof timeElapsed !== 'number') {
+    if (!sessionId || typeof clickCount !== 'number') {
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -75,8 +75,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate click rate (clicks per second)
+    // Calculate time elapsed from server-side session.startedAt
+    // This prevents client-side time manipulation
+    const currentTime = Date.now();
+    const startTime = new Date(session.startedAt).getTime();
+    const timeElapsed = currentTime - startTime;
     const timeInSeconds = timeElapsed / 1000;
+
+    // Calculate click rate (clicks per second)
     const clickRate = clickCount / timeInSeconds;
 
     console.log(`User ${userId} - Click rate: ${clickRate.toFixed(2)} clicks/second (${clickCount} clicks in ${timeInSeconds.toFixed(2)}s)`);

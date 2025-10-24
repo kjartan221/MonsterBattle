@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
 
 export default function BattlePage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
   const [clicks, setClicks] = useState(0);
@@ -18,15 +18,58 @@ export default function BattlePage() {
   });
   const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
   const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
+  const [lastSavedClicks, setLastSavedClicks] = useState(0);
 
   useEffect(() => {
     startBattle();
   }, []);
 
+  // Periodically save clicks to backend (every 5 clicks or every 10 seconds)
+  useEffect(() => {
+    if (!session || !monster || isSubmitting) return;
+
+    const clickDifference = clicks - lastSavedClicks;
+
+    // Save if we've accumulated 5 clicks since last save
+    if (clickDifference >= 5) {
+      saveClicksToBackend();
+    }
+
+    // Also save every 10 seconds if there are unsaved clicks
+    const interval = setInterval(() => {
+      if (clicks > lastSavedClicks && clicks < monster.clicksRequired) {
+        saveClicksToBackend();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [clicks, lastSavedClicks, session, monster, isSubmitting]);
+
+  const saveClicksToBackend = async () => {
+    if (!session || clicks <= lastSavedClicks) return;
+
+    try {
+      await fetch('/api/update-clicks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session._id,
+          clickCount: clicks,
+        }),
+      });
+
+      setLastSavedClicks(clicks);
+    } catch (err) {
+      console.error('Error saving clicks:', err);
+      // Silently fail - not critical enough to show error to user
+    }
+  };
+
   const startBattle = async () => {
     try {
       setLoading(true);
-      setError(null);
 
       const response = await fetch('/api/start-battle', {
         method: 'POST',
@@ -43,11 +86,16 @@ export default function BattlePage() {
       setSession(data.session);
       setMonster(data.monster);
       setClicks(data.session.clickCount);
+      setLastSavedClicks(data.session.clickCount); // Initialize saved clicks
       setStartTime(new Date(data.session.startedAt));
+
+      if (!data.isNewSession) {
+        toast.success(`Resuming your battle! (${data.session.clickCount} attacks)`);
+      }
 
     } catch (err) {
       console.error('Error starting battle:', err);
-      setError('Failed to start battle. Please try again.');
+      toast.error('Failed to start battle. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -59,8 +107,8 @@ export default function BattlePage() {
     setIsSubmitting(true);
 
     try {
-      const timeElapsed = Date.now() - new Date(startTime).getTime();
-
+      // Note: We no longer send timeElapsed from client
+      // Server will calculate it from session.startedAt
       const response = await fetch('/api/attack-monster', {
         method: 'POST',
         headers: {
@@ -68,8 +116,7 @@ export default function BattlePage() {
         },
         body: JSON.stringify({
           sessionId: session._id,
-          clickCount: finalClicks,
-          timeElapsed
+          clickCount: finalClicks
         }),
       });
 
@@ -101,14 +148,15 @@ export default function BattlePage() {
         // Show loot selection modal
         if (data.lootOptions && data.lootOptions.length > 0) {
           setLootOptions(data.lootOptions);
+          toast.success('🎉 Monster defeated! Choose your loot!');
         }
       } else if (data.error) {
-        setError(data.error);
+        toast.error(data.error);
       }
 
     } catch (err) {
       console.error('Error submitting battle:', err);
-      setError('Failed to submit battle completion. Please try again.');
+      toast.error('Failed to submit battle. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -134,33 +182,22 @@ export default function BattlePage() {
     setSelectedLoot(loot);
     console.log('User selected loot:', loot);
 
+    toast.success(`You claimed: ${loot.icon} ${loot.name}!`, {
+      duration: 3000,
+    });
+
     // TODO: Send to /api/loot/create-nft endpoint
     // For now, just close the modal and show selection
     setTimeout(() => {
       setLootOptions(null);
+      setSelectedLoot(null);
     }, 1500);
   };
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950">
-        <div className="text-white text-2xl">Loading battle...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950">
-        <div className="text-center">
-          <div className="text-red-400 text-2xl mb-4">{error}</div>
-          <button
-            onClick={startBattle}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
+        <div className="text-white text-2xl animate-pulse">Loading battle...</div>
       </div>
     );
   }
@@ -168,7 +205,15 @@ export default function BattlePage() {
   if (!monster || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950">
-        <div className="text-white text-2xl">No battle data found</div>
+        <div className="text-center">
+          <div className="text-red-400 text-2xl mb-4">Failed to load battle</div>
+          <button
+            onClick={startBattle}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }

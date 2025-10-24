@@ -1,0 +1,1 @@
+// Load the user's inventory with all owned NFT items
