@@ -100,6 +100,29 @@ const MONSTER_SPECIFIC_LOOT: Record<string, LootItem[]> = {
   'Demon': DEMON_SPECIFIC,
 };
 
+// Create a map of all loot items for easy lookup by lootId
+const ALL_LOOT_ITEMS_MAP = new Map<string, LootItem>();
+
+// Populate the map with all loot items
+[...COMMON_LOOT, ...RARE_LOOT, ...GOBLIN_ORC_SPECIFIC, ...ZOMBIE_SPECIFIC,
+ ...TROLL_GHOST_SPECIFIC, ...DRAGON_VAMPIRE_SPECIFIC, ...DEMON_SPECIFIC].forEach(item => {
+  ALL_LOOT_ITEMS_MAP.set(item.lootId, item);
+});
+
+/**
+ * Get a loot item by its lootId
+ */
+export function getLootItemById(lootId: string): LootItem | undefined {
+  return ALL_LOOT_ITEMS_MAP.get(lootId);
+}
+
+/**
+ * Get multiple loot items by their lootIds
+ */
+export function getLootItemsByIds(lootIds: string[]): LootItem[] {
+  return lootIds.map(id => getLootItemById(id)).filter((item): item is LootItem => item !== undefined);
+}
+
 /**
  * Randomly select N items from various loot pools
  * Guarantees at least 1 monster-specific item (can be more if lucky)

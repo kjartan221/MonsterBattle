@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
+import { getLootItemsByIds } from '@/lib/loot-table';
 
 export default function BattlePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -19,6 +22,7 @@ export default function BattlePage() {
   const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
   const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
   const [lastSavedClicks, setLastSavedClicks] = useState(0);
+  const [showNextMonster, setShowNextMonster] = useState(false);
 
   useEffect(() => {
     startBattle();
@@ -89,7 +93,17 @@ export default function BattlePage() {
       setLastSavedClicks(data.session.clickCount); // Initialize saved clicks
       setStartTime(new Date(data.session.startedAt));
 
-      if (!data.isNewSession) {
+      // Check if session is defeated and has pending loot selection
+      if (data.session.isDefeated && data.session.lootOptions && !data.session.selectedLootId) {
+        // Restore loot selection modal
+        const restoredLoot = getLootItemsByIds(data.session.lootOptions);
+        setLootOptions(restoredLoot);
+        toast.success('Battle completed! Choose your loot.');
+      } else if (data.session.isDefeated && data.session.selectedLootId) {
+        // Loot already selected, show next monster button
+        setShowNextMonster(true);
+        toast.success('Battle completed! Ready for next monster.');
+      } else if (!data.isNewSession) {
         toast.success(`Resuming your battle! (${data.session.clickCount} attacks)`);
       }
 
@@ -179,19 +193,83 @@ export default function BattlePage() {
   };
 
   const handleLootSelection = async (loot: LootItem) => {
+    if (!session) return;
+
     setSelectedLoot(loot);
     console.log('User selected loot:', loot);
 
-    toast.success(`You claimed: ${loot.icon} ${loot.name}!`, {
-      duration: 3000,
-    });
+    try {
+      // Save loot selection to backend
+      const response = await fetch('/api/select-loot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session._id,
+          lootId: loot.lootId,
+        }),
+      });
 
-    // TODO: Send to /api/loot/create-nft endpoint
-    // For now, just close the modal and show selection
-    setTimeout(() => {
-      setLootOptions(null);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save loot selection');
+      }
+
+      toast.success(`You claimed: ${loot.icon} ${loot.name}!`, {
+        duration: 3000,
+      });
+
+      // Update local session state
+      setSession({
+        ...session,
+        selectedLootId: loot.lootId
+      });
+
+      // Close modal and show next monster button
+      setTimeout(() => {
+        setLootOptions(null);
+        setShowNextMonster(true);
+      }, 1500);
+
+    } catch (err) {
+      console.error('Error saving loot selection:', err);
+      toast.error('Failed to save loot selection. Please try again.');
       setSelectedLoot(null);
-    }, 1500);
+    }
+  };
+
+  const handleNextMonster = async () => {
+    setShowNextMonster(false);
+    setSelectedLoot(null);
+    setClicks(0);
+    setLastSavedClicks(0);
+    setIsSubmitting(false);
+    setLoading(true);
+
+    toast.loading('Summoning new monster...', { duration: 1000 });
+
+    // Start a new battle
+    await startBattle();
+  };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        toast.success('Logged out successfully!');
+        router.push('/');
+      } else {
+        throw new Error('Logout failed');
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      toast.error('Failed to logout. Please try again.');
+    }
   };
 
   if (loading) {
@@ -237,7 +315,15 @@ export default function BattlePage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
+      {/* Logout Button */}
+      <button
+        onClick={handleLogout}
+        className="absolute top-4 right-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+      >
+        Logout
+      </button>
+
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
         <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
 
@@ -325,6 +411,18 @@ export default function BattlePage() {
           </div>
         )}
       </div>
+
+      {/* Next Monster Button - Fixed position on right side */}
+      {showNextMonster && !lootOptions && (
+        <button
+          onClick={handleNextMonster}
+          className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400"
+        >
+          <span className="text-lg">Next</span>
+          <span className="text-lg">Monster</span>
+          <span className="text-4xl">→</span>
+        </button>
+      )}
 
       {/* Cheat Detection Modal */}
       {cheatModal.show && (

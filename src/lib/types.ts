@@ -50,7 +50,8 @@ export interface BattleSession {
   monsterId: ObjectId; // Reference to Monster._id
   clickCount: number;
   isDefeated: boolean;
-  lootDropped?: ObjectId[]; // Array of NFTLoot._id that were dropped
+  lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
+  selectedLootId?: string; // The lootId the user chose
   startedAt: Date;
   completedAt?: Date;
 }
@@ -74,7 +75,8 @@ export interface BattleSessionFrontend {
   monsterId: string;
   clickCount: number;
   isDefeated: boolean;
-  lootDropped?: string[];
+  lootOptions?: string[];
+  selectedLootId?: string;
   startedAt: Date | string;
   completedAt?: Date | string;
 }

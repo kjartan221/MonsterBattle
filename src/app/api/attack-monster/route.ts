@@ -122,11 +122,12 @@ export async function POST(request: NextRequest) {
 
     // Generate random loot drops (5 items)
     const lootOptions = getRandomLoot(monster.name, 5);
+    const lootOptionIds = lootOptions.map(l => l.lootId);
 
     console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks in ${timeInSeconds.toFixed(2)}s`);
     console.log(`🎁 Loot generated: ${lootOptions.map(l => l.name).join(', ')}`);
 
-    // Mark session as completed (but don't add loot yet, waiting for user selection)
+    // Mark session as completed and save loot options (user hasn't selected yet)
     const now = new Date();
     await battleSessionsCollection.updateOne(
       { _id: sessionObjectId },
@@ -134,7 +135,8 @@ export async function POST(request: NextRequest) {
         $set: {
           clickCount,
           isDefeated: true,
-          completedAt: now
+          completedAt: now,
+          lootOptions: lootOptionIds // Save the loot option IDs
         }
       }
     );
