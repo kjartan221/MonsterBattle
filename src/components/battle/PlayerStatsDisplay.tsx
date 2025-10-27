@@ -9,11 +9,20 @@ export default function PlayerStatsDisplay() {
 
   const healthPercentage = (playerStats.currentHealth / playerStats.maxHealth) * 100;
 
+  const streak = playerStats.stats.battlesWonStreak;
+  const streakColor = streak >= 10 ? 'text-yellow-400' : streak >= 5 ? 'text-orange-400' : 'text-gray-300';
+  const streakIcon = streak >= 10 ? '🔥' : streak >= 5 ? '⚡' : '🎯';
+
   return (
     <div className="absolute top-4 left-4 bg-black/30 backdrop-blur-sm rounded-lg p-4 border border-white/20 min-w-[200px]">
-      <div className="text-white text-sm mb-2">
-        <span className="font-bold">Level {playerStats.level}</span>
-        <span className="ml-2 text-gray-300">{playerStats.coins} 💰</span>
+      <div className="text-white text-sm mb-2 flex justify-between items-center">
+        <div>
+          <span className="font-bold">Level {playerStats.level}</span>
+          <span className="ml-2 text-gray-300">{playerStats.coins} 💰</span>
+        </div>
+        <div className={`text-xs font-bold ${streakColor}`} title="Win Streak">
+          {streakIcon} {streak}
+        </div>
       </div>
       <div className="mb-1">
         <div className="flex justify-between text-white text-xs mb-1">

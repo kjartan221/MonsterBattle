@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
         // Statistics
         stats: {
           battlesWon: 0,
+          battlesWonStreak: 0,
           monstersDefeated: 0,
           bossesDefeated: 0,
           totalDamageDealt: 0,

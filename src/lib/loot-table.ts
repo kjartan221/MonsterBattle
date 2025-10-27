@@ -127,8 +127,11 @@ export function getLootItemsByIds(lootIds: string[]): LootItem[] {
  * Randomly select N items from various loot pools
  * Guarantees at least 1 monster-specific item (can be more if lucky)
  * Fills remaining slots with COMMON_LOOT or RARE_LOOT
+ * @param monsterName - The name of the monster that dropped the loot
+ * @param count - Number of items to generate
+ * @param winStreak - Current win streak (increases rare drop chance)
  */
-export function getRandomLoot(monsterName: string, count: number = 3): LootItem[] {
+export function getRandomLoot(monsterName: string, count: number = 3, winStreak: number = 0): LootItem[] {
   const monsterLoot = MONSTER_SPECIFIC_LOOT[monsterName] || [];
   const results: LootItem[] = [];
 
@@ -139,13 +142,20 @@ export function getRandomLoot(monsterName: string, count: number = 3): LootItem[
     return shuffled.slice(0, count);
   }
 
-  // Step 1: Determine how many monster-specific items to include (1-2 guaranteed, possibly more)
-  // 70% chance of 1 item, 25% chance of 2 items, 5% chance of 3 items
+  // Step 1: Determine how many monster-specific items to include (1-3 possible)
+  // Base chances: 70% for 1 item, 25% for 2 items, 5% for 3 items
+  // Streak multiplier increases chances for 2 and 3 items
+  const streakMultiplier = 1.0 + Math.min(winStreak * 0.03, 0.30); // 1.0x to 1.3x
+
+  const chance2Items = Math.min(0.25 * streakMultiplier, 0.40); // 25% → 32.5% at 10 streak
+  const chance3Items = Math.min(0.05 * streakMultiplier, 0.10); // 5% → 6.5% at 10 streak
+  const chance1Item = 1 - chance2Items - chance3Items; // Remaining probability
+
   const random = Math.random();
   let monsterItemCount: number;
-  if (random < 0.7) {
+  if (random < chance1Item) {
     monsterItemCount = 1;
-  } else if (random < 0.95) {
+  } else if (random < chance1Item + chance2Items) {
     monsterItemCount = 2;
   } else {
     monsterItemCount = Math.min(3, count); // Can get all 3 from monster if lucky!
@@ -166,9 +176,16 @@ export function getRandomLoot(monsterName: string, count: number = 3): LootItem[
     let commonIndex = 0;
     let rareIndex = 0;
 
-    // For each remaining slot, decide if it's common (70%) or rare (30%)
+    // Calculate drop chance multiplier based on win streak
+    // Multiplicative bonus: +3% per win streak (max +30% at 10 streak)
+    // Example: 30% base rare → 39% at 10 streak (1.3x multiplier)
+    const streakMultiplier = 1.0 + Math.min(winStreak * 0.03, 0.30); // 1.0x to 1.3x
+    const rareChance = Math.min(0.30 * streakMultiplier, 0.95); // 30% base, capped at 95%
+    const commonChance = 1 - rareChance;
+
+    // For each remaining slot, decide if it's common or rare based on streak
     for (let i = 0; i < remainingSlots; i++) {
-      const isCommon = Math.random() < 0.7;
+      const isCommon = Math.random() < commonChance;
 
       if (isCommon && commonIndex < shuffledCommon.length) {
         results.push(shuffledCommon[commonIndex]);

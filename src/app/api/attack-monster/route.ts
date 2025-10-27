@@ -170,12 +170,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate random loot drops (5 items)
-    const lootOptions = getRandomLoot(monster.name, 5);
+    // Generate random loot drops (5 items) with streak multiplier
+    const winStreak = playerStats.stats.battlesWonStreak || 0;
+    const streakMultiplier = (1.0 + Math.min(winStreak * 0.03, 0.30)).toFixed(2);
+    const lootOptions = getRandomLoot(monster.name, 5, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
     console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks in ${timeInSeconds.toFixed(2)}s`);
-    console.log(`🎁 Loot generated: ${lootOptions.map(l => l.name).join(', ')}`);
+    console.log(`🎁 Loot generated (${winStreak} streak, ${streakMultiplier}x): ${lootOptions.map(l => `${l.name} (${l.rarity})`).join(', ')}`);
 
     // Mark session as completed and save loot options (user hasn't selected yet)
     const now = new Date();

@@ -32,6 +32,7 @@ export interface PlayerStats {
   // Statistics
   stats: {
     battlesWon: number;
+    battlesWonStreak: number; // Current win streak (resets on death)
     monstersDefeated: number;
     bossesDefeated: number;
     totalDamageDealt: number;
@@ -54,6 +55,8 @@ interface PlayerContextType {
   healHealth: (amount: number) => Promise<void>;
   addCoins: (amount: number) => Promise<void>;
   addExperience: (amount: number) => Promise<void>;
+  incrementStreak: () => Promise<void>;
+  resetStreak: () => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -197,6 +200,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const incrementStreak = async () => {
+    if (!playerStats) return;
+
+    const newStreak = playerStats.stats.battlesWonStreak + 1;
+
+    // Update local state immediately
+    setPlayerStats({
+      ...playerStats,
+      stats: {
+        ...playerStats.stats,
+        battlesWon: playerStats.stats.battlesWon + 1,
+        battlesWonStreak: newStreak,
+      },
+    });
+
+    // Update backend
+    await updatePlayerStats({
+      stats: {
+        ...playerStats.stats,
+        battlesWon: playerStats.stats.battlesWon + 1,
+        battlesWonStreak: newStreak,
+      },
+    });
+  };
+
+  const resetStreak = async () => {
+    if (!playerStats) return;
+
+    // Update local state immediately
+    setPlayerStats({
+      ...playerStats,
+      stats: {
+        ...playerStats.stats,
+        battlesWonStreak: 0,
+      },
+    });
+
+    // Update backend
+    await updatePlayerStats({
+      stats: {
+        ...playerStats.stats,
+        battlesWonStreak: 0,
+      },
+    });
+  };
+
   const value: PlayerContextType = {
     playerStats,
     loading,
@@ -208,6 +257,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     healHealth,
     addCoins,
     addExperience,
+    incrementStreak,
+    resetStreak,
   };
 
   return (

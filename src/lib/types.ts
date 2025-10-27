@@ -78,6 +78,7 @@ export interface PlayerStats {
   // Statistics
   stats: {
     battlesWon: number;
+    battlesWonStreak: number; // Current win streak (resets on death)
     monstersDefeated: number;
     bossesDefeated: number;
     totalDamageDealt: number;

@@ -13,7 +13,7 @@ import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading, resetHealth } = usePlayer();
+  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -55,6 +55,32 @@ export default function BattlePage() {
 
     return () => clearInterval(interval);
   }, [clicks, lastSavedClicks, session, monster, isSubmitting]);
+
+  // Death mechanic: Watch for HP reaching 0
+  useEffect(() => {
+    if (!playerStats || !session || session.isDefeated) return;
+
+    // If HP reaches 0 during battle, player has died
+    if (playerStats.currentHealth <= 0) {
+      handlePlayerDeath();
+    }
+  }, [playerStats?.currentHealth, session]);
+
+  const handlePlayerDeath = async () => {
+    console.log('Player has been defeated!');
+
+    // Reset win streak
+    await resetStreak();
+
+    toast.error('You have been defeated! Your win streak has been reset.', {
+      duration: 4000,
+    });
+
+    // Wait a moment before redirecting
+    setTimeout(() => {
+      router.push('/battle'); // This will restart the battle with full HP
+    }, 2000);
+  };
 
 
   const saveClicksToBackend = async () => {
@@ -233,6 +259,12 @@ export default function BattlePage() {
         ...session,
         selectedLootId: loot.lootId
       });
+
+      // Increment win streak after successful battle
+      await incrementStreak();
+
+      // Restore HP to full after battle win
+      await resetHealth();
 
       // Close modal and show next monster button
       setTimeout(() => {
