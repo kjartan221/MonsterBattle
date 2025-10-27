@@ -26,8 +26,9 @@ This is a demo application where:
 - ✅ Session persistence (survives page refreshes)
 - ✅ Anti-cheat system (server-side time validation)
 - ✅ Toast notifications (react-hot-toast)
-- ⏳ NFT minting to inventory
-- ⏳ Inventory page to view collected NFTs
+- ✅ Inventory system (userInventory collection stores collected items)
+- ✅ Inventory page with treasure chest UI
+- ⏳ NFT minting to blockchain (placeholder for future BSV integration)
 
 ## Build and Development Commands
 
@@ -172,6 +173,48 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 ```
 **Indexes**: `rarity`, `createdAt`
 
+#### NFT Loot Collection
+```typescript
+{
+  _id: ObjectId,
+  lootTableId: string,   // Reference to loot-table.ts lootId (e.g. "dragon_scale")
+  name: string,          // Item name (e.g. "Dragon Scale")
+  description: string,   // Item description
+  icon: string,          // Emoji icon (e.g. "🐲")
+  rarity: 'common' | 'rare' | 'epic' | 'legendary',
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact',
+  attributes: Record<string, any>, // Custom NFT metadata
+  mintTransactionId: string, // BSV transaction ID when minted to blockchain
+  createdAt: Date
+}
+```
+**Indexes**: `rarity`, `lootTableId`, `mintTransactionId`
+
+**Purpose**:
+- Stores actual item instances as database documents
+- Each document represents a unique collectible item
+- References loot-table.ts via `lootTableId` for template data
+- Will store blockchain transaction ID when minted as NFT
+- Separates item template (loot-table.ts) from item instances (database)
+
+#### User Inventory Collection
+```typescript
+{
+  _id: ObjectId,
+  userId: string,          // Reference to User.userId
+  lootId: ObjectId,        // Reference to NFTLoot._id (the item document)
+  acquiredAt: Date,
+  fromMonsterId: ObjectId, // Reference to Monster._id
+  fromSessionId: ObjectId  // Reference to BattleSession._id
+}
+```
+**Indexes**: `userId`, `lootId`, `userId + acquiredAt`, `fromMonsterId`
+
+**Purpose**:
+- Links users to their collected NFTLoot items
+- Tracks which monster/session the item came from
+- Maintains acquisition history
+
 #### Battle Sessions Collection
 ```typescript
 {
@@ -228,11 +271,33 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 - User chooses 1 of 5 loot items
 - Validates: session exists, defeated, not already selected, valid lootId
 - Saves `selectedLootId` to session
+- **Creates NFTLoot document** from loot-table template
+- **Adds to user's inventory** linking to NFTLoot document
 - Returns: `{ success, selectedLootId }`
+
+**Item Creation Flow**:
+1. Fetch item template from `loot-table.ts` using `lootTableId`
+2. Create `NFTLoot` document with item data + `lootTableId` reference
+3. Create `UserInventory` document linking user to NFTLoot._id
+4. Ready for future blockchain minting (will update `mintTransactionId`)
 
 ---
 
 ### Loot System
+
+#### Architecture Overview
+
+The loot system uses a **template + instance** architecture:
+
+- **Loot Table** (`src/lib/loot-table.ts`): Static templates defining all possible items
+- **NFTLoot Collection** (MongoDB): Individual item instances created when user collects loot
+- **UserInventory Collection** (MongoDB): Links users to their NFTLoot items
+
+**Why this design?**
+- Templates are reusable and easy to manage in code
+- Each collected item becomes a unique database document
+- Supports future NFT minting with unique transaction IDs per item
+- Allows tracking item ownership and provenance
 
 **File**: `src/lib/loot-table.ts`
 
@@ -285,8 +350,24 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
   2. Loot selection (modal with 5 options, select 1)
   3. Battle complete (show "Next Monster" button)
 - **Logout button**: Top-right corner
+- **Inventory button**: Navigate to inventory page
 - **Next Monster button**: Fixed right side after loot selection
 - **Cheat detection modal**: Warning for suspicious click rates
+
+#### InventoryPage (`src/components/inventory/InventoryPage.tsx`)
+- **Treasure chest UI**: Decorative container displaying collected items
+- **Item grid**: Responsive grid (2-6 columns based on screen size)
+- **Item cards**: Click to view detailed modal
+- **Rarity-based styling**: Color-coded borders and gradients
+- **Stats section**: Shows count by rarity (common, rare, epic, legendary)
+- **Empty state**: Prompts user to start battling
+- **Navigation**: Back to Battle and Logout buttons
+
+#### InventoryDetailsModal (`src/components/inventory/InventoryDetailsModal.tsx`)
+- **Item metadata display**: Name, icon, rarity, type, description
+- **Acquisition date**: Shows when item was collected
+- **Item ID**: Reference for debugging
+- **Rarity-themed styling**: Color-coded text and borders
 
 ---
 
@@ -323,7 +404,10 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 - `POST /api/attack-monster` - Submit battle completion, generate loot
 
 #### Loot
-- `POST /api/select-loot` - Save user's loot selection
+- `POST /api/select-loot` - Save user's loot selection and add to inventory
+
+#### Inventory
+- `GET /api/inventory/get` - Fetch all items in user's inventory
 
 **All routes require authentication** via JWT cookie (except `/api/login`)
 
@@ -404,8 +488,9 @@ NODE_ENV=development
 ## Known TODOs
 
 - [ ] Destructure BattlePage into multiple components (loot modal, etc.)
-- [ ] Implement NFT minting to blockchain
-- [ ] Create inventory page to view collected loot
+- [ ] Implement NFT minting to blockchain (see `select-loot` route TODO)
+- [x] Create inventory page to view collected loot
+- [x] Create user_inventory collection to store collected items
 - [ ] Integrate BSV wallet for authentication
 - [ ] Add user profile page
 - [ ] Implement trading/marketplace for loot

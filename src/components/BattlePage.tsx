@@ -316,13 +316,22 @@ export default function BattlePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        className="absolute top-4 right-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
-      >
-        Logout
-      </button>
+      {/* Navigation Buttons */}
+      <div className="absolute top-4 right-4 flex gap-2">
+        <button
+          onClick={() => router.push('/inventory')}
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shadow-lg flex items-center gap-2"
+        >
+          <span>📦</span>
+          Inventory
+        </button>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+        >
+          Logout
+        </button>
+      </div>
 
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
         <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>

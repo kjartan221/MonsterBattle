@@ -24,23 +24,25 @@ export interface Monster {
 // NFT Loot document
 export interface NFTLoot {
   _id?: ObjectId;
+  lootTableId: string;  // Reference to loot-table.ts lootId (e.g. "dragon_scale")
   name: string;
   description: string;
-  imageUrl: string; // URL or path to NFT image
+  icon: string;         // Emoji icon
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact';
   attributes?: Record<string, string | number>; // Custom NFT attributes
-  mintTransactionId?: string; // BSV transaction ID when minted
+  mintTransactionId?: string; // BSV transaction ID when minted to blockchain
   createdAt: Date;
 }
 
 // User Inventory document
 export interface UserInventory {
   _id?: ObjectId;
-  userId: string; // Reference to User.userId
-  lootId: ObjectId; // Reference to NFTLoot._id
+  userId: string;          // Reference to User.userId
+  lootId: ObjectId;        // Reference to NFTLoot._id (the actual item document)
   acquiredAt: Date;
   fromMonsterId: ObjectId; // Reference to Monster._id
-  transactionId?: string; // BSV transaction ID
+  fromSessionId: ObjectId; // Reference to BattleSession._id
 }
 
 // Battle Session document

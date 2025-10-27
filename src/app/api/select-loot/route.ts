@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToMongo, battleSessionsCollection } from '@/lib/mongodb';
+import { connectToMongo, battleSessionsCollection, userInventoryCollection, nftLootCollection } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { ObjectId } from 'mongodb';
+import { getLootItemById } from '@/lib/loot-table';
 
 export async function POST(request: NextRequest) {
   try {
@@ -78,6 +79,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the loot item details from loot-table
+    const lootItem = getLootItemById(lootId);
+    if (!lootItem) {
+      return NextResponse.json(
+        { error: 'Loot item not found in loot table' },
+        { status: 404 }
+      );
+    }
+
     // Save the selected loot
     await battleSessionsCollection.updateOne(
       { _id: sessionObjectId },
@@ -90,7 +100,35 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ User ${userId} selected loot: ${lootId} from session ${sessionId}`);
 
-    // TODO: Create NFT in inventory
+    // Create NFTLoot document in database
+    const nftLootDocument = {
+      lootTableId: lootItem.lootId,
+      name: lootItem.name,
+      description: lootItem.description,
+      icon: lootItem.icon,
+      rarity: lootItem.rarity,
+      type: lootItem.type,
+      createdAt: new Date(),
+      // mintTransactionId will be added when NFT is minted to blockchain
+    };
+
+    const nftResult = await nftLootCollection.insertOne(nftLootDocument);
+    const nftLootId = nftResult.insertedId;
+
+    console.log(`🎁 Created NFTLoot document: ${nftLootId} (${lootItem.name})`);
+
+    // Add item to user's inventory (referencing the NFTLoot document)
+    await userInventoryCollection.insertOne({
+      userId,
+      lootId: nftLootId,
+      acquiredAt: new Date(),
+      fromMonsterId: session.monsterId,
+      fromSessionId: sessionObjectId,
+    });
+
+    console.log(`📦 Added ${lootItem.name} to ${userId}'s inventory`);
+
+    // TODO: Mint NFT to blockchain and update mintTransactionId in nftLootCollection
 
     return NextResponse.json({
       success: true,
