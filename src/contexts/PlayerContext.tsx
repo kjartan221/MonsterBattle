@@ -136,17 +136,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const takeDamage = async (amount: number) => {
     if (!playerStats) return;
 
-    const newHealth = Math.max(0, playerStats.currentHealth - amount);
+    // Use functional setState to avoid stale state issues
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      currentHealth: newHealth,
+      const newHealth = Math.max(0, prevStats.currentHealth - amount);
+
+      if (newHealth === 0) {
+        toast.error('You have been defeated!');
+      }
+
+      return {
+        ...prevStats,
+        currentHealth: newHealth,
+      };
     });
-
-    if (newHealth === 0) {
-      toast.error('You have been defeated!');
-    }
   };
 
   /**
@@ -157,12 +161,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const healHealth = async (amount: number) => {
     if (!playerStats) return;
 
-    const newHealth = Math.min(playerStats.maxHealth, playerStats.currentHealth + amount);
+    // Use functional setState to avoid stale state issues
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      currentHealth: newHealth,
+      const newHealth = Math.min(prevStats.maxHealth, prevStats.currentHealth + amount);
+
+      return {
+        ...prevStats,
+        currentHealth: newHealth,
+      };
     });
   };
 

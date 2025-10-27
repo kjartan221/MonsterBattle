@@ -73,6 +73,13 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - Attack loop only starts after user confirmation
     - Only displays on initial load or after death (not during Next Monster flow)
     - Maintains battle engagement during consecutive victories
+  - Frontend: Battle defeat screen (BattleDefeatScreen.tsx)
+    - Shows after player HP reaches 0
+    - Displays monster that defeated player
+    - Shows gold lost (10% of current gold, rounded) - TODO: make dynamic per biome+tier
+    - Shows win streak lost
+    - "Try Again" button restarts battle
+    - Gold loss mechanism (BattlePage.tsx:108-120)
 
 ### 📋 Next Steps (To Implement)
 - **Phase 1.3: Biome & Tier System** (GAME_DESIGN_PROPOSAL.md lines 959-965)

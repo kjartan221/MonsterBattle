@@ -11,10 +11,11 @@ import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
+import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage } = usePlayer();
+  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -30,13 +31,18 @@ export default function BattlePage() {
   const [showNextMonster, setShowNextMonster] = useState(false);
   const [monsterAttacking, setMonsterAttacking] = useState(false); // Visual feedback for attacks
   const [battleStarted, setBattleStarted] = useState(false); // Track if user has clicked "Start Battle"
+  const [defeatScreen, setDefeatScreen] = useState<{
+    show: boolean;
+    goldLost: number;
+    streakLost: number;
+  }>({ show: false, goldLost: 0, streakLost: 0 });
 
   useEffect(() => {
-    // Start battle once player stats are loaded
-    if (!statsLoading && playerStats) {
+    // Start battle once player stats are loaded (only if we don't have a monster yet)
+    if (!statsLoading && playerStats && !monster) {
       startBattle();
     }
-  }, [statsLoading, playerStats]);
+  }, [statsLoading, playerStats, monster]);
 
   // Periodically save clicks to backend (every 5 clicks or every 10 seconds)
   useEffect(() => {
@@ -62,6 +68,12 @@ export default function BattlePage() {
   // Monster attack loop: Deal damage every second (only after battle started)
   useEffect(() => {
     if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted) return;
+
+    // Safety check for monster.attackDamage
+    if (typeof monster.attackDamage !== 'number' || isNaN(monster.attackDamage)) {
+      console.error('Invalid monster.attackDamage:', monster.attackDamage);
+      return;
+    }
 
     // Monster attacks player every 1 second
     const attackInterval = setInterval(async () => {
@@ -91,20 +103,39 @@ export default function BattlePage() {
   const handlePlayerDeath = async () => {
     console.log('Player has been defeated!');
 
+    if (!playerStats) return;
+
+    // TODO: Replace with biome+tier specific gold loss percentage
+    // This should be calculated based on the current biome and tier the player is in
+    // Example: Forest Tier 1 = 5%, Desert Tier 2 = 15%, Volcano Tier 5 = 30%
+    // For now, using flat 10% loss
+    const goldLossPercentage = 0.10;
+    const goldLost = Math.round(playerStats.coins * goldLossPercentage);
+    const streakLost = playerStats.stats.battlesWonStreak;
+
+    // Deduct gold if player has any
+    if (goldLost > 0) {
+      const newCoins = Math.max(0, playerStats.coins - goldLost);
+      await updatePlayerStats({ coins: newCoins });
+    }
+
     // Reset win streak
     await resetStreak();
 
     // Reset battle started state so start screen shows after death
     setBattleStarted(false);
 
-    toast.error('You have been defeated! Your win streak has been reset.', {
-      duration: 4000,
+    // Show defeat screen
+    setDefeatScreen({
+      show: true,
+      goldLost,
+      streakLost
     });
+  };
 
-    // Wait a moment before redirecting
-    setTimeout(() => {
-      router.push('/battle'); // This will restart the battle with full HP and show start screen
-    }, 2000);
+  const handleDefeatContinue = () => {
+    setDefeatScreen({ show: false, goldLost: 0, streakLost: 0 });
+    router.push('/battle'); // This will restart the battle with full HP and show start screen
   };
 
 
@@ -529,6 +560,18 @@ export default function BattlePage() {
           monsterRarity={monster.rarity}
           monsterIcon={monster.imageUrl}
           onStartBattle={handleStartBattle}
+        />
+      )}
+
+      {/* Battle Defeat Screen - Shows after death */}
+      {defeatScreen.show && monster && (
+        <BattleDefeatScreen
+          monsterName={monster.name}
+          monsterRarity={monster.rarity}
+          monsterIcon={monster.imageUrl}
+          goldLost={defeatScreen.goldLost}
+          streakLost={defeatScreen.streakLost}
+          onContinue={handleDefeatContinue}
         />
       )}
     </div>
