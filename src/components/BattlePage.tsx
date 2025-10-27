@@ -287,7 +287,7 @@ export default function BattlePage() {
           <div className="text-red-400 text-2xl mb-4">Failed to load battle</div>
           <button
             onClick={startBattle}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer"
           >
             Try Again
           </button>
@@ -320,14 +320,14 @@ export default function BattlePage() {
       <div className="absolute top-4 right-4 flex gap-2">
         <button
           onClick={() => router.push('/inventory')}
-          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shadow-lg flex items-center gap-2"
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
         >
           <span>📦</span>
           Inventory
         </button>
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
         >
           Logout
         </button>
@@ -425,7 +425,7 @@ export default function BattlePage() {
       {showNextMonster && !lootOptions && (
         <button
           onClick={handleNextMonster}
-          className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400"
+          className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400 cursor-pointer"
         >
           <span className="text-lg">Next</span>
           <span className="text-lg">Monster</span>
@@ -447,7 +447,7 @@ export default function BattlePage() {
               </p>
               <button
                 onClick={closeCheatModal}
-                className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+                className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
               >
                 I Understand
               </button>

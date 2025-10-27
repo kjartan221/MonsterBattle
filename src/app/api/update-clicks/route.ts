@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToMongo, battleSessionsCollection } from '@/lib/mongodb';
+import { cookies } from 'next/headers';
+import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get and verify JWT token
-    const token = request.cookies.get('verified')?.value;
+    // Get cookies using next/headers
+    const cookieStore = await cookies();
+    const token = cookieStore.get('verified')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -41,8 +43,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Connect to MongoDB
-    await connectToMongo();
+    // Connect to MongoDB and get collections
+    const { battleSessionsCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });

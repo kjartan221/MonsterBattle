@@ -190,7 +190,7 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
   createdAt: Date
 }
 ```
-**Indexes**: `rarity`, `lootTableId`, `mintTransactionId`
+**Indexes**: `rarity`, `lootTableId`, `mintTransactionId` (partial, only when exists)
 
 **Purpose**:
 - Stores actual item instances as database documents
@@ -210,7 +210,7 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
   fromSessionId: ObjectId  // Reference to BattleSession._id
 }
 ```
-**Indexes**: `userId`, `lootId`, `userId + acquiredAt`, `fromMonsterId`
+**Indexes**: `userId`, `lootId`, `userId + acquiredAt` (compound), `fromMonsterId`
 
 **Purpose**:
 - Links users to their collected NFTLoot items

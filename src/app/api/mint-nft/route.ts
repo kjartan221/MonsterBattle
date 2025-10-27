@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { nftLootCollection } from '@/lib/mongodb';
+import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
 /**
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Connect to MongoDB and get collection
+    const { nftLootCollection } = await connectToMongo();
 
     // Fetch the NFTLoot document
     const nftLoot = await nftLootCollection.findOne({ _id: objectId });
@@ -126,6 +129,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // TODO: Add authentication/authorization
+
+    // Connect to MongoDB and get collection
+    const { nftLootCollection } = await connectToMongo();
 
     // Find all unminted NFTs
     const pendingNFTs = await nftLootCollection

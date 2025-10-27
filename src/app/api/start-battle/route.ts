@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToMongo, battleSessionsCollection, monstersCollection } from '@/lib/mongodb';
+import { cookies } from 'next/headers';
+import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { ObjectId } from 'mongodb';
 
@@ -47,8 +48,9 @@ function getRandomClicksRequired(range: [number, number]): number {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get and verify JWT token
-    const token = request.cookies.get('verified')?.value;
+    // Get cookies using next/headers
+    const cookieStore = await cookies();
+    const token = cookieStore.get('verified')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -60,8 +62,8 @@ export async function POST(request: NextRequest) {
     const payload = await verifyJWT(token);
     const userId = payload.userId;
 
-    // Connect to MongoDB
-    await connectToMongo();
+    // Connect to MongoDB and get collections
+    const { battleSessionsCollection, monstersCollection } = await connectToMongo();
 
     // Check if user already has an active battle session
     const activeSession = await battleSessionsCollection.findOne({

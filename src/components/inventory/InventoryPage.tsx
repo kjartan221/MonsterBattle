@@ -98,13 +98,13 @@ export default function InventoryPage() {
           <div className="flex gap-4">
             <button
               onClick={() => router.push('/battle')}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >
               Back to Battle
             </button>
             <button
               onClick={handleLogout}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >
               Logout
             </button>
@@ -130,7 +130,7 @@ export default function InventoryPage() {
               </p>
               <button
                 onClick={() => router.push('/battle')}
-                className="px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors text-lg"
+                className="px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors text-lg cursor-pointer"
               >
                 Start Battling
               </button>
@@ -149,7 +149,7 @@ export default function InventoryPage() {
                 <button
                   key={`${item.sessionId}-${index}`}
                   onClick={() => setSelectedItem(item)}
-                  className={`relative bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg border-2 p-4 hover:scale-105 hover:shadow-xl transition-all duration-200 group`}
+                  className={`relative bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg border-2 p-4 hover:scale-105 hover:shadow-xl transition-all duration-200 group cursor-pointer`}
                   style={borderStyle}
                 >
                   {/* Item icon */}

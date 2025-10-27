@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
-import { userInventoryCollection, nftLootCollection } from '@/lib/mongodb';
+import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify JWT token
-    const token = request.cookies.get('verified')?.value;
+    // Get cookies using next/headers
+    const cookieStore = await cookies();
+    const token = cookieStore.get('verified')?.value;
+    
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -17,6 +20,15 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = payload.userId as string;
+    
+    // Validate that userId exists in the payload
+    if (!userId) {
+      console.error('JWT payload missing userId:', payload);
+      return NextResponse.json({ error: 'Invalid token: missing userId' }, { status: 401 });
+    }
+
+    // Ensure MongoDB is connected and get collections
+    const { userInventoryCollection, nftLootCollection } = await connectToMongo();
 
     // Fetch all inventory items for this user
     const inventoryItems = await userInventoryCollection

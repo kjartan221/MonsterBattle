@@ -11,6 +11,9 @@ export default function LoginPage() {
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Validation for manual login
+  const isManualLoginValid = username.trim().length > 0 && identityKey.trim().length >= 32;
+
   const handleLoginWithWallet = async () => {
     const walletClient = new WalletClient("auto", "monster-battle-game");
     const isConnected = await walletClient.isAuthenticated();
@@ -23,8 +26,8 @@ export default function LoginPage() {
     const loadingToast = toast.loading('Connecting wallet...');
 
     try {
-      const walletUserId = await walletClient.getPublicKey({ identityKey: true });
-      if (!walletUserId) {
+      const { publicKey } = await walletClient.getPublicKey({ identityKey: true });
+      if (!publicKey) {
         throw new Error('Failed to get wallet public key');
       }
       const walletUsername = username.trim() || 'Wallet User';
@@ -35,7 +38,7 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: walletUserId,
+          userId: publicKey,
           username: walletUsername,
         }),
       });
@@ -67,6 +70,11 @@ export default function LoginPage() {
 
     if (!identityKey.trim()) {
       toast.error('Please enter your identity key');
+      return;
+    }
+
+    if (identityKey.trim().length < 32) {
+      toast.error('Identity key must be at least 32 characters');
       return;
     }
 
@@ -115,7 +123,7 @@ export default function LoginPage() {
           <button
             onClick={handleLoginWithWallet}
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg mb-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg mb-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
           >
             {isLoading ? 'Logging in...' : 'Login with Wallet'}
           </button>
@@ -161,8 +169,8 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg border border-white/20 transition-all duration-200 hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !isManualLoginValid}
+              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg border border-white/20 transition-all duration-200 hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:border-white/20 cursor-pointer"
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
