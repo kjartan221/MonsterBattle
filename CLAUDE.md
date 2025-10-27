@@ -28,6 +28,14 @@ This is a demo application where:
 - ✅ Toast notifications (react-hot-toast)
 - ✅ Inventory system (userInventory collection stores collected items)
 - ✅ Inventory page with treasure chest UI
+- 🚧 Implementing Phase 1 of GAME_DESIGN_PROPOSAL.md (RPG transformation)
+
+**IMPORTANT: Phased Implementation Rule**
+When implementing features from GAME_DESIGN_PROPOSAL.md:
+- **Only implement ONE phase item per prompt/session**
+- Wait for user review and testing before proceeding
+- This ensures code quality and allows for adjustments
+- Reference: See Phase 1, Phase 2, Phase 3 sections in GAME_DESIGN_PROPOSAL.md
 - ⏳ NFT minting to blockchain (placeholder for future BSV integration)
 
 ## Build and Development Commands
@@ -60,16 +68,54 @@ Note: This project explicitly uses webpack bundler (not Turbopack) via the `--we
 ### Directory Structure
 
 - `src/`: src directory
-  - `app/`: App Router-
+  - `app/`: App Router
     - `api/`: API routes
-    - `layout.tsx`: Root layout with Geist font configuration
+    - `layout.tsx`: Root layout with Geist font configuration and PlayerProvider
     - `page.tsx`: Homepage component
     - `globals.css`: Global styles and TailwindCSS imports
-  - `components/`: Page components
-  - `lib/`: mongoDB
-  - `hooks/`: Hook functions
-  - `utils/`: Utilities
+  - `components/`: Page and UI components
+    - `battle/`: Battle-specific components (modals, displays, etc.)
+  - `contexts/`: React Context providers for global state
+  - `lib/`: MongoDB connection and utilities
+  - `hooks/`: Custom React hooks
+  - `utils/`: Utility functions
 - `public/`: Static assets
+
+### State Management Architecture
+
+**Global State with React Context**
+
+The application uses React Context for managing global player state to:
+- **Prevent refetching** on page navigation
+- **Share state** across components
+- **Centralize player operations** (HP changes, coin updates, etc.)
+- **Simplify component logic** by extracting state management
+
+**Key Files**:
+- `src/contexts/PlayerContext.tsx` - Player stats context provider
+  - Exports `PlayerProvider` (wrap around app in layout.tsx)
+  - Exports `usePlayer()` hook for consuming player data
+  - Provides helper methods: `resetHealth()`, `takeDamage()`, `healHealth()`, `addCoins()`, `addExperience()`
+- `src/app/layout.tsx` - Wraps entire app with `<PlayerProvider>`
+
+**Component Structure Best Practices**
+
+To keep components manageable and maintainable:
+
+1. **Extract UI into specialized components** when files exceed ~300-400 lines
+2. **Create domain-specific folders** under `components/` (e.g., `battle/`, `inventory/`)
+3. **Use React Context for cross-cutting concerns** (player stats, auth, etc.)
+4. **Keep page components lean** - they should primarily orchestrate child components
+
+**Example: BattlePage Refactoring**
+
+The `BattlePage` component was refactored to use:
+- `PlayerStatsDisplay` component for HP/level display
+- `LootSelectionModal` component for loot selection UI
+- `CheatDetectionModal` component for cheat warnings
+- `usePlayer()` hook from PlayerContext for player stats
+
+This pattern should be followed for future complex components.
 
 ### Styling
 

@@ -17,6 +17,7 @@ export interface Monster {
   name: string;
   imageUrl: string; // URL or path to monster PNG
   clicksRequired: number; // Number of clicks needed to defeat
+  attackDamage: number; // Damage per second dealt to player
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   createdAt: Date;
 }
@@ -47,6 +48,47 @@ export interface UserInventory {
   fromSessionId: ObjectId; // Reference to BattleSession._id
 }
 
+// Player Stats document (RPG progression)
+export interface PlayerStats {
+  _id?: ObjectId;
+  userId: string; // Reference to User.userId
+  level: number;
+  experience: number;
+  coins: number;
+  maxHealth: number;
+  currentHealth: number;
+
+  // Equipment slots (store inventory item IDs)
+  equippedWeapon?: ObjectId;
+  equippedArmor?: ObjectId;
+  equippedAccessory1?: ObjectId;
+  equippedAccessory2?: ObjectId;
+  equippedConsumables: ObjectId[]; // Array of 5
+
+  // Battle stats
+  baseDamage: number;
+  critChance: number;
+  attackSpeed: number;
+
+  // Progress tracking
+  currentZone: number;
+  currentTier: number;
+  unlockedZones: string[]; // Array of "zone-tier" strings like "forest-1", "desert-1"
+
+  // Statistics
+  stats: {
+    battlesWon: number;
+    monstersDefeated: number;
+    bossesDefeated: number;
+    totalDamageDealt: number;
+    itemsCollected: number;
+    legendariesFound: number;
+  };
+
+  createdAt: Date;
+  lastBattleAt?: Date;
+}
+
 // Battle Session document
 export interface BattleSession {
   _id?: ObjectId;
@@ -56,6 +98,7 @@ export interface BattleSession {
   isDefeated: boolean;
   lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
   selectedLootId?: string; // The lootId the user chose
+  usedItems: Array<{ lootTableId: string; usedAt: Date }>; // Track items used during battle (for HP verification)
   startedAt: Date;
   completedAt?: Date;
 }

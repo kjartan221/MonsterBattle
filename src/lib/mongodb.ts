@@ -1,5 +1,5 @@
 import { MongoClient, ServerApiVersion, Db, Collection } from 'mongodb';
-import type { User, Monster, NFTLoot, UserInventory, BattleSession } from './types';
+import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats } from './types';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please add your MONGODB_URI to .env file');
@@ -23,6 +23,7 @@ export const COLLECTIONS = {
   NFT_LOOT: 'nft_loot',
   USER_INVENTORY: 'user_inventory',
   BATTLE_SESSIONS: 'battle_sessions',
+  PLAYER_STATS: 'player_stats',
 } as const;
 
 // Database and collections
@@ -32,6 +33,7 @@ let monstersCollection: Collection<Monster>;
 let nftLootCollection: Collection<NFTLoot>;
 let userInventoryCollection: Collection<UserInventory>;
 let battleSessionsCollection: Collection<BattleSession>;
+let playerStatsCollection: Collection<PlayerStats>;
 
 // Connect to MongoDB and initialize collections
 async function connectToMongo() {
@@ -65,6 +67,9 @@ async function connectToMongo() {
       if (!existing.has(COLLECTIONS.BATTLE_SESSIONS)) {
         await db.createCollection(COLLECTIONS.BATTLE_SESSIONS);
       }
+      if (!existing.has(COLLECTIONS.PLAYER_STATS)) {
+        await db.createCollection(COLLECTIONS.PLAYER_STATS);
+      }
 
       // Get typed collection handles
       usersCollection = db.collection<User>(COLLECTIONS.USERS);
@@ -72,6 +77,7 @@ async function connectToMongo() {
       nftLootCollection = db.collection<NFTLoot>(COLLECTIONS.NFT_LOOT);
       userInventoryCollection = db.collection<UserInventory>(COLLECTIONS.USER_INVENTORY);
       battleSessionsCollection = db.collection<BattleSession>(COLLECTIONS.BATTLE_SESSIONS);
+      playerStatsCollection = db.collection<PlayerStats>(COLLECTIONS.PLAYER_STATS);
 
       // Create indexes for better performance
 
@@ -104,6 +110,11 @@ async function connectToMongo() {
       await battleSessionsCollection.createIndex({ userId: 1, isDefeated: 1 });
       await battleSessionsCollection.createIndex({ monsterId: 1 });
 
+      // Player Stats indexes
+      await playerStatsCollection.createIndex({ userId: 1 }, { unique: true });
+      await playerStatsCollection.createIndex({ level: 1 });
+      await playerStatsCollection.createIndex({ currentZone: 1, currentTier: 1 });
+
       console.log("MongoDB indexes created successfully");
     } catch (error) {
       console.error("Error connecting to MongoDB:", error);
@@ -116,7 +127,8 @@ async function connectToMongo() {
     monstersCollection,
     nftLootCollection,
     userInventoryCollection,
-    battleSessionsCollection
+    battleSessionsCollection,
+    playerStatsCollection
   };
 }
 
@@ -142,7 +154,8 @@ export {
   monstersCollection,
   nftLootCollection,
   userInventoryCollection,
-  battleSessionsCollection
+  battleSessionsCollection,
+  playerStatsCollection
 };
 
 // Helper function to get database (for backward compatibility)

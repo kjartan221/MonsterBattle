@@ -2,49 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
+import { getRandomMonsterTemplate, getRandomClicksRequired } from '@/lib/monster-table';
 import { ObjectId } from 'mongodb';
-
-// Monster templates
-const MONSTER_TEMPLATES = [
-  { name: 'Goblin', imageUrl: '👺', rarity: 'common' as const, clicksRange: [5, 10] as [number, number] },
-  { name: 'Orc', imageUrl: '👹', rarity: 'common' as const, clicksRange: [8, 12] as [number, number] },
-  { name: 'Troll', imageUrl: '🧟', rarity: 'rare' as const, clicksRange: [15, 20] as [number, number] },
-  { name: 'Dragon', imageUrl: '🐉', rarity: 'epic' as const, clicksRange: [25, 35] as [number, number] },
-  { name: 'Demon', imageUrl: '😈', rarity: 'legendary' as const, clicksRange: [40, 50] as [number, number] },
-  { name: 'Ghost', imageUrl: '👻', rarity: 'rare' as const, clicksRange: [12, 18] as [number, number] },
-  { name: 'Vampire', imageUrl: '🧛', rarity: 'epic' as const, clicksRange: [20, 30] as [number, number] },
-  { name: 'Zombie', imageUrl: '🧟‍♂️', rarity: 'common' as const, clicksRange: [6, 11] as [number, number] },
-];
-
-// Rarity weights for random selection
-const RARITY_WEIGHTS = {
-  common: 60,    // 60% chance
-  rare: 25,      // 25% chance
-  epic: 12,      // 12% chance
-  legendary: 3   // 3% chance
-};
-
-function getRandomMonsterTemplate() {
-  const totalWeight = Object.values(RARITY_WEIGHTS).reduce((a, b) => a + b, 0);
-  let random = Math.random() * totalWeight;
-
-  let selectedRarity: keyof typeof RARITY_WEIGHTS = 'common';
-  for (const [rarity, weight] of Object.entries(RARITY_WEIGHTS)) {
-    random -= weight;
-    if (random <= 0) {
-      selectedRarity = rarity as keyof typeof RARITY_WEIGHTS;
-      break;
-    }
-  }
-
-  // Filter monsters by selected rarity
-  const monstersOfRarity = MONSTER_TEMPLATES.filter(m => m.rarity === selectedRarity);
-  return monstersOfRarity[Math.floor(Math.random() * monstersOfRarity.length)];
-}
-
-function getRandomClicksRequired(range: [number, number]): number {
-  return Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +59,7 @@ export async function POST(request: NextRequest) {
       name: monsterTemplate.name,
       imageUrl: monsterTemplate.imageUrl,
       clicksRequired,
+      attackDamage: monsterTemplate.attackDamage,
       rarity: monsterTemplate.rarity,
       createdAt: new Date()
     };
@@ -113,6 +73,7 @@ export async function POST(request: NextRequest) {
       monsterId,
       clickCount: 0,
       isDefeated: false,
+      usedItems: [], // Initialize empty array for tracking used items
       startedAt: new Date()
     };
 

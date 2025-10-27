@@ -6,9 +6,14 @@ import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
 import { getLootItemsByIds } from '@/lib/loot-table';
+import { usePlayer } from '@/contexts/PlayerContext';
+import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
+import LootSelectionModal from '@/components/battle/LootSelectionModal';
+import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 
 export default function BattlePage() {
   const router = useRouter();
+  const { playerStats, loading: statsLoading, resetHealth } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -20,13 +25,15 @@ export default function BattlePage() {
     message: ''
   });
   const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
-  const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
   const [lastSavedClicks, setLastSavedClicks] = useState(0);
   const [showNextMonster, setShowNextMonster] = useState(false);
 
   useEffect(() => {
-    startBattle();
-  }, []);
+    // Start battle once player stats are loaded
+    if (!statsLoading && playerStats) {
+      startBattle();
+    }
+  }, [statsLoading, playerStats]);
 
   // Periodically save clicks to backend (every 5 clicks or every 10 seconds)
   useEffect(() => {
@@ -48,6 +55,7 @@ export default function BattlePage() {
 
     return () => clearInterval(interval);
   }, [clicks, lastSavedClicks, session, monster, isSubmitting]);
+
 
   const saveClicksToBackend = async () => {
     if (!session || clicks <= lastSavedClicks) return;
@@ -195,7 +203,6 @@ export default function BattlePage() {
   const handleLootSelection = async (loot: LootItem) => {
     if (!session) return;
 
-    setSelectedLoot(loot);
     console.log('User selected loot:', loot);
 
     try {
@@ -236,19 +243,20 @@ export default function BattlePage() {
     } catch (err) {
       console.error('Error saving loot selection:', err);
       toast.error('Failed to save loot selection. Please try again.');
-      setSelectedLoot(null);
     }
   };
 
   const handleNextMonster = async () => {
     setShowNextMonster(false);
-    setSelectedLoot(null);
     setClicks(0);
     setLastSavedClicks(0);
     setIsSubmitting(false);
     setLoading(true);
 
     toast.loading('Summoning new monster...', { duration: 1000 });
+
+    // Reset HP to full before starting new battle
+    await resetHealth();
 
     // Start a new battle
     await startBattle();
@@ -316,6 +324,9 @@ export default function BattlePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
+      {/* Player Stats - Top Left */}
+      <PlayerStatsDisplay />
+
       {/* Navigation Buttons */}
       <div className="absolute top-4 right-4 flex gap-2">
         <button
@@ -434,119 +445,17 @@ export default function BattlePage() {
       )}
 
       {/* Cheat Detection Modal */}
-      {cheatModal.show && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-red-900 to-red-800 border-4 border-red-500 rounded-xl p-8 max-w-md w-full shadow-2xl animate-pulse">
-            <div className="text-center">
-              <div className="text-6xl mb-4">⚠️</div>
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Suspicious Activity Detected!
-              </h2>
-              <p className="text-white whitespace-pre-line mb-6">
-                {cheatModal.message}
-              </p>
-              <button
-                onClick={closeCheatModal}
-                className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                I Understand
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CheatDetectionModal
+        show={cheatModal.show}
+        message={cheatModal.message}
+        onClose={closeCheatModal}
+      />
 
       {/* Loot Selection Modal */}
-      {lootOptions && lootOptions.length > 0 && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gradient-to-br from-purple-900 to-indigo-900 border-4 border-yellow-500 rounded-xl p-8 max-w-6xl w-full shadow-2xl my-8">
-            <div className="text-center mb-8">
-              <div className="text-6xl mb-4">🎁</div>
-              <h2 className="text-3xl font-bold text-yellow-400 mb-2">
-                Victory Spoils!
-              </h2>
-              <p className="text-white text-lg">
-                Choose ONE item to claim as your reward
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {lootOptions.map((loot) => {
-                const isSelected = selectedLoot?.lootId === loot.lootId;
-
-                // Rarity colors
-                const rarityBg = {
-                  common: 'from-gray-600 to-gray-700',
-                  rare: 'from-blue-600 to-blue-700',
-                  epic: 'from-purple-600 to-purple-700',
-                  legendary: 'from-yellow-600 to-orange-700'
-                };
-
-                const rarityBorder = {
-                  common: 'border-gray-400',
-                  rare: 'border-blue-400',
-                  epic: 'border-purple-400',
-                  legendary: 'border-yellow-400'
-                };
-
-                const rarityGlow = {
-                  common: '',
-                  rare: 'shadow-blue-500/50',
-                  epic: 'shadow-purple-500/50',
-                  legendary: 'shadow-yellow-500/50'
-                };
-
-                return (
-                  <button
-                    key={loot.lootId}
-                    onClick={() => handleLootSelection(loot)}
-                    disabled={!!selectedLoot}
-                    className={`bg-gradient-to-br ${rarityBg[loot.rarity]} border-4 ${rarityBorder[loot.rarity]} rounded-xl p-6 transition-all duration-300 ${
-                      isSelected
-                        ? `scale-110 ${rarityGlow[loot.rarity]} shadow-2xl`
-                        : selectedLoot
-                        ? 'opacity-30 cursor-not-allowed'
-                        : 'hover:scale-105 hover:shadow-xl cursor-pointer'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className="text-6xl mb-3">{loot.icon}</div>
-                      <h3 className="text-xl font-bold text-white mb-2">
-                        {loot.name}
-                      </h3>
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full uppercase ${
-                        loot.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
-                        loot.rarity === 'epic' ? 'bg-purple-500 text-white' :
-                        loot.rarity === 'rare' ? 'bg-blue-500 text-white' :
-                        'bg-gray-500 text-white'
-                      }`}>
-                        {loot.rarity}
-                      </span>
-                      <p className="text-white/80 text-sm mt-3 line-clamp-2">
-                        {loot.description}
-                      </p>
-                      <p className="text-white/60 text-xs mt-2">
-                        {loot.type}
-                      </p>
-                      {isSelected && (
-                        <div className="mt-4 text-green-400 font-bold animate-pulse">
-                          ✓ SELECTED!
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedLoot && (
-              <div className="mt-6 text-center text-green-400 text-lg font-bold animate-pulse">
-                You have claimed: {selectedLoot.name}!
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <LootSelectionModal
+        lootOptions={lootOptions}
+        onLootSelect={handleLootSelection}
+      />
     </div>
   );
 }

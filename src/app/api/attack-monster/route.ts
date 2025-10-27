@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
-import { getRandomLoot } from '@/lib/loot-table';
+import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { ObjectId } from 'mongodb';
 
 const MAX_CLICKS_PER_SECOND = 15;
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount } = body;
+    const { sessionId, clickCount, usedItems } = body;
 
     // Validate input
     if (!sessionId || typeof clickCount !== 'number') {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, monstersCollection } = await connectToMongo();
+    const { battleSessionsCollection, monstersCollection, playerStatsCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -88,6 +88,54 @@ export async function POST(request: NextRequest) {
     const clickRate = clickCount / timeInSeconds;
 
     console.log(`User ${userId} - Click rate: ${clickRate.toFixed(2)} clicks/second (${clickCount} clicks in ${timeInSeconds.toFixed(2)}s)`);
+
+    // HP VERIFICATION: Check if player should have survived
+    // Get player stats to check max HP
+    const playerStats = await playerStatsCollection.findOne({ userId });
+
+    if (!playerStats) {
+      return NextResponse.json(
+        { error: 'Player stats not found' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate expected damage from monster
+    const expectedDamage = Math.floor(timeInSeconds * monster.attackDamage);
+
+    // Calculate healing from used items
+    let totalHealing = 0;
+    const usedItemsArray = Array.isArray(usedItems) ? usedItems : [];
+
+    for (const usedItem of usedItemsArray) {
+      const item = getLootItemById(usedItem.lootTableId);
+      if (item && item.type === 'consumable') {
+        // TODO: Add healing amount to item definitions
+        // For now, assume health potions heal 50 HP
+        if (item.name.toLowerCase().includes('potion') || item.name.toLowerCase().includes('elixir')) {
+          totalHealing += 50;
+        }
+      }
+    }
+
+    // Calculate expected HP after battle
+    const expectedHP = playerStats.maxHealth - expectedDamage + totalHealing;
+
+    console.log(`HP Verification - Max HP: ${playerStats.maxHealth}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
+
+    // If player should have died, they're cheating
+    if (expectedHP <= 0) {
+      console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
+      console.warn(`   Max HP: ${playerStats.maxHealth}, Damage taken: ${expectedDamage}, Healing used: ${totalHealing}`);
+
+      return NextResponse.json({
+        hpCheatDetected: true,
+        message: 'You should have been defeated by the monster! Are you manipulating your HP?',
+        expectedDamage,
+        totalHealing,
+        expectedHP
+      }, { status: 400 });
+    }
 
     // CHEAT DETECTION: If clicking too fast
     if (clickRate > MAX_CLICKS_PER_SECOND) {
@@ -138,7 +186,8 @@ export async function POST(request: NextRequest) {
           clickCount,
           isDefeated: true,
           completedAt: now,
-          lootOptions: lootOptionIds // Save the loot option IDs
+          lootOptions: lootOptionIds, // Save the loot option IDs
+          usedItems: usedItemsArray // Save the items used during battle
         }
       }
     );
