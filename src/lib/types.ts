@@ -39,7 +39,9 @@ export interface NFTLoot {
 export interface UserInventory {
   _id?: ObjectId;
   userId: string;          // Reference to User.userId
-  lootId: ObjectId;        // Reference to NFTLoot._id (the actual item document)
+  lootTableId: string;     // Reference to loot-table.ts lootId (e.g. "dragon_scale")
+  nftLootId?: ObjectId;    // Reference to NFTLoot._id (null until user mints it)
+  borderGradient: { color1: string; color2: string }; // User-specific gradient (stored here, not in NFT until minted)
   acquiredAt: Date;
   fromMonsterId: ObjectId; // Reference to Monster._id
   fromSessionId: ObjectId; // Reference to BattleSession._id

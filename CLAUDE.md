@@ -203,19 +203,24 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 ```typescript
 {
   _id: ObjectId,
-  userId: string,          // Reference to User.userId
-  lootId: ObjectId,        // Reference to NFTLoot._id (the item document)
+  userId: string,          // Reference to User.userId (BSV public key)
+  lootTableId: string,     // Reference to loot-table.ts lootId (e.g. "dragon_scale")
+  nftLootId: ObjectId,     // Reference to NFTLoot._id (null until user mints it)
+  borderGradient: { color1: string, color2: string }, // User-specific gradient colors
   acquiredAt: Date,
   fromMonsterId: ObjectId, // Reference to Monster._id
   fromSessionId: ObjectId  // Reference to BattleSession._id
 }
 ```
-**Indexes**: `userId`, `lootId`, `userId + acquiredAt` (compound), `fromMonsterId`
+**Indexes**: `userId`, `lootTableId`, `nftLootId` (partial, only when exists), `userId + acquiredAt` (compound), `fromMonsterId`
 
 **Purpose**:
-- Links users to their collected NFTLoot items
-- Tracks which monster/session the item came from
-- Maintains acquisition history
+- Tracks items collected by users from defeated monsters
+- Items are stored as templates initially (via lootTableId reference)
+- User decides if they want to mint the item as an NFT (costs BSV)
+- nftLootId is null until user pays to mint it
+- Reduces server costs by only creating NFTs for items users value
+- Tracks which monster/session the item came from for provenance
 
 #### Battle Sessions Collection
 ```typescript
@@ -273,17 +278,49 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 - User chooses 1 of 5 loot items
 - Validates: session exists, defeated, not already selected, valid lootId
 - Saves `selectedLootId` to session
-- **Creates NFTLoot document** from loot-table template
-- **Adds to user's inventory** linking to NFTLoot document
-- Returns: `{ success, selectedLootId }`
+- **Adds item to inventory** (does NOT create NFT yet)
+- Returns: `{ success, selectedLootId, inventoryItemId }`
 
-**Item Creation Flow**:
+**Item Storage Flow**:
 1. Fetch item template from `loot-table.ts` using `lootTableId`
 2. **Generate unique gradient colors** from user's public key (userId)
-3. Create `NFTLoot` document with item data + `lootTableId` + `borderGradient` in attributes
-4. Create `UserInventory` document linking user to NFTLoot._id
-5. Return immediately - user can continue playing
-6. **Blockchain minting happens asynchronously** via background job
+3. Create `UserInventory` document with:
+   - `lootTableId` (reference to loot-table template)
+   - `borderGradient` (user-specific colors)
+   - `nftLootId: undefined` (will be set when user mints)
+4. Item is now in user's inventory but NOT as an NFT yet
+
+**Important**: No NFT is created at this stage. User must explicitly mint the item later (paying with BSV).
+
+#### 5. Mint NFT (`POST /api/mint-nft`)
+- **User-initiated**: Called when user clicks "Mint as NFT" in inventory modal
+- **Validates ownership**: Verifies user owns the inventory item
+- **Checks if already minted**: Returns error if item already has nftLootId
+- **TODO: Process payment**: Request BSV payment from user's wallet
+- **Creates NFTLoot document** with enhanced attributes
+- **Updates UserInventory** with nftLootId reference
+- **TODO: Mint to blockchain** with high-quality image/metadata
+- Returns: `{ success, nftLootId, itemName }`
+
+**Minting Flow**:
+1. Verify user authentication and item ownership
+2. Check item hasn't been minted yet (nftLootId is null)
+3. Request payment from BSV wallet (amount based on rarity)
+4. Create NFTLoot document with:
+   - Template data from loot-table
+   - User's borderGradient colors
+   - Enhanced attributes (acquiredFrom, acquiredAt, etc.)
+5. Update UserInventory with nftLootId
+6. Generate fancy NFT image (can afford higher quality since fewer NFTs)
+7. Upload to storage (IPFS or similar)
+8. Mint to BSV blockchain with metadata + image URL
+9. Update NFTLoot with mintTransactionId
+
+**Cost Savings**:
+- Only creates NFTs for items users value
+- Reduces server/blockchain costs dramatically
+- Enables higher quality NFT images (more KBs per image)
+- User decides what to preserve on-chain
 
 **Item Personalization**:
 - Each item gets a unique 2-color gradient border based on the user's public key (userId)
@@ -440,14 +477,13 @@ The loot system uses a **template + instance** architecture:
 - `POST /api/attack-monster` - Submit battle completion, generate loot
 
 #### Loot
-- `POST /api/select-loot` - Save user's loot selection, create NFTLoot + UserInventory documents
+- `POST /api/select-loot` - Save user's loot selection, add to inventory (does NOT create NFT)
 
 #### Inventory
-- `GET /api/inventory/get` - Fetch all items in user's inventory with mint status
+- `GET /api/inventory/get` - Fetch all items in user's inventory (includes unminted and minted items)
 
-#### NFT Minting (Background)
-- `POST /api/mint-nft` - Mint single NFT to blockchain (background job only)
-- `GET /api/mint-nft` - List all pending NFTs waiting to be minted
+#### NFT Minting (User-Initiated)
+- `POST /api/mint-nft` - Mint inventory item as NFT (requires BSV payment, user-initiated)
 
 **All routes require authentication** via JWT cookie (except `/api/login` and mint-nft endpoints)
 
@@ -566,12 +602,25 @@ NODE_ENV=development
 
 ## Known TODOs
 
-- [ ] Destructure BattlePage into multiple components (loot modal, etc.)
-- [ ] Implement NFT minting to blockchain (see `select-loot` route TODO)
+### Inventory & NFT System
 - [x] Create inventory page to view collected loot
 - [x] Create user_inventory collection to store collected items
-- [ ] Integrate BSV wallet for authentication
+- [x] Refactor to user-initiated NFT minting (not automatic)
+- [x] Add "Mint as NFT" button in inventory details modal
+- [x] Update inventory to show unminted vs minted status
+- [ ] Implement BSV wallet payment for minting
+- [ ] Generate fancy NFT images for minted items
+- [ ] Implement blockchain minting with BSV SDK
+- [ ] Upload NFT images to IPFS or storage service
+
+### UI & Components
+- [ ] Destructure BattlePage into multiple components (loot modal, etc.)
 - [ ] Add user profile page
-- [ ] Implement trading/marketplace for loot
 - [ ] Add sound effects and animations
 - [ ] Leaderboard for fastest defeats
+
+### Features
+- [ ] Integrate BSV wallet for authentication (currently manual login only)
+- [ ] Implement trading/marketplace for loot
+- [ ] Add item rarity-based pricing for minting
+- [ ] Batch minting for multiple items

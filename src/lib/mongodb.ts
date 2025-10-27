@@ -92,7 +92,10 @@ async function connectToMongo() {
 
       // User Inventory indexes
       await userInventoryCollection.createIndex({ userId: 1 });
-      await userInventoryCollection.createIndex({ lootId: 1 });
+      await userInventoryCollection.createIndex({ lootTableId: 1 });
+      await userInventoryCollection.createIndex({ nftLootId: 1 }, {
+        partialFilterExpression: { nftLootId: { $exists: true } }
+      });
       await userInventoryCollection.createIndex({ userId: 1, acquiredAt: -1 });
       await userInventoryCollection.createIndex({ fromMonsterId: 1 });
 

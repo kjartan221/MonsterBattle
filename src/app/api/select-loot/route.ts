@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, userInventoryCollection, nftLootCollection } = await connectToMongo();
+    const { battleSessionsCollection, userInventoryCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -107,47 +107,24 @@ export async function POST(request: NextRequest) {
     // The userId IS the public key in BSV
     const { color1, color2 } = publicKeyToGradient(userId);
 
-    // Create NFTLoot document in database
-    const nftLootDocument = {
-      lootTableId: lootItem.lootId,
-      name: lootItem.name,
-      description: lootItem.description,
-      icon: lootItem.icon,
-      rarity: lootItem.rarity,
-      type: lootItem.type,
-      attributes: {
-        borderGradient: { color1, color2 }, // User-specific gradient based on their public key
-      },
-      createdAt: new Date(),
-      // mintTransactionId will be added when NFT is minted to blockchain
-    };
-
-    const nftResult = await nftLootCollection.insertOne(nftLootDocument);
-    const nftLootId = nftResult.insertedId;
-
-    console.log(`🎁 Created NFTLoot document: ${nftLootId} (${lootItem.name})`);
-
-    // Add item to user's inventory (referencing the NFTLoot document)
-    await userInventoryCollection.insertOne({
+    // Add item to user's inventory WITHOUT creating NFT yet
+    // User will decide later if they want to mint it as an NFT (and pay for it)
+    const inventoryResult = await userInventoryCollection.insertOne({
       userId,
-      lootId: nftLootId,
+      lootTableId: lootItem.lootId, // Reference to loot-table template
+      nftLootId: undefined, // Will be set when user mints the NFT
+      borderGradient: { color1, color2 }, // Store gradient here
       acquiredAt: new Date(),
       fromMonsterId: session.monsterId,
       fromSessionId: sessionObjectId,
     });
 
-    console.log(`📦 Added ${lootItem.name} to ${userId}'s inventory`);
-
-    // Note: Blockchain minting happens asynchronously via /api/mint-nft
-    // This keeps the user flow fast - they can continue playing while
-    // the NFT is minted in the background. The mintTransactionId will be
-    // updated later by a background job/queue system.
-    // See: src/app/api/mint-nft/route.ts
+    console.log(`📦 Added ${lootItem.name} to ${userId}'s inventory (not minted yet)`);
 
     return NextResponse.json({
       success: true,
       selectedLootId: lootId,
-      nftLootId: nftLootId.toString() // Return for potential immediate minting trigger
+      inventoryItemId: inventoryResult.insertedId.toString()
     });
 
   } catch (error) {

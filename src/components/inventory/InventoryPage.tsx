@@ -9,8 +9,10 @@ import toast from 'react-hot-toast';
 interface InventoryItem extends LootItem {
   acquiredAt: Date;
   sessionId: string;
-  mintTransactionId?: string;
+  inventoryId: string;
   nftLootId?: string;
+  mintTransactionId?: string;
+  isMinted: boolean; // Whether the item has been minted as an NFT
   borderGradient?: { color1: string; color2: string }; // User-specific gradient
 }
 
@@ -116,7 +118,6 @@ export default function InventoryPage() {
       <div className="max-w-7xl mx-auto">
         <div className="relative bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl border-4 border-amber-600 p-8 shadow-2xl">
           {/* Chest decorative elements */}
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-4xl">🔒</div>
           <div className="absolute -top-6 left-8 text-3xl">✨</div>
           <div className="absolute -top-6 right-8 text-3xl">✨</div>
 
@@ -140,43 +141,52 @@ export default function InventoryPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-8">
               {inventory.map((item, index) => {
                 // Use custom gradient border if available
-                const borderStyle = item.borderGradient ? {
-                  borderImage: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2}) 1`,
-                  boxShadow: `0 0 20px ${item.borderGradient.color1}40, 0 0 20px ${item.borderGradient.color2}40` // Dual-color glow
+                const wrapperStyle = item.borderGradient ? {
+                  background: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2})`,
+                  boxShadow: `0 0 20px ${item.borderGradient.color1}40, 0 0 20px ${item.borderGradient.color2}40`
                 } : {};
 
                 return (
-                <button
+                <div
                   key={`${item.sessionId}-${index}`}
-                  onClick={() => setSelectedItem(item)}
-                  className={`relative bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg border-2 p-4 hover:scale-105 hover:shadow-xl transition-all duration-200 group cursor-pointer`}
-                  style={borderStyle}
+                  className="relative p-1 rounded-xl hover:scale-105 transition-all duration-200 group"
+                  style={wrapperStyle}
                 >
-                  {/* Item icon */}
-                  <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
-                    {item.icon}
-                  </div>
-
-                  {/* Item name */}
-                  <div className="text-white font-bold text-sm text-center mb-1 line-clamp-2 min-h-[2.5rem]">
-                    {item.name}
-                  </div>
-
-                  {/* Rarity badge */}
-                  <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
-                    {item.rarity}
-                  </div>
-
-                  {/* Minting status badge */}
-                  {!item.mintTransactionId && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                      Minting...
+                  <button
+                    onClick={() => setSelectedItem(item)}
+                    className={`relative w-full bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg ${!item.borderGradient ? 'border-4' : ''} p-4 hover:shadow-xl transition-all duration-200 cursor-pointer`}
+                  >
+                    {/* Item icon */}
+                    <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
+                      {item.icon}
                     </div>
-                  )}
 
-                  {/* Hover effect overlay */}
-                  <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                </button>
+                    {/* Item name */}
+                    <div className="text-white font-bold text-sm text-center mb-1 line-clamp-2 min-h-[2.5rem]">
+                      {item.name}
+                    </div>
+
+                    {/* Rarity badge */}
+                    <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
+                      {item.rarity}
+                    </div>
+
+                    {/* Minting status badge */}
+                    {!item.isMinted && (
+                      <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        Not Minted
+                      </div>
+                    )}
+                    {item.isMinted && !item.mintTransactionId && (
+                      <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                        Minting...
+                      </div>
+                    )}
+
+                    {/* Hover effect overlay */}
+                    <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  </button>
+                </div>
                 );
               })}
             </div>
@@ -219,6 +229,7 @@ export default function InventoryPage() {
         <InventoryDetailsModal
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
+          onMintSuccess={fetchInventory}
         />
       )}
     </div>

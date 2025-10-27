@@ -1,23 +1,71 @@
 'use client';
 
+import { useState } from 'react';
 import { LootItem } from '@/lib/loot-table';
+import toast from 'react-hot-toast';
 
 interface InventoryDetailsModalProps {
   item: LootItem & {
     acquiredAt: Date;
-    mintTransactionId?: string;
+    inventoryId: string;
     nftLootId?: string;
+    mintTransactionId?: string;
+    isMinted: boolean;
     borderGradient?: { color1: string; color2: string }; // User-specific gradient
   };
   onClose: () => void;
+  onMintSuccess?: () => void; // Callback to refresh inventory after minting
 }
 
-export default function InventoryDetailsModal({ item, onClose }: InventoryDetailsModalProps) {
+export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: InventoryDetailsModalProps) {
+  const [isMinting, setIsMinting] = useState(false);
+
   const rarityColors = {
     common: 'text-gray-400 border-gray-400',
     rare: 'text-blue-400 border-blue-400',
     epic: 'text-purple-400 border-purple-400',
     legendary: 'text-amber-400 border-amber-400'
+  };
+
+  const handleMintNFT = async () => {
+    setIsMinting(true);
+    const mintingToast = toast.loading('Connecting to wallet...');
+
+    try {
+      const response = await fetch('/api/mint-nft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inventoryId: item.inventoryId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to mint NFT');
+      }
+
+      toast.success('NFT minting started! Your item will be ready soon.', { id: mintingToast });
+
+      // Call the callback to refresh inventory
+      if (onMintSuccess) {
+        onMintSuccess();
+      }
+
+      // Close modal after successful minting
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Minting error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to mint NFT', { id: mintingToast });
+    } finally {
+      setIsMinting(false);
+    }
   };
 
   const typeLabels = {
@@ -84,7 +132,37 @@ export default function InventoryDetailsModal({ item, onClose }: InventoryDetail
           {/* NFT Status */}
           <div className="pb-3 border-b border-gray-700">
             <span className="text-gray-400 text-sm font-medium block mb-2">NFT Status</span>
-            {item.mintTransactionId ? (
+            {!item.isMinted ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 bg-gray-500/10 border border-gray-500/30 rounded-lg p-3">
+                  <span className="text-gray-400 text-lg">📋</span>
+                  <div>
+                    <div className="text-gray-300 font-medium text-sm">Not Minted Yet</div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Mint this item as an NFT to preserve it on the blockchain
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleMintNFT}
+                  disabled={isMinting}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isMinting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Connecting to Wallet...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>💎</span>
+                      <span>Mint as NFT</span>
+                      <span className="text-sm opacity-80">(costs BSV)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : item.mintTransactionId ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-green-400 text-lg">✓</span>

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { getLootItemById } from '@/lib/loot-table';
 
 export async function GET(request: NextRequest) {
   try {
     // Get cookies using next/headers
     const cookieStore = await cookies();
     const token = cookieStore.get('verified')?.value;
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = payload.userId as string;
-    
+
     // Validate that userId exists in the payload
     if (!userId) {
       console.error('JWT payload missing userId:', payload);
@@ -36,39 +36,52 @@ export async function GET(request: NextRequest) {
       .sort({ acquiredAt: -1 }) // Most recent first
       .toArray();
 
-    // Extract NFTLoot IDs
-    const nftLootIds = inventoryItems.map(item => item.lootId);
-
-    // Fetch all NFTLoot documents
-    const nftLootItems = await nftLootCollection
-      .find({ _id: { $in: nftLootIds } })
-      .toArray();
-
-    // Create a map for quick lookup
-    const nftLootMap = new Map(
-      nftLootItems.map(item => [item._id!.toString(), item])
-    );
-
-    // Build inventory by combining userInventory and NFTLoot data
+    // Build inventory by getting loot data from loot-table
     const inventory = inventoryItems.map((inventoryItem) => {
-      const nftLoot = nftLootMap.get(inventoryItem.lootId.toString());
-      if (!nftLoot) return null;
+      // Get base item data from loot-table
+      const lootTemplate = getLootItemById(inventoryItem.lootTableId);
+      if (!lootTemplate) return null;
 
       return {
-        lootId: nftLoot.lootTableId,  // The original loot-table reference
-        name: nftLoot.name,
-        icon: nftLoot.icon,
-        description: nftLoot.description,
-        rarity: nftLoot.rarity,
-        type: nftLoot.type,
+        lootId: inventoryItem.lootTableId,
+        name: lootTemplate.name,
+        icon: lootTemplate.icon,
+        description: lootTemplate.description,
+        rarity: lootTemplate.rarity,
+        type: lootTemplate.type,
         acquiredAt: inventoryItem.acquiredAt,
         sessionId: inventoryItem.fromSessionId.toString(),
         inventoryId: inventoryItem._id?.toString(),
-        nftLootId: nftLoot._id?.toString(),
-        mintTransactionId: nftLoot.mintTransactionId,
-        borderGradient: nftLoot.attributes?.borderGradient // User-specific gradient colors
+        nftLootId: inventoryItem.nftLootId?.toString(), // Will be undefined if not minted yet
+        borderGradient: inventoryItem.borderGradient, // User-specific gradient colors
+        isMinted: !!inventoryItem.nftLootId // True if NFT has been created
       };
     }).filter(item => item !== null); // Filter out any items not found
+
+    // For minted items, fetch the NFT details to get mint transaction ID
+    const mintedItemIds = inventoryItems
+      .filter(item => item.nftLootId)
+      .map(item => item.nftLootId!);
+
+    if (mintedItemIds.length > 0) {
+      const nftLootItems = await nftLootCollection
+        .find({ _id: { $in: mintedItemIds } })
+        .toArray();
+
+      const nftLootMap = new Map(
+        nftLootItems.map(item => [item._id!.toString(), item])
+      );
+
+      // Add mint transaction ID to minted items
+      inventory.forEach((item: any) => {
+        if (item.nftLootId) {
+          const nftLoot = nftLootMap.get(item.nftLootId);
+          if (nftLoot) {
+            item.mintTransactionId = nftLoot.mintTransactionId;
+          }
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
