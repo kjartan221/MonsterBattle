@@ -128,13 +128,52 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
       console.warn(`   Max HP: ${playerStats.maxHealth}, Damage taken: ${expectedDamage}, Healing used: ${totalHealing}`);
 
+      // End the battle session (mark as defeated, no loot)
+      const now = new Date();
+      await battleSessionsCollection.updateOne(
+        { _id: sessionObjectId },
+        {
+          $set: {
+            isDefeated: true,
+            completedAt: now
+            // No lootOptions - cheater gets nothing
+          }
+        }
+      );
+
+      // Deduct gold as penalty (10% like death)
+      const goldLossPercentage = 0.10;
+      const goldLost = Math.round(playerStats.coins * goldLossPercentage);
+      if (goldLost > 0) {
+        await playerStatsCollection.updateOne(
+          { userId },
+          {
+            $set: {
+              coins: Math.max(0, playerStats.coins - goldLost)
+            }
+          }
+        );
+      }
+
+      // Reset win streak
+      await playerStatsCollection.updateOne(
+        { userId },
+        {
+          $set: {
+            'stats.battlesWonStreak': 0
+          }
+        }
+      );
+
       return NextResponse.json({
         hpCheatDetected: true,
-        message: 'You should have been defeated by the monster! Are you manipulating your HP?',
+        message: 'You should have been defeated by the monster!\n\nYour battle session has been ended.',
         expectedDamage,
         totalHealing,
-        expectedHP
-      }, { status: 400 });
+        expectedHP,
+        goldLost,
+        streakLost: playerStats.stats.battlesWonStreak
+      }, { status: 200 }); // Return 200 so frontend handles it properly
     }
 
     // CHEAT DETECTION: If clicking too fast
@@ -208,7 +247,7 @@ export async function POST(request: NextRequest) {
         isDefeated: true,
         completedAt: now
       },
-      lootOptions, // Send the 5 loot items for user to choose from
+      lootOptions, // Send the 5 full loot items for user to choose from
       stats: {
         timeElapsed: timeInSeconds.toFixed(2),
         clickRate: clickRate.toFixed(2)

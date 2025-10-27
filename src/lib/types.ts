@@ -126,6 +126,7 @@ export interface BattleSessionFrontend {
   isDefeated: boolean;
   lootOptions?: string[];
   selectedLootId?: string;
+  usedItems?: Array<{ lootTableId: string; usedAt: Date | string }>; // Track items used during battle
   startedAt: Date | string;
   completedAt?: Date | string;
 }

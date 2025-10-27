@@ -7,15 +7,17 @@ import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
 import { getLootItemsByIds } from '@/lib/loot-table';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { useMonsterAttack } from '@/hooks/useMonsterAttack';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
+import MonsterCard from '@/components/battle/MonsterCard';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats } = usePlayer();
+  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -29,7 +31,6 @@ export default function BattlePage() {
   const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
   const [lastSavedClicks, setLastSavedClicks] = useState(0);
   const [showNextMonster, setShowNextMonster] = useState(false);
-  const [monsterAttacking, setMonsterAttacking] = useState(false); // Visual feedback for attacks
   const [battleStarted, setBattleStarted] = useState(false); // Track if user has clicked "Start Battle"
   const [defeatScreen, setDefeatScreen] = useState<{
     show: boolean;
@@ -65,30 +66,15 @@ export default function BattlePage() {
     return () => clearInterval(interval);
   }, [clicks, lastSavedClicks, session, monster, isSubmitting]);
 
-  // Monster attack loop: Deal damage every second (only after battle started)
-  useEffect(() => {
-    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted) return;
-
-    // Safety check for monster.attackDamage
-    if (typeof monster.attackDamage !== 'number' || isNaN(monster.attackDamage)) {
-      console.error('Invalid monster.attackDamage:', monster.attackDamage);
-      return;
-    }
-
-    // Monster attacks player every 1 second
-    const attackInterval = setInterval(async () => {
-      // Visual feedback: show attack animation
-      setMonsterAttacking(true);
-
-      // Deal damage to player
-      await takeDamage(monster.attackDamage);
-
-      // Reset attack animation after 300ms
-      setTimeout(() => setMonsterAttacking(false), 300);
-    }, 1000); // Attack every 1 second
-
-    return () => clearInterval(attackInterval);
-  }, [monster, session, playerStats, isSubmitting, takeDamage, battleStarted]);
+  // Monster attack loop: Use hook to handle attack interval and visual feedback
+  const { isAttacking } = useMonsterAttack({
+    monster,
+    session,
+    battleStarted,
+    isSubmitting,
+    playerStats,
+    takeDamage
+  });
 
   // Death mechanic: Watch for HP reaching 0
   useEffect(() => {
@@ -103,7 +89,7 @@ export default function BattlePage() {
   const handlePlayerDeath = async () => {
     console.log('Player has been defeated!');
 
-    if (!playerStats) return;
+    if (!playerStats || !session) return;
 
     // TODO: Replace with biome+tier specific gold loss percentage
     // This should be calculated based on the current biome and tier the player is in
@@ -122,6 +108,22 @@ export default function BattlePage() {
     // Reset win streak
     await resetStreak();
 
+    // End the battle session in the database (mark as defeated with no loot)
+    try {
+      await fetch('/api/end-battle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session._id
+        }),
+      });
+    } catch (err) {
+      console.error('Error ending battle session:', err);
+      // Continue even if this fails - player can still try again
+    }
+
     // Reset battle started state so start screen shows after death
     setBattleStarted(false);
 
@@ -133,9 +135,17 @@ export default function BattlePage() {
     });
   };
 
-  const handleDefeatContinue = () => {
+  const handleDefeatContinue = async () => {
+    // Close defeat screen
     setDefeatScreen({ show: false, goldLost: 0, streakLost: 0 });
-    router.push('/battle'); // This will restart the battle with full HP and show start screen
+
+    // Restore HP to full
+    await resetHealth();
+
+    // Start a new battle (this will fetch a new monster)
+    await startBattle();
+
+    // battleStarted is already false (set in handlePlayerDeath), so start screen will show
   };
 
 
@@ -226,7 +236,28 @@ export default function BattlePage() {
 
       const data = await response.json();
 
-      // Check for cheat detection
+      // Check for HP cheat detection (player should have died)
+      if (data.hpCheatDetected) {
+        console.warn('HP cheat detected - player should have died');
+
+        // Reset battle started state so start screen shows after defeat
+        setBattleStarted(false);
+
+        // Show defeat screen with penalties
+        setDefeatScreen({
+          show: true,
+          goldLost: data.goldLost || 0,
+          streakLost: data.streakLost || 0
+        });
+
+        // Refresh player stats to show updated gold/streak
+        await fetchPlayerStats();
+
+        toast.error('⚠️ Battle ended - HP verification failed');
+        return;
+      }
+
+      // Check for click rate cheat detection
       if (data.cheatingDetected) {
         // Reset monster HP
         setClicks(0);
@@ -248,6 +279,9 @@ export default function BattlePage() {
       } else if (data.success) {
         // Battle completed successfully
         console.log('Battle completed!', data);
+
+        // Update session with the one from API (already has isDefeated: true)
+        setSession(data.session);
 
         // Show loot selection modal
         if (data.lootOptions && data.lootOptions.length > 0) {
@@ -401,21 +435,6 @@ export default function BattlePage() {
   const progress = (clicks / monster.clicksRequired) * 100;
   const isDefeated = clicks >= monster.clicksRequired;
 
-  // Rarity colors
-  const rarityColors = {
-    common: 'from-gray-500 to-gray-600',
-    rare: 'from-blue-500 to-blue-600',
-    epic: 'from-purple-500 to-purple-600',
-    legendary: 'from-yellow-500 to-orange-600'
-  };
-
-  const rarityBorderColors = {
-    common: 'border-gray-400',
-    rare: 'border-blue-400',
-    epic: 'border-purple-400',
-    legendary: 'border-yellow-400'
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
       {/* Player Stats - Top Left */}
@@ -455,27 +474,12 @@ export default function BattlePage() {
         </div>
 
         {/* Monster Click Area */}
-        <button
-          onClick={handleClick}
-          disabled={isDefeated}
-          className={`w-72 h-72 bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl transition-all duration-150 flex items-center justify-center cursor-pointer border-4 ${rarityBorderColors[monster.rarity]} ${
-            isDefeated
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:scale-105 active:scale-95 hover:border-white/60'
-          } ${monsterAttacking ? 'animate-pulse border-red-500 shadow-red-500/50 shadow-2xl' : ''}`}
-        >
-          <div className="text-center">
-            <div className={`text-9xl mb-4 transition-transform ${monsterAttacking ? 'scale-110' : ''}`}>
-              {monster.imageUrl}
-            </div>
-            {!isDefeated && (
-              <p className="text-white text-xl font-bold">Click to Attack!</p>
-            )}
-            {isDefeated && (
-              <p className="text-white text-xl font-bold">DEFEATED!</p>
-            )}
-          </div>
-        </button>
+        <MonsterCard
+          monster={monster}
+          isAttacking={isAttacking}
+          isDefeated={isDefeated}
+          onAttack={handleClick}
+        />
 
         {/* Progress Bar */}
         <div className="w-full max-w-md">

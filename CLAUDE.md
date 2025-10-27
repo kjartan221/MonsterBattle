@@ -356,11 +356,12 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 
 ### Battle System
 
-**Flow**: Start → Attack → Defeat → Select Loot → Next Monster
+**Flow**: Start → Attack → Victory/Death → Select Loot (if victory) → Next Monster
 
 #### 1. Start Battle (`POST /api/start-battle`)
-- Checks for existing active session (resumes if found)
-- Creates new monster with random stats based on rarity
+- Checks for existing active session with `isDefeated: false` and no `completedAt`
+- If active session found: resumes with existing monster
+- If no active session: creates new monster with random stats based on rarity
 - Creates new battle session
 - Returns: `{ session, monster, isNewSession }`
 
@@ -377,11 +378,18 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 
 #### 3. Battle Completion (`POST /api/attack-monster`)
 - **Server-side time calculation**: `Date.now() - session.startedAt`
-- **Anti-cheat**: Detects click rates > 15 clicks/second
-- **Cheat punishment**: Doubles monster HP, shows warning modal
+- **Anti-cheat systems**:
+  1. **Click Rate Detection**: Detects rates > 15 clicks/second
+     - Punishment: Doubles monster HP, shows warning modal
+     - Player can retry same battle
+  2. **HP Verification**: Calculates if player should have survived monster damage
+     - Formula: `expectedHP = maxHP - (timeInSeconds × attackDamage) + healing`
+     - If expectedHP <= 0: Player should have died
+     - Punishment: End session, apply death penalties (10% gold loss, streak reset)
+     - Shows defeat screen, player must start new battle
 - **Loot generation**: 5 random items based on monster type
 - **Saves loot options** to session for persistence
-- Returns: `{ success, monster, session, lootOptions, stats }`
+- Returns: `{ success, monster, session, lootOptions, stats }` or `{ hpCheatDetected, goldLost, streakLost }` or `{ cheatingDetected, newClicksRequired }`
 
 #### 4. Loot Selection (`POST /api/select-loot`)
 - User chooses 1 of 5 loot items
@@ -401,7 +409,28 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 
 **Important**: No NFT is created at this stage. User must explicitly mint the item later (paying with BSV).
 
-#### 5. Mint NFT (`POST /api/mint-nft`)
+#### 5. Player Death (`POST /api/end-battle`)
+**Flow when player HP reaches 0**:
+1. Frontend detects `playerStats.currentHealth <= 0`
+2. `handlePlayerDeath()` executes:
+   - Calculates gold loss (10% of total, TODO: make biome/tier specific)
+   - Deducts gold from player stats
+   - Resets win streak to 0
+   - Calls `/api/end-battle` to mark session as defeated
+3. API marks session as `isDefeated: true` with `completedAt` timestamp
+4. **No loot is awarded** (no `lootOptions` or `selectedLootId`)
+5. Shows defeat screen with penalties
+6. When player clicks "Try Again":
+   - Restores HP to full
+   - Calls `startBattle()` which creates a NEW session (old one is marked defeated)
+   - Shows battle start screen with new monster
+
+**Why this matters**:
+- Without marking the session as defeated, `/api/start-battle` would resume the old session
+- Player would be stuck fighting the same monster in an endless loop
+- This ensures clean separation between battle attempts
+
+#### 6. Mint NFT (`POST /api/mint-nft`)
 - **User-initiated**: Called when user clicks "Mint as NFT" in inventory modal
 - **Validates ownership**: Verifies user owns the inventory item
 - **Checks if already minted**: Returns error if item already has nftLootId
@@ -558,8 +587,14 @@ The loot system uses a **template + instance** architecture:
 #### Anti-Cheat System
 - **Server-side time tracking**: Uses `session.startedAt` (database timestamp)
 - **Click rate validation**: Max 15 clicks/second
-- **Punishment**: Doubles monster HP on detection
-- **Client can't manipulate**: Time calculated on server only
+  - Punishment: Doubles monster HP, shows warning modal
+  - Player retries same battle with harder monster
+- **HP verification**: Calculates if player should have survived
+  - Formula: `expectedHP = maxHP - (time × attackDamage) + healing`
+  - Detects if player defeated monster despite having HP <= 0
+  - Punishment: End session, apply death penalties (10% gold loss, streak reset)
+  - Player must start new battle (prevents stuck state)
+- **Client can't manipulate**: All calculations done server-side with database timestamps
 
 #### Session Security
 - **JWT verification**: All API routes check valid token
@@ -584,6 +619,7 @@ The loot system uses a **template + instance** architecture:
 - `POST /api/start-battle` - Start new battle or resume active session
 - `POST /api/update-clicks` - Save click progress (called periodically)
 - `POST /api/attack-monster` - Submit battle completion, generate loot
+- `POST /api/end-battle` - End battle session when player dies (marks session as defeated with no loot)
 
 #### Loot
 - `POST /api/select-loot` - Save user's loot selection, add to inventory (does NOT create NFT)
