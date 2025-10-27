@@ -277,9 +277,23 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 
 **Item Creation Flow**:
 1. Fetch item template from `loot-table.ts` using `lootTableId`
-2. Create `NFTLoot` document with item data + `lootTableId` reference
+2. Create `NFTLoot` document with item data + `lootTableId` reference (without `mintTransactionId`)
 3. Create `UserInventory` document linking user to NFTLoot._id
-4. Ready for future blockchain minting (will update `mintTransactionId`)
+4. Return immediately - user can continue playing
+5. **Blockchain minting happens asynchronously** via background job
+
+**Why Async Minting?**
+- Keeps user flow fast - no waiting for blockchain transactions
+- User can continue battling immediately after selecting loot
+- NFTs are minted in background via `/api/mint-nft` route
+- UI shows "Minting..." status until `mintTransactionId` is added
+
+#### 5. Background NFT Minting (`POST /api/mint-nft`)
+- Called by background job/queue system (not by users)
+- Processes NFTLoot documents without `mintTransactionId`
+- Mints to BSV blockchain (TODO: implement BSV SDK integration)
+- Updates `mintTransactionId` field once transaction is confirmed
+- GET endpoint lists all pending mints for monitoring
 
 ---
 
@@ -359,12 +373,16 @@ The loot system uses a **template + instance** architecture:
 - **Item grid**: Responsive grid (2-6 columns based on screen size)
 - **Item cards**: Click to view detailed modal
 - **Rarity-based styling**: Color-coded borders and gradients
+- **Minting status badges**: Shows "Minting..." on items without blockchain transaction
 - **Stats section**: Shows count by rarity (common, rare, epic, legendary)
 - **Empty state**: Prompts user to start battling
 - **Navigation**: Back to Battle and Logout buttons
 
 #### InventoryDetailsModal (`src/components/inventory/InventoryDetailsModal.tsx`)
 - **Item metadata display**: Name, icon, rarity, type, description
+- **NFT Status Section**:
+  - Shows "Minting Your NFT..." with spinner for pending items
+  - Shows "Minted on Blockchain" with transaction ID for completed items
 - **Acquisition date**: Shows when item was collected
 - **Item ID**: Reference for debugging
 - **Rarity-themed styling**: Color-coded text and borders
@@ -404,12 +422,16 @@ The loot system uses a **template + instance** architecture:
 - `POST /api/attack-monster` - Submit battle completion, generate loot
 
 #### Loot
-- `POST /api/select-loot` - Save user's loot selection and add to inventory
+- `POST /api/select-loot` - Save user's loot selection, create NFTLoot + UserInventory documents
 
 #### Inventory
-- `GET /api/inventory/get` - Fetch all items in user's inventory
+- `GET /api/inventory/get` - Fetch all items in user's inventory with mint status
 
-**All routes require authentication** via JWT cookie (except `/api/login`)
+#### NFT Minting (Background)
+- `POST /api/mint-nft` - Mint single NFT to blockchain (background job only)
+- `GET /api/mint-nft` - List all pending NFTs waiting to be minted
+
+**All routes require authentication** via JWT cookie (except `/api/login` and mint-nft endpoints)
 
 ---
 

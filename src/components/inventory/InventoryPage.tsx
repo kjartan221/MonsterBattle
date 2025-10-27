@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 interface InventoryItem extends LootItem {
   acquiredAt: Date;
   sessionId: string;
+  mintTransactionId?: string;
+  nftLootId?: string;
 }
 
 export default function InventoryPage() {
@@ -155,6 +157,13 @@ export default function InventoryPage() {
                   <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
                     {item.rarity}
                   </div>
+
+                  {/* Minting status badge */}
+                  {!item.mintTransactionId && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                      Minting...
+                    </div>
+                  )}
 
                   {/* Hover effect overlay */}
                   <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

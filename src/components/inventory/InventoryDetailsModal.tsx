@@ -3,7 +3,11 @@
 import { LootItem } from '@/lib/loot-table';
 
 interface InventoryDetailsModalProps {
-  item: LootItem & { acquiredAt: Date };
+  item: LootItem & {
+    acquiredAt: Date;
+    mintTransactionId?: string;
+    nftLootId?: string;
+  };
   onClose: () => void;
 }
 
@@ -65,6 +69,34 @@ export default function InventoryDetailsModal({ item, onClose }: InventoryDetail
           <div className="pb-3 border-b border-gray-700">
             <span className="text-gray-400 text-sm font-medium block mb-2">Description</span>
             <p className="text-white text-sm leading-relaxed">{item.description}</p>
+          </div>
+
+          {/* NFT Status */}
+          <div className="pb-3 border-b border-gray-700">
+            <span className="text-gray-400 text-sm font-medium block mb-2">NFT Status</span>
+            {item.mintTransactionId ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 text-lg">✓</span>
+                  <span className="text-green-400 font-medium text-sm">Minted on Blockchain</span>
+                </div>
+                <div className="text-xs text-gray-500 font-mono break-all">
+                  TX: {item.mintTransactionId}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                <div className="flex-shrink-0">
+                  <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+                <div>
+                  <div className="text-yellow-400 font-medium text-sm">Minting Your NFT...</div>
+                  <div className="text-yellow-300/70 text-xs mt-1">
+                    Transaction is being created on the blockchain
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Acquired date */}

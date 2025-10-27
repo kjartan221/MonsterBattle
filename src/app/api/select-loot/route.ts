@@ -128,11 +128,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`📦 Added ${lootItem.name} to ${userId}'s inventory`);
 
-    // TODO: Mint NFT to blockchain and update mintTransactionId in nftLootCollection
+    // Note: Blockchain minting happens asynchronously via /api/mint-nft
+    // This keeps the user flow fast - they can continue playing while
+    // the NFT is minted in the background. The mintTransactionId will be
+    // updated later by a background job/queue system.
+    // See: src/app/api/mint-nft/route.ts
 
     return NextResponse.json({
       success: true,
-      selectedLootId: lootId
+      selectedLootId: lootId,
+      nftLootId: nftLootId.toString() // Return for potential immediate minting trigger
     });
 
   } catch (error) {
