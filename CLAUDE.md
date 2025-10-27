@@ -152,13 +152,15 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 ```typescript
 {
   _id: ObjectId,
-  userId: string,        // Unique external identifier
+  userId: string,        // BSV public key (serves as unique identifier)
   username: string,
   createdAt: Date,
   updatedAt: Date
 }
 ```
 **Indexes**: `userId` (unique), `username`
+
+**Note**: `userId` IS the BSV public key - it serves as both the unique identifier and source for generating personalized item gradients
 
 #### Monsters Collection
 ```typescript
@@ -277,10 +279,19 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 
 **Item Creation Flow**:
 1. Fetch item template from `loot-table.ts` using `lootTableId`
-2. Create `NFTLoot` document with item data + `lootTableId` reference (without `mintTransactionId`)
-3. Create `UserInventory` document linking user to NFTLoot._id
-4. Return immediately - user can continue playing
-5. **Blockchain minting happens asynchronously** via background job
+2. **Generate unique gradient colors** from user's public key (userId)
+3. Create `NFTLoot` document with item data + `lootTableId` + `borderGradient` in attributes
+4. Create `UserInventory` document linking user to NFTLoot._id
+5. Return immediately - user can continue playing
+6. **Blockchain minting happens asynchronously** via background job
+
+**Item Personalization**:
+- Each item gets a unique 2-color gradient border based on the user's public key (userId)
+- Uses `publicKeyToGradient()` utility to deterministically generate two complementary colors
+- Gradient stored in `NFTLoot.attributes.borderGradient` as `{ color1, color2 }`
+- Same user always gets the same gradient across all their items
+- Creates premium visual effect with dual-color glow
+- Makes items instantly recognizable as belonging to specific users
 
 **Why Async Minting?**
 - Keeps user flow fast - no waiting for blockchain transactions
@@ -372,7 +383,9 @@ The loot system uses a **template + instance** architecture:
 - **Treasure chest UI**: Decorative container displaying collected items
 - **Item grid**: Responsive grid (2-6 columns based on screen size)
 - **Item cards**: Click to view detailed modal
-- **Rarity-based styling**: Color-coded borders and gradients
+- **Personalized gradient borders**: Each item has unique 2-color gradient border based on user's public key
+- **Dual-color glow effects**: Subtle shadows/glows using both gradient colors
+- **Rarity-based backgrounds**: Color-coded gradients (common, rare, epic, legendary)
 - **Minting status badges**: Shows "Minting..." on items without blockchain transaction
 - **Stats section**: Shows count by rarity (common, rare, epic, legendary)
 - **Empty state**: Prompts user to start battling
@@ -380,12 +393,17 @@ The loot system uses a **template + instance** architecture:
 
 #### InventoryDetailsModal (`src/components/inventory/InventoryDetailsModal.tsx`)
 - **Item metadata display**: Name, icon, rarity, type, description
+- **Custom gradient border & glow**: Modal border uses user's unique gradient with dual-color glow effect
+- **Unique Gradient Section**:
+  - Large gradient preview bar showing both colors
+  - Individual color swatches with hex codes
+  - Both colors displayed side-by-side
+  - Label: "Generated from your public key"
 - **NFT Status Section**:
   - Shows "Minting Your NFT..." with spinner for pending items
   - Shows "Minted on Blockchain" with transaction ID for completed items
 - **Acquisition date**: Shows when item was collected
 - **Item ID**: Reference for debugging
-- **Rarity-themed styling**: Color-coded text and borders
 
 ---
 
@@ -457,6 +475,45 @@ toast.loading('Summoning monster...');
 - Battle state changes
 - Loot selection confirmation
 - Error handling (replaces inline error UI)
+
+---
+
+### Utility Functions
+
+#### publicKeyToGradient (`src/utils/publicKeyToColor.ts`)
+
+Generates deterministic, vibrant gradient colors from public key hex strings for item personalization.
+
+**Purpose**:
+- Creates unique 2-color gradient borders for each user's items
+- Ensures same user always gets same gradient (deterministic)
+- Generates visually distinct, vibrant colors suitable for dark backgrounds
+- Creates premium visual effect with complementary colors
+
+**Algorithm**:
+1. Extracts six segments from different positions in the public key hex
+2. Generates two distinct colors from different key segments
+3. For each color:
+   - Converts segments to RGB values (0-255)
+   - Applies brightness boost if color is too dark (min 80/255 average)
+   - Applies saturation boost if color is too gray (min 30% saturation)
+4. Returns object with two hex color codes
+
+**Functions**:
+- `publicKeyToGradient(publicKeyHex: string): { color1: string; color2: string }` - Gradient generator
+- `publicKeyToColor(publicKeyHex: string): string` - Backward compatible single color (returns color1)
+- `colorToRGBA(colorHex: string, opacity: number): string` - Converts to RGBA for backgrounds/glows
+
+**Example**:
+```typescript
+const publicKey = "0317aa2014cc6f42b31c54fa0bcd3d8904e40e5c5ea35d0ecee7c12d326d756d09";
+const gradient = publicKeyToGradient(publicKey);
+// Returns: { color1: "#aa8e53", color2: "#5392d4" } (deterministic)
+
+// Backward compatible:
+const color = publicKeyToColor(publicKey);
+// Returns: "#aa8e53" (just color1)
+```
 
 ---
 

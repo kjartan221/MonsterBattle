@@ -3,6 +3,7 @@ import { connectToMongo, battleSessionsCollection, userInventoryCollection, nftL
 import { verifyJWT } from '@/utils/jwt';
 import { ObjectId } from 'mongodb';
 import { getLootItemById } from '@/lib/loot-table';
+import { publicKeyToGradient } from '@/utils/publicKeyToColor';
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +101,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ User ${userId} selected loot: ${lootId} from session ${sessionId}`);
 
+    // Generate unique gradient colors from user's public key (userId)
+    // The userId IS the public key in BSV
+    const { color1, color2 } = publicKeyToGradient(userId);
+
     // Create NFTLoot document in database
     const nftLootDocument = {
       lootTableId: lootItem.lootId,
@@ -108,6 +113,9 @@ export async function POST(request: NextRequest) {
       icon: lootItem.icon,
       rarity: lootItem.rarity,
       type: lootItem.type,
+      attributes: {
+        borderGradient: { color1, color2 }, // User-specific gradient based on their public key
+      },
       createdAt: new Date(),
       // mintTransactionId will be added when NFT is minted to blockchain
     };

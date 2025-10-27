@@ -11,6 +11,7 @@ interface InventoryItem extends LootItem {
   sessionId: string;
   mintTransactionId?: string;
   nftLootId?: string;
+  borderGradient?: { color1: string; color2: string }; // User-specific gradient
 }
 
 export default function InventoryPage() {
@@ -137,11 +138,19 @@ export default function InventoryPage() {
           ) : (
             /* Items grid */
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-8">
-              {inventory.map((item, index) => (
+              {inventory.map((item, index) => {
+                // Use custom gradient border if available
+                const borderStyle = item.borderGradient ? {
+                  borderImage: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2}) 1`,
+                  boxShadow: `0 0 20px ${item.borderGradient.color1}40, 0 0 20px ${item.borderGradient.color2}40` // Dual-color glow
+                } : {};
+
+                return (
                 <button
                   key={`${item.sessionId}-${index}`}
                   onClick={() => setSelectedItem(item)}
                   className={`relative bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg border-2 p-4 hover:scale-105 hover:shadow-xl transition-all duration-200 group`}
+                  style={borderStyle}
                 >
                   {/* Item icon */}
                   <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
@@ -168,7 +177,8 @@ export default function InventoryPage() {
                   {/* Hover effect overlay */}
                   <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

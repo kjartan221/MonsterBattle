@@ -7,6 +7,7 @@ interface InventoryDetailsModalProps {
     acquiredAt: Date;
     mintTransactionId?: string;
     nftLootId?: string;
+    borderGradient?: { color1: string; color2: string }; // User-specific gradient
   };
   onClose: () => void;
 }
@@ -27,9 +28,18 @@ export default function InventoryDetailsModal({ item, onClose }: InventoryDetail
     artifact: 'Artifact'
   };
 
+  // Use custom gradient border if available
+  const modalBorderStyle = item.borderGradient ? {
+    borderImage: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2}) 1`,
+    boxShadow: `0 0 30px ${item.borderGradient.color1}60, 0 0 30px ${item.borderGradient.color2}60, 0 20px 25px -5px rgba(0, 0, 0, 0.3)` // Gradient glow + shadow
+  } : {};
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border-2 border-amber-600 max-w-md w-full p-6 shadow-2xl">
+      <div
+        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border-2 border-amber-600 max-w-md w-full p-6 shadow-2xl relative"
+        style={modalBorderStyle}
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -110,6 +120,48 @@ export default function InventoryDetailsModal({ item, onClose }: InventoryDetail
               })}
             </span>
           </div>
+
+          {/* Custom Border Gradient */}
+          {item.borderGradient && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Your Unique Gradient</span>
+              <div className="space-y-3">
+                {/* Gradient preview */}
+                <div
+                  className="w-full h-16 rounded-lg border-2"
+                  style={{
+                    background: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2})`,
+                    borderImage: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2}) 1`,
+                    boxShadow: `0 0 15px ${item.borderGradient.color1}80, 0 0 15px ${item.borderGradient.color2}80`
+                  }}
+                />
+                {/* Color codes */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded border"
+                      style={{
+                        backgroundColor: item.borderGradient.color1,
+                        boxShadow: `0 0 8px ${item.borderGradient.color1}80`
+                      }}
+                    />
+                    <div className="text-white text-xs font-mono">{item.borderGradient.color1}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded border"
+                      style={{
+                        backgroundColor: item.borderGradient.color2,
+                        boxShadow: `0 0 8px ${item.borderGradient.color2}80`
+                      }}
+                    />
+                    <div className="text-white text-xs font-mono">{item.borderGradient.color2}</div>
+                  </div>
+                </div>
+                <div className="text-gray-500 text-xs text-center">Generated from your public key</div>
+              </div>
+            </div>
+          )}
 
           {/* Item ID (for reference) */}
           <div className="pt-3 border-t border-gray-700">

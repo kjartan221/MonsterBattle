@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { WalletClient } from '@bsv/sdk';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -11,14 +12,21 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLoginWithWallet = async () => {
-    // TODO: Implement wallet login functionality
-    // For now, this will use a placeholder identity key
+    const walletClient = new WalletClient("auto", "monster-battle-game");
+    const isConnected = await walletClient.isAuthenticated();
+    if (!isConnected) {
+      toast.error('Failed to connect to your wallet');
+      return;
+    }
     setIsLoading(true);
 
     const loadingToast = toast.loading('Connecting wallet...');
 
     try {
-      const walletUserId = 'wallet_' + Math.random().toString(36).substring(7);
+      const walletUserId = await walletClient.getPublicKey({ identityKey: true });
+      if (!walletUserId) {
+        throw new Error('Failed to get wallet public key');
+      }
       const walletUsername = username.trim() || 'Wallet User';
 
       const response = await fetch('/api/login', {

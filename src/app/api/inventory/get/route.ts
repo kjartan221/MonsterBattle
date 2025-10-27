@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
         sessionId: inventoryItem.fromSessionId.toString(),
         inventoryId: inventoryItem._id?.toString(),
         nftLootId: nftLoot._id?.toString(),
-        mintTransactionId: nftLoot.mintTransactionId
+        mintTransactionId: nftLoot.mintTransactionId,
+        borderGradient: nftLoot.attributes?.borderGradient // User-specific gradient colors
       };
     }).filter(item => item !== null); // Filter out any items not found
 

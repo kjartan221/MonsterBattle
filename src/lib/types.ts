@@ -30,7 +30,7 @@ export interface NFTLoot {
   icon: string;         // Emoji icon
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact';
-  attributes?: Record<string, string | number>; // Custom NFT attributes
+  attributes?: Record<string, any>; // Custom NFT attributes (supports nested objects like borderGradient)
   mintTransactionId?: string; // BSV transaction ID when minted to blockchain
   createdAt: Date;
 }

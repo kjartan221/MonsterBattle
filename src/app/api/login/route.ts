@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToMongo, usersCollection } from '@/lib/mongodb';
 import { createJWT } from '@/utils/jwt';
-import { nanoid } from 'nanoid';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
     let user = await usersCollection.findOne({ userId });
 
     if (!user) {
-      // Create new user
+      // Create new user (userId IS the public key)
       const newUser = {
         userId,
         username,
@@ -38,7 +37,7 @@ export async function POST(request: NextRequest) {
 
       console.log('New user created:', userId);
     } else {
-      // Update username if it changed (cosmetic update)
+      // Update username if it changed
       if (user.username !== username) {
         await usersCollection.updateOne(
           { userId },
