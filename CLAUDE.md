@@ -38,6 +38,62 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 - Reference: See Phase 1, Phase 2, Phase 3 sections in GAME_DESIGN_PROPOSAL.md
 - ⏳ NFT minting to blockchain (placeholder for future BSV integration)
 
+---
+
+## 🎯 Current Implementation Progress
+
+**Last Updated**: This prompt session
+
+**Reference**: GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
+
+### ✅ Recently Completed (This Session)
+- **Phase 1.1: Player HP System with Full Restore on Win** (GAME_DESIGN_PROPOSAL.md:1063-1075)
+  - Backend: HP verification on battle completion (attack-monster route:92-138)
+  - Backend: Monster attackDamage field added to monster-table.ts
+  - Backend: usedItems tracking in BattleSession (types.ts:100)
+  - Frontend: HP display component in battle UI (PlayerStatsDisplay.tsx:16-47)
+  - Frontend: Full HP restore after battle win (BattlePage.tsx:267)
+  - Frontend: Death mechanic with streak system (BattlePage.tsx:60-103)
+    - Added battlesWonStreak field to PlayerStats (types.ts:81)
+    - Streak resets on death, increments on win
+    - Streak display with icons (🎯/⚡/🔥) (PlayerStatsDisplay.tsx:12-25)
+    - Streak multiplier for all rarities (multiplicative: 1.0x → 1.3x at 10 wins)
+      - Rare: 30% → 39% at 10 streak (loot-table.ts:175-176)
+      - Monster-specific (epic/legendary): 25%/5% → 32.5%/6.5% (loot-table.ts:150-151)
+
+- **Phase 1.2: Monster Attack Loop** (GAME_DESIGN_PROPOSAL.md:1076-1082)
+  - Backend: Monster attack damage defined in monster-table.ts (2-12 DPS)
+  - Frontend: setInterval loop to damage player every second (BattlePage.tsx:63-79)
+  - Frontend: Visual feedback for monster attacks (BattlePage.tsx:423, 426)
+    - Red pulse border and shadow on attack
+    - Monster sprite scales up during attack
+  - Frontend: Battle start screen (BattleStartScreen.tsx)
+    - Prevents immediate damage on /battle navigation
+    - Shows monster preview with "Start Battle" button
+    - Attack loop only starts after user confirmation
+    - Only displays on initial load or after death (not during Next Monster flow)
+    - Maintains battle engagement during consecutive victories
+
+### 📋 Next Steps (To Implement)
+- **Phase 1.3: Biome & Tier System** (GAME_DESIGN_PROPOSAL.md lines 959-965)
+  - 2 biomes to start: Forest (Tier 1-2), Desert (Tier 1)
+  - Circular unlock logic
+  - Tier scaling formula
+  - Map UI widget
+
+- **Phase 1.4: Equipment System** (GAME_DESIGN_PROPOSAL.md lines 967-971)
+  - Equipment slots: Weapon, Armor, 2 Accessories
+  - Basic item stats
+  - Equip/unequip UI
+
+### 📝 Instructions for Claude
+**IMPORTANT**: After completing each implementation session:
+1. Update the "Recently Completed" section with what was implemented
+2. Move the completed item from "Next Steps" to "Recently Completed"
+3. Update the "Last Updated" field
+4. Keep only the most recent 2-3 completed items in "Recently Completed"
+5. Always reference GAME_DESIGN_PROPOSAL.md line numbers for traceability
+
 ## Build and Development Commands
 
 ```bash

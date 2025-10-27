@@ -10,10 +10,11 @@ import { usePlayer } from '@/contexts/PlayerContext';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
+import BattleStartScreen from '@/components/battle/BattleStartScreen';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak } = usePlayer();
+  const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -27,6 +28,8 @@ export default function BattlePage() {
   const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
   const [lastSavedClicks, setLastSavedClicks] = useState(0);
   const [showNextMonster, setShowNextMonster] = useState(false);
+  const [monsterAttacking, setMonsterAttacking] = useState(false); // Visual feedback for attacks
+  const [battleStarted, setBattleStarted] = useState(false); // Track if user has clicked "Start Battle"
 
   useEffect(() => {
     // Start battle once player stats are loaded
@@ -56,6 +59,25 @@ export default function BattlePage() {
     return () => clearInterval(interval);
   }, [clicks, lastSavedClicks, session, monster, isSubmitting]);
 
+  // Monster attack loop: Deal damage every second (only after battle started)
+  useEffect(() => {
+    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted) return;
+
+    // Monster attacks player every 1 second
+    const attackInterval = setInterval(async () => {
+      // Visual feedback: show attack animation
+      setMonsterAttacking(true);
+
+      // Deal damage to player
+      await takeDamage(monster.attackDamage);
+
+      // Reset attack animation after 300ms
+      setTimeout(() => setMonsterAttacking(false), 300);
+    }, 1000); // Attack every 1 second
+
+    return () => clearInterval(attackInterval);
+  }, [monster, session, playerStats, isSubmitting, takeDamage, battleStarted]);
+
   // Death mechanic: Watch for HP reaching 0
   useEffect(() => {
     if (!playerStats || !session || session.isDefeated) return;
@@ -72,13 +94,16 @@ export default function BattlePage() {
     // Reset win streak
     await resetStreak();
 
+    // Reset battle started state so start screen shows after death
+    setBattleStarted(false);
+
     toast.error('You have been defeated! Your win streak has been reset.', {
       duration: 4000,
     });
 
     // Wait a moment before redirecting
     setTimeout(() => {
-      router.push('/battle'); // This will restart the battle with full HP
+      router.push('/battle'); // This will restart the battle with full HP and show start screen
     }, 2000);
   };
 
@@ -284,14 +309,20 @@ export default function BattlePage() {
     setLastSavedClicks(0);
     setIsSubmitting(false);
     setLoading(true);
+    // Keep battleStarted as true - player is already engaged in battle flow
 
     toast.loading('Summoning new monster...', { duration: 1000 });
 
     // Reset HP to full before starting new battle
     await resetHealth();
 
-    // Start a new battle
+    // Start a new battle (will immediately begin attacking since battleStarted is true)
     await startBattle();
+  };
+
+  const handleStartBattle = () => {
+    setBattleStarted(true);
+    toast.success('Battle started! Fight!', { duration: 2000 });
   };
 
   const handleLogout = async () => {
@@ -396,14 +427,16 @@ export default function BattlePage() {
         <button
           onClick={handleClick}
           disabled={isDefeated}
-          className={`w-72 h-72 bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl transition-transform duration-150 flex items-center justify-center cursor-pointer border-4 ${rarityBorderColors[monster.rarity]} ${
+          className={`w-72 h-72 bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl transition-all duration-150 flex items-center justify-center cursor-pointer border-4 ${rarityBorderColors[monster.rarity]} ${
             isDefeated
               ? 'opacity-50 cursor-not-allowed'
               : 'hover:scale-105 active:scale-95 hover:border-white/60'
-          }`}
+          } ${monsterAttacking ? 'animate-pulse border-red-500 shadow-red-500/50 shadow-2xl' : ''}`}
         >
           <div className="text-center">
-            <div className="text-9xl mb-4">{monster.imageUrl}</div>
+            <div className={`text-9xl mb-4 transition-transform ${monsterAttacking ? 'scale-110' : ''}`}>
+              {monster.imageUrl}
+            </div>
             {!isDefeated && (
               <p className="text-white text-xl font-bold">Click to Attack!</p>
             )}
@@ -488,6 +521,16 @@ export default function BattlePage() {
         lootOptions={lootOptions}
         onLootSelect={handleLootSelection}
       />
+
+      {/* Battle Start Screen - Shows before battle begins */}
+      {!battleStarted && monster && (
+        <BattleStartScreen
+          monsterName={monster.name}
+          monsterRarity={monster.rarity}
+          monsterIcon={monster.imageUrl}
+          onStartBattle={handleStartBattle}
+        />
+      )}
     </div>
   );
 }

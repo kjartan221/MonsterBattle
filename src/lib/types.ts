@@ -112,6 +112,7 @@ export interface MonsterFrontend {
   name: string;
   imageUrl: string;
   clicksRequired: number;
+  attackDamage: number;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   createdAt: Date | string;
 }
