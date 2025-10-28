@@ -73,7 +73,8 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     armor: 'Armor',
     consumable: 'Consumable',
     material: 'Material',
-    artifact: 'Artifact'
+    artifact: 'Artifact',
+    spell_scroll: 'Spell Scroll'
   };
 
   // Use custom gradient border if available

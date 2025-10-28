@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch equipped items from inventory
     const equippedItems: {
-      equippedWeapon?: { inventoryId: string; lootTableId: string };
-      equippedArmor?: { inventoryId: string; lootTableId: string };
-      equippedAccessory1?: { inventoryId: string; lootTableId: string };
-      equippedAccessory2?: { inventoryId: string; lootTableId: string };
+      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number };
+      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number };
+      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number };
+      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number };
     } = {};
 
     if (playerStats.equippedWeapon) {
@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
       if (item) {
         equippedItems.equippedWeapon = {
           inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId
+          lootTableId: item.lootTableId,
+          tier: item.tier
         };
       }
     }
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
       if (item) {
         equippedItems.equippedArmor = {
           inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId
+          lootTableId: item.lootTableId,
+          tier: item.tier
         };
       }
     }
@@ -64,7 +66,8 @@ export async function GET(request: NextRequest) {
       if (item) {
         equippedItems.equippedAccessory1 = {
           inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId
+          lootTableId: item.lootTableId,
+          tier: item.tier
         };
       }
     }
@@ -74,7 +77,8 @@ export async function GET(request: NextRequest) {
       if (item) {
         equippedItems.equippedAccessory2 = {
           inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId
+          lootTableId: item.lootTableId,
+          tier: item.tier
         };
       }
     }

@@ -557,6 +557,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       {/* Loot Selection Modal */}
       <LootSelectionModal
         lootOptions={lootOptions}
+        tier={session?.tier || 1}
         onLootSelect={handleLootSelection}
         onSkip={handleSkipLoot}
       />

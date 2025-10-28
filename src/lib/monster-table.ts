@@ -10,10 +10,99 @@ export interface MonsterTemplate {
   biomes: BiomeId[]; // Which biomes this monster can appear in
 }
 
-// Monster Templates - BASE stats for each monster type
+// Monster Templates - BASE stats for each monster type (Tier 1)
 // These will be multiplied by tier multipliers (1x, 2x, 4x, 8x, 15x)
+// Click calculations assume player starting damage ~2-3 (base 1 + weapon 1-2)
 export const MONSTER_TEMPLATES: MonsterTemplate[] = [
-  // FOREST MONSTERS
+  // ===== FOREST BIOME =====
+
+  // Forest Tier 1 - Common Monsters
+  {
+    name: 'Forest Wolf',
+    imageUrl: '🐺',
+    rarity: 'common',
+    baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks
+    baseAttackDamage: 2, // 2 HP/sec
+    biomes: ['forest']
+  },
+  {
+    name: 'Bandit Raccoon',
+    imageUrl: '🦝',
+    rarity: 'common',
+    baseClicksRange: [23, 28], // 55 HP ÷ 2 damage = 27.5 clicks
+    baseAttackDamage: 2, // 2 HP/sec, fast enemy (10% dodge)
+    biomes: ['forest']
+  },
+
+  // Forest Tier 1 - Rare Monsters
+  {
+    name: 'Wild Boar',
+    imageUrl: '🐗',
+    rarity: 'rare',
+    baseClicksRange: [35, 40], // 90 HP ÷ 2.5 damage = 36 clicks
+    baseAttackDamage: 3, // 3 HP/sec, armored (high HP), charge attack
+    biomes: ['forest']
+  },
+  {
+    name: 'Forest Sprite',
+    imageUrl: '🧚',
+    rarity: 'rare',
+    baseClicksRange: [30, 35], // 70 HP ÷ 2.5 damage = 28 clicks (but 20% dodge)
+    baseAttackDamage: 2, // 2 HP/sec, flying (20% dodge), heals at 50% HP
+    biomes: ['forest']
+  },
+
+  // Forest Tier 2 - Epic Boss
+  {
+    name: 'Treant Guardian',
+    imageUrl: '🌳',
+    rarity: 'epic',
+    baseClicksRange: [45, 50], // 150 HP for Tier 2 (scaled from T1 base)
+    baseAttackDamage: 4, // 4 HP/sec, regenerates, summons sprites
+    biomes: ['forest']
+  },
+
+  // ===== DESERT BIOME =====
+
+  // Desert Tier 1 - Common Monsters
+  {
+    name: 'Sand Scorpion',
+    imageUrl: '🦂',
+    rarity: 'common',
+    baseClicksRange: [28, 32], // 70 HP ÷ 2.5 damage = 28 clicks
+    baseAttackDamage: 3, // 3 HP/sec + poison (1 HP/sec for 5s)
+    biomes: ['desert']
+  },
+  {
+    name: 'Desert Viper',
+    imageUrl: '🐍',
+    rarity: 'common',
+    baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks (time limit: 25s)
+    baseAttackDamage: 4, // 4 HP/sec, fast (escapes after 25s)
+    biomes: ['desert']
+  },
+
+  // Desert Tier 1 - Rare Monster
+  {
+    name: 'Fire Elemental',
+    imageUrl: '🔥',
+    rarity: 'rare',
+    baseClicksRange: [35, 40], // 100 HP ÷ 3 damage = 33 clicks
+    baseAttackDamage: 3, // 3 HP/sec + burn (3 HP/sec for 4s)
+    biomes: ['desert']
+  },
+
+  // Desert Tier 1 - Epic Mini-Boss
+  {
+    name: 'Sand Djinn',
+    imageUrl: '🧞',
+    rarity: 'epic',
+    baseClicksRange: [40, 45], // 120 HP + 40 HP shield = 160 total ÷ 3.5 damage
+    baseAttackDamage: 4, // 4 HP/sec, shield mechanic, sandstorm blind
+    biomes: ['desert']
+  },
+
+  // ===== LEGACY MONSTERS (will be deprecated) =====
   {
     name: 'Goblin',
     imageUrl: '👺',
@@ -38,8 +127,6 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     baseAttackDamage: 5,
     biomes: ['forest']
   },
-
-  // DESERT MONSTERS
   {
     name: 'Orc',
     imageUrl: '👹',
@@ -57,7 +144,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     biomes: ['desert']
   },
 
-  // FUTURE MONSTERS (currently unused)
+  // ===== FUTURE MONSTERS (not yet implemented) =====
   {
     name: 'Dragon',
     imageUrl: '🐉',

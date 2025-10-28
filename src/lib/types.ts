@@ -33,7 +33,7 @@ export interface NFTLoot {
   description: string;
   icon: string;         // Emoji icon
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
   attributes?: Record<string, any>; // Custom NFT attributes (supports nested objects like borderGradient)
   mintTransactionId?: string; // BSV transaction ID when minted to blockchain
   createdAt: Date;
@@ -45,6 +45,7 @@ export interface UserInventory {
   userId: string;          // Reference to User.userId
   lootTableId: string;     // Reference to loot-table.ts lootId (e.g. "dragon_scale")
   nftLootId?: ObjectId;    // Reference to NFTLoot._id (null until user mints it)
+  tier: Tier;              // Which tier this item dropped from (1-5)
   borderGradient: { color1: string; color2: string }; // User-specific gradient (stored here, not in NFT until minted)
   acquiredAt: Date;
   fromMonsterId: ObjectId; // Reference to Monster._id

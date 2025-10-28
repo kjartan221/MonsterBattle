@@ -13,8 +13,19 @@ export interface LootItem {
   icon: string;
   description: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
   equipmentStats?: EquipmentStats; // Optional stats for equippable items
+  spellData?: SpellData; // Optional spell data for spell scrolls
+}
+
+export interface SpellData {
+  spellId: string;
+  spellName: string;
+  cooldown: number; // in seconds
+  damage?: number;
+  healing?: number;
+  duration?: number; // in seconds (for buffs/debuffs)
+  effect?: string; // description of special effects
 }
 
 // Common Loot (shared across all monsters)
@@ -98,8 +109,86 @@ const DEMON_SPECIFIC: LootItem[] = [
   { lootId: 'phoenix_feather', name: 'Phoenix Feather', icon: '🪶', description: 'Grants resurrection', rarity: 'legendary', type: 'material' },
 ];
 
+// === BIOME-SPECIFIC LOOT (Phase 1.5 & 1.6) ===
+
+// Forest Wolf & Bandit Raccoon Specific Loot (Forest Tier 1, Common Monsters)
+const FOREST_WOLF_SPECIFIC: LootItem[] = [
+  { lootId: 'wolf_pelt', name: 'Wolf Pelt', icon: '🐺', description: 'Soft and warm fur', rarity: 'common', type: 'material' },
+  { lootId: 'wolf_fang', name: 'Wolf Fang', icon: '🦷', description: 'Sharp canine tooth', rarity: 'common', type: 'material' },
+  { lootId: 'leather_vest', name: 'Leather Vest', icon: '🧥', description: 'Basic protective gear', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 5 } },
+  { lootId: 'hunter_dagger', name: 'Hunter\'s Dagger', icon: '🗡️', description: 'A reliable hunting blade', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 3 } },
+  { lootId: 'stolen_coin', name: 'Stolen Gold', icon: '🪙', description: 'Ill-gotten gains', rarity: 'common', type: 'material' },
+  { lootId: 'bandana', name: 'Bandit Bandana', icon: '🏴', description: 'Worn by forest outlaws', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 10 } },
+  { lootId: 'lockpick_set', name: 'Lockpicks', icon: '🔓', description: 'Opens treasure chests', rarity: 'common', type: 'material' },
+];
+
+// Wild Boar Specific Loot (Forest Tier 1, Rare Monster)
+const WILD_BOAR_SPECIFIC: LootItem[] = [
+  { lootId: 'boar_hide', name: 'Boar Hide', icon: '🐗', description: 'Thick and tough leather', rarity: 'rare', type: 'material' },
+  { lootId: 'boar_tusk', name: 'Boar Tusk', icon: '🦷', description: 'Curved ivory horn', rarity: 'rare', type: 'material' },
+  { lootId: 'heavy_armor', name: 'Heavy Leather Armor', icon: '🛡️', description: 'Reinforced protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 10 } },
+  { lootId: 'charging_boots', name: 'Charging Boots', icon: '👢', description: 'Enables quick strikes', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 5 } },
+  { lootId: 'health_potion_forest', name: 'Forest Potion', icon: '🧪', description: 'Restore 30 HP', rarity: 'rare', type: 'consumable' },
+];
+
+// Forest Sprite Specific Loot (Forest Tier 1, Rare Monster)
+const FOREST_SPRITE_SPECIFIC: LootItem[] = [
+  { lootId: 'pixie_dust', name: 'Pixie Dust', icon: '✨', description: 'Sparkles with magic', rarity: 'rare', type: 'material' },
+  { lootId: 'fairy_wing', name: 'Fairy Wing', icon: '🧚', description: 'Translucent and delicate', rarity: 'rare', type: 'material' },
+  { lootId: 'nature_staff', name: 'Nature Staff', icon: '🪄', description: 'Channel nature\'s power', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 5 } },
+  { lootId: 'sprite_ring', name: 'Sprite Ring', icon: '💍', description: 'Enhances agility', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 8 } },
+  { lootId: 'mana_elixir', name: 'Mana Elixir', icon: '⚗️', description: 'Restore 20 HP + remove 1 debuff', rarity: 'rare', type: 'consumable' },
+];
+
+// Treant Guardian Specific Loot (Forest Tier 2, Epic Boss)
+const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
+  { lootId: 'ancient_bark', name: 'Ancient Bark', icon: '🌳', description: 'Infused with life energy', rarity: 'epic', type: 'material' },
+  { lootId: 'living_wood', name: 'Living Wood', icon: '🪵', description: 'Pulses with vitality', rarity: 'epic', type: 'material' },
+  { lootId: 'treant_heart', name: 'Treant Heart', icon: '❤️', description: 'Still beating with nature magic', rarity: 'epic', type: 'material' },
+  { lootId: 'guardian_armor', name: 'Guardian\'s Bark Armor', icon: '🛡️', description: 'Nature\'s protection', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 20 } },
+  { lootId: 'nature_blade', name: 'Nature\'s Wrath', icon: '🗡️', description: 'Living weapon', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 8 } },
+  { lootId: 'forest_crown', name: 'Crown of the Forest', icon: '👑', description: 'Blessed by the ancients', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, coinBonus: 10 } },
+  { lootId: 'spell_scroll_heal', name: 'Minor Heal Scroll', icon: '📜', description: 'Unlocks Minor Heal spell', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Minor Heal', cooldown: 15, healing: 20 } },
+];
+
+// Sand Scorpion Specific Loot (Desert Tier 1, Common Monster)
+const SAND_SCORPION_SPECIFIC: LootItem[] = [
+  { lootId: 'scorpion_tail', name: 'Scorpion Tail', icon: '🦂', description: 'Contains venom sac', rarity: 'common', type: 'material' },
+  { lootId: 'chitin_shard', name: 'Chitin Shard', icon: '🪨', description: 'Hard exoskeleton piece', rarity: 'common', type: 'material' },
+  { lootId: 'desert_cloth', name: 'Desert Wraps', icon: '🧣', description: 'Protects from heat and venom', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 6 } },
+  { lootId: 'venom_dagger', name: 'Venom Blade', icon: '🗡️', description: 'Coated with poison', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2 } },
+];
+
+// Desert Viper Specific Loot (Desert Tier 1, Common Monster)
+const DESERT_VIPER_SPECIFIC: LootItem[] = [
+  { lootId: 'snake_skin', name: 'Snake Skin', icon: '🐍', description: 'Shed scales', rarity: 'common', type: 'material' },
+  { lootId: 'viper_fang', name: 'Viper Fang', icon: '🦷', description: 'Drips with venom', rarity: 'rare', type: 'material' },
+  { lootId: 'speed_boots', name: 'Sandstorm Boots', icon: '👟', description: 'Swift as the desert wind', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 8 } },
+  { lootId: 'antidote', name: 'Antidote Vial', icon: '🧪', description: 'Remove poison/burn effects', rarity: 'common', type: 'consumable' },
+];
+
+// Fire Elemental Specific Loot (Desert Tier 1, Rare Monster)
+const FIRE_ELEMENTAL_SPECIFIC: LootItem[] = [
+  { lootId: 'fire_essence', name: 'Fire Essence', icon: '🔥', description: 'Captured flame', rarity: 'rare', type: 'material' },
+  { lootId: 'ember_core', name: 'Ember Core', icon: '⚫', description: 'Heart of a fire spirit', rarity: 'rare', type: 'material' },
+  { lootId: 'flame_sword_desert', name: 'Flame Sword', icon: '🗡️', description: 'Blade wreathed in fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
+  { lootId: 'fire_resist_charm', name: 'Flame Ward Amulet', icon: '📿', description: 'Protects from fire', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 5 } },
+  { lootId: 'fire_potion', name: 'Fire Resistance Potion', icon: '🧪', description: 'Immune to burn for 30s', rarity: 'rare', type: 'consumable' },
+];
+
+// Sand Djinn Specific Loot (Desert Tier 1, Epic Mini-Boss)
+const SAND_DJINN_SPECIFIC: LootItem[] = [
+  { lootId: 'djinn_essence', name: 'Djinn Essence', icon: '🧞', description: 'Bottled magic', rarity: 'epic', type: 'material' },
+  { lootId: 'desert_gem', name: 'Desert Sapphire', icon: '💎', description: 'Shimmers with heat', rarity: 'epic', type: 'material' },
+  { lootId: 'djinn_scimitar', name: 'Djinn\'s Scimitar', icon: '⚔️', description: 'Curved blade of legend', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 12, attackSpeed: 5 } },
+  { lootId: 'sand_armor', name: 'Djinn\'s Sand Armor', icon: '🛡️', description: 'Flows like sand', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 15 } },
+  { lootId: 'mirage_cloak', name: 'Mirage Cloak', icon: '🧥', description: 'Bends light around wearer', rarity: 'epic', type: 'artifact', equipmentStats: { coinBonus: 15 } },
+  { lootId: 'spell_scroll_fireball', name: 'Fireball Scroll', icon: '📜', description: 'Unlocks Fireball spell', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'fireball', spellName: 'Fireball', cooldown: 30, damage: 80, effect: 'Fire damage' } },
+];
+
 // Monster name to monster-specific loot mapping
 const MONSTER_SPECIFIC_LOOT: Record<string, LootItem[]> = {
+  // Legacy monsters (will be phased out)
   'Goblin': GOBLIN_ORC_SPECIFIC,
   'Orc': GOBLIN_ORC_SPECIFIC,
   'Zombie': ZOMBIE_SPECIFIC,
@@ -108,14 +197,43 @@ const MONSTER_SPECIFIC_LOOT: Record<string, LootItem[]> = {
   'Dragon': DRAGON_VAMPIRE_SPECIFIC,
   'Vampire': DRAGON_VAMPIRE_SPECIFIC,
   'Demon': DEMON_SPECIFIC,
+
+  // Forest Biome Monsters
+  'Forest Wolf': FOREST_WOLF_SPECIFIC,
+  'Bandit Raccoon': FOREST_WOLF_SPECIFIC, // Shares with Forest Wolf
+  'Wild Boar': WILD_BOAR_SPECIFIC,
+  'Forest Sprite': FOREST_SPRITE_SPECIFIC,
+  'Treant Guardian': TREANT_GUARDIAN_SPECIFIC,
+
+  // Desert Biome Monsters
+  'Sand Scorpion': SAND_SCORPION_SPECIFIC,
+  'Desert Viper': DESERT_VIPER_SPECIFIC,
+  'Fire Elemental': FIRE_ELEMENTAL_SPECIFIC,
+  'Sand Djinn': SAND_DJINN_SPECIFIC,
 };
 
 // Create a map of all loot items for easy lookup by lootId
 const ALL_LOOT_ITEMS_MAP = new Map<string, LootItem>();
 
 // Populate the map with all loot items
-[...COMMON_LOOT, ...RARE_LOOT, ...GOBLIN_ORC_SPECIFIC, ...ZOMBIE_SPECIFIC,
- ...TROLL_GHOST_SPECIFIC, ...DRAGON_VAMPIRE_SPECIFIC, ...DEMON_SPECIFIC].forEach(item => {
+[
+  ...COMMON_LOOT,
+  ...RARE_LOOT,
+  ...GOBLIN_ORC_SPECIFIC,
+  ...ZOMBIE_SPECIFIC,
+  ...TROLL_GHOST_SPECIFIC,
+  ...DRAGON_VAMPIRE_SPECIFIC,
+  ...DEMON_SPECIFIC,
+  // Biome-specific items
+  ...FOREST_WOLF_SPECIFIC,
+  ...WILD_BOAR_SPECIFIC,
+  ...FOREST_SPRITE_SPECIFIC,
+  ...TREANT_GUARDIAN_SPECIFIC,
+  ...SAND_SCORPION_SPECIFIC,
+  ...DESERT_VIPER_SPECIFIC,
+  ...FIRE_ELEMENTAL_SPECIFIC,
+  ...SAND_DJINN_SPECIFIC,
+].forEach(item => {
   ALL_LOOT_ITEMS_MAP.set(item.lootId, item);
 });
 

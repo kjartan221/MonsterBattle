@@ -5,10 +5,12 @@ import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
 import { getLootItemById, LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import { colorToRGBA } from '@/utils/publicKeyToColor';
+import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 
 interface UserInventoryItem {
   _id: string;
   lootTableId: string;
+  tier: number;
   borderGradient: { color1: string; color2: string };
   acquiredAt: string;
 }
@@ -90,6 +92,7 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
       const mappedItems: UserInventoryItem[] = filteredItems.map((item: any) => ({
         _id: item.inventoryId,
         lootTableId: item.lootId,
+        tier: item.tier,
         borderGradient: item.borderGradient,
         acquiredAt: item.acquiredAt
       }));
@@ -185,7 +188,7 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
 
         {/* Currently Equipped */}
         {currentlyEquipped && (
-          <div className="px-6 py-4 bg-gray-800/50 border-b border-gray-700">
+          <div className="relative px-6 py-4 bg-gray-800/50 border-b border-gray-700">
             <div className="text-sm text-gray-400 mb-2">Currently Equipped:</div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -212,6 +215,11 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
               >
                 {isEquipping ? 'Unequipping...' : 'Unequip'}
               </button>
+            </div>
+
+            {/* Tier badge (bottom left corner) */}
+            <div className={getTierBadgeClassName()}>
+              {tierToRoman(currentlyEquipped.tier)}
             </div>
           </div>
         )}
@@ -240,7 +248,7 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                     onClick={() => !isCurrentlyEquipped && handleEquip(item._id, item.lootTableId)}
                     disabled={isEquipping || isCurrentlyEquipped}
                     className={`
-                      p-4 rounded-lg border-2 transition-all text-left
+                      relative p-4 rounded-lg border-2 transition-all text-left
                       ${isCurrentlyEquipped ? 'border-green-500 bg-green-900/30 cursor-default' : 'border-gray-700 hover:border-blue-500 hover:bg-gray-800/70 cursor-pointer'}
                       ${isEquipping ? 'opacity-50 cursor-not-allowed' : ''}
                       bg-gradient-to-br ${getRarityBgGradient(lootItem.rarity)}
@@ -278,6 +286,11 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                         ✓ Currently Equipped
                       </div>
                     )}
+
+                    {/* Tier badge (bottom left corner) */}
+                    <div className={getTierBadgeClassName()}>
+                      {tierToRoman(item.tier)}
+                    </div>
                   </button>
                 );
               })}

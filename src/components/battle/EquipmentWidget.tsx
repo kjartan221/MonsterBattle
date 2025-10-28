@@ -2,6 +2,7 @@
 
 import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
 import { useState } from 'react';
+import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 
 interface EquipmentWidgetProps {
   onSlotClick: (slot: EquipmentSlot) => void;
@@ -19,7 +20,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           icon: equippedWeapon?.lootItem.icon || '⚔️',
           name: equippedWeapon?.lootItem.name || 'Empty',
           isEmpty: !equippedWeapon,
-          rarity: equippedWeapon?.lootItem.rarity
+          rarity: equippedWeapon?.lootItem.rarity,
+          tier: equippedWeapon?.tier
         };
       case 'armor':
         return {
@@ -27,7 +29,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           icon: equippedArmor?.lootItem.icon || '🛡️',
           name: equippedArmor?.lootItem.name || 'Empty',
           isEmpty: !equippedArmor,
-          rarity: equippedArmor?.lootItem.rarity
+          rarity: equippedArmor?.lootItem.rarity,
+          tier: equippedArmor?.tier
         };
       case 'accessory1':
         return {
@@ -35,7 +38,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           icon: equippedAccessory1?.lootItem.icon || '💍',
           name: equippedAccessory1?.lootItem.name || 'Empty',
           isEmpty: !equippedAccessory1,
-          rarity: equippedAccessory1?.lootItem.rarity
+          rarity: equippedAccessory1?.lootItem.rarity,
+          tier: equippedAccessory1?.tier
         };
       case 'accessory2':
         return {
@@ -43,7 +47,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           icon: equippedAccessory2?.lootItem.icon || '📿',
           name: equippedAccessory2?.lootItem.name || 'Empty',
           isEmpty: !equippedAccessory2,
-          rarity: equippedAccessory2?.lootItem.rarity
+          rarity: equippedAccessory2?.lootItem.rarity,
+          tier: equippedAccessory2?.tier
         };
     }
   };
@@ -94,7 +99,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
                 onClick={() => onSlotClick(slot)}
                 disabled={disabled}
                 className={`
-                  w-full flex items-center gap-3 p-2 rounded border-2 transition-all
+                  relative w-full flex items-center gap-3 p-2 rounded border-2 transition-all
                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 cursor-pointer'}
                   ${slotData.isEmpty ? 'border-gray-700 bg-gray-900/50' : `${getRarityColor(slotData.rarity)} bg-gray-800/70`}
                 `}
@@ -113,6 +118,13 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
                 {/* Change Icon */}
                 {!disabled && (
                   <div className="text-gray-500 text-sm">›</div>
+                )}
+
+                {/* Tier badge (bottom left corner) */}
+                {!slotData.isEmpty && slotData.tier && (
+                  <div className={getTierBadgeClassName()}>
+                    {tierToRoman(slotData.tier)}
+                  </div>
                 )}
               </button>
             );

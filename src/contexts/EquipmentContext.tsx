@@ -8,6 +8,7 @@ export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
 export interface EquippedItem {
   inventoryId: string; // UserInventory._id
   lootTableId: string;
+  tier: number; // Which tier this item is (1-5)
   slot: EquipmentSlot;
   lootItem: LootItem; // Full item data from loot-table
 }
@@ -51,6 +52,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
           setEquippedWeapon({
             inventoryId: data.equippedWeapon.inventoryId,
             lootTableId: data.equippedWeapon.lootTableId,
+            tier: data.equippedWeapon.tier,
             slot: 'weapon',
             lootItem
           });
@@ -65,6 +67,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
           setEquippedArmor({
             inventoryId: data.equippedArmor.inventoryId,
             lootTableId: data.equippedArmor.lootTableId,
+            tier: data.equippedArmor.tier,
             slot: 'armor',
             lootItem
           });
@@ -79,6 +82,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
           setEquippedAccessory1({
             inventoryId: data.equippedAccessory1.inventoryId,
             lootTableId: data.equippedAccessory1.lootTableId,
+            tier: data.equippedAccessory1.tier,
             slot: 'accessory1',
             lootItem
           });
@@ -93,6 +97,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
           setEquippedAccessory2({
             inventoryId: data.equippedAccessory2.inventoryId,
             lootTableId: data.equippedAccessory2.lootTableId,
+            tier: data.equippedAccessory2.tier,
             slot: 'accessory2',
             lootItem
           });
@@ -130,6 +135,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
         const equippedItem: EquippedItem = {
           inventoryId,
           lootTableId,
+          tier: 1, // Placeholder - will be updated by refreshEquipment()
           slot,
           lootItem
         };

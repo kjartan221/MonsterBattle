@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { LootItem } from '@/lib/loot-table';
 import InventoryDetailsModal from './InventoryDetailsModal';
 import toast from 'react-hot-toast';
+import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 
 interface InventoryItem extends LootItem {
+  tier: number; // Which tier this item dropped from (1-5)
   acquiredAt: Date;
   sessionId: string;
   inventoryId: string;
@@ -169,6 +171,11 @@ export default function InventoryPage() {
                     {/* Rarity badge */}
                     <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
                       {item.rarity}
+                    </div>
+
+                    {/* Tier badge (bottom left corner) */}
+                    <div className={getTierBadgeClassName()}>
+                      {tierToRoman(item.tier)}
                     </div>
 
                     {/* Minting status badge */}

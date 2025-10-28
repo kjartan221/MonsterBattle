@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         description: lootTemplate.description,
         rarity: lootTemplate.rarity,
         type: lootTemplate.type,
+        tier: inventoryItem.tier, // Which tier this item dropped from (1-5)
         acquiredAt: inventoryItem.acquiredAt,
         sessionId: inventoryItem.fromSessionId.toString(),
         inventoryId: inventoryItem._id?.toString(),

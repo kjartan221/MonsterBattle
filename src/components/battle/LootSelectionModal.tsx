@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import type { LootItem } from '@/lib/loot-table';
+import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 
 interface LootSelectionModalProps {
   lootOptions: LootItem[] | null;
+  tier: number; // Which tier these items dropped from (1-5)
   onLootSelect: (loot: LootItem) => void;
   onSkip: () => void;
 }
 
-export default function LootSelectionModal({ lootOptions, onLootSelect, onSkip }: LootSelectionModalProps) {
+export default function LootSelectionModal({ lootOptions, tier, onLootSelect, onSkip }: LootSelectionModalProps) {
   const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
 
   if (!lootOptions || lootOptions.length === 0) return null;
@@ -67,7 +69,7 @@ export default function LootSelectionModal({ lootOptions, onLootSelect, onSkip }
                 key={loot.lootId}
                 onClick={() => handleSelection(loot)}
                 disabled={!!selectedLoot}
-                className={`bg-gradient-to-br ${rarityBg[loot.rarity]} border-4 ${rarityBorder[loot.rarity]} rounded-xl p-6 transition-all duration-300 ${
+                className={`relative bg-gradient-to-br ${rarityBg[loot.rarity]} border-4 ${rarityBorder[loot.rarity]} rounded-xl p-6 transition-all duration-300 ${
                   isSelected
                     ? `scale-110 ${rarityGlow[loot.rarity]} shadow-2xl`
                     : selectedLoot
@@ -75,6 +77,11 @@ export default function LootSelectionModal({ lootOptions, onLootSelect, onSkip }
                     : 'hover:scale-105 hover:shadow-xl cursor-pointer'
                 }`}
               >
+                {/* Tier badge (bottom left corner) */}
+                <div className={getTierBadgeClassName()}>
+                  {tierToRoman(tier)}
+                </div>
+
                 <div className="text-center">
                   <div className="text-6xl mb-3">{loot.icon}</div>
                   <h3 className="text-xl font-bold text-white mb-2">
