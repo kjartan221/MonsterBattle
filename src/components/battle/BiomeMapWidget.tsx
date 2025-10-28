@@ -58,61 +58,63 @@ export default function BiomeMapWidget({
   };
 
   return (
-    <div className="fixed top-32 left-4 z-50">
+    <div className="fixed top-32 sm:top-36 left-2 sm:left-4 z-50 w-[calc(100vw-1rem)] sm:w-auto max-w-[320px]">
       {/* Collapsed View - Show current biome */}
       {!isExpanded && selectedBiome && selectedTier && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="bg-gray-900/95 border-2 border-gray-700 rounded-lg px-4 py-3 shadow-xl hover:border-blue-500 transition-colors cursor-pointer"
+          className="bg-gray-900/95 border-2 border-gray-700 rounded-lg px-5 py-4 shadow-xl hover:border-blue-500 transition-colors cursor-pointer w-full sm:w-[320px]"
         >
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{BIOMES[selectedBiome].icon}</span>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-gray-200">
-                {BIOMES[selectedBiome].name}
-              </div>
-              <div className="text-xs text-gray-400">
-                Tier {selectedTier}
+          <div className="flex items-center gap-3 justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{BIOMES[selectedBiome].icon}</span>
+              <div className="text-left">
+                <div className="text-base font-semibold text-gray-200">
+                  {BIOMES[selectedBiome].name}
+                </div>
+                <div className="text-sm text-gray-400">
+                  Tier {selectedTier}
+                </div>
               </div>
             </div>
-            <span className="text-gray-500 ml-2">▼</span>
+            <span className="text-gray-500 text-lg">▼</span>
           </div>
         </button>
       )}
 
       {/* Expanded View - Show all biomes and tiers */}
       {isExpanded && (
-        <div className="bg-gray-900/98 border-2 border-gray-700 rounded-lg shadow-2xl overflow-hidden">
+        <div className="bg-gray-900/98 border-2 border-gray-700 rounded-lg shadow-2xl overflow-hidden w-full sm:w-[320px]">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 px-5 py-4 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xl">🗺️</span>
-              <span className="text-sm font-bold text-gray-100">World Map</span>
+              <span className="text-2xl">🗺️</span>
+              <span className="text-base font-bold text-gray-100">World Map</span>
             </div>
             <button
               onClick={() => setIsExpanded(false)}
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer text-xl"
             >
               ✕
             </button>
           </div>
 
           {/* Biome List */}
-          <div className="max-h-[500px] overflow-y-auto p-3 space-y-3">
+          <div className="max-h-[calc(100vh-16rem)] sm:max-h-[500px] overflow-y-auto p-4 space-y-4">
             {Object.values(BIOMES).map((biome) => {
               // Skip biomes that aren't implemented yet (maxTier = 0)
               if (biome.maxTier === 0) return null;
 
               return (
-                <div key={biome.id} className="border border-gray-700 rounded-lg p-3 bg-gray-800/50">
+                <div key={biome.id} className="border border-gray-700 rounded-lg p-4 bg-gray-800/50">
                   {/* Biome Header */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">{biome.icon}</span>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-3xl">{biome.icon}</span>
                     <div>
-                      <div className="text-sm font-semibold text-gray-200">
+                      <div className="text-base font-semibold text-gray-200">
                         {biome.name}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-sm text-gray-500">
                         {biome.description}
                       </div>
                     </div>
@@ -130,7 +132,7 @@ export default function BiomeMapWidget({
                           onClick={() => handleBiomeTierClick(biome.id, tier as Tier)}
                           disabled={isDisabled}
                           className={`
-                            px-3 py-1.5 text-xs font-medium rounded transition-all
+                            px-4 py-2 text-sm font-medium rounded transition-all
                             ${status === 'current' ? 'bg-blue-600 text-white border-2 border-blue-400 shadow-lg shadow-blue-500/50' : ''}
                             ${status === 'unlocked' ? 'bg-green-900/50 text-green-200 border border-green-700 hover:bg-green-800/70 hover:border-green-500 hover:cursor-pointer' : ''}
                             ${status === 'locked' ? 'bg-gray-800 text-gray-600 border border-gray-700 cursor-not-allowed' : ''}
@@ -157,7 +159,7 @@ export default function BiomeMapWidget({
           </div>
 
           {/* Footer Instructions */}
-          <div className="bg-gray-800/50 px-4 py-2 border-t border-gray-700 text-xs text-gray-400">
+          <div className="bg-gray-800/50 px-5 py-3 border-t border-gray-700 text-sm text-gray-400">
             {disabled ? (
               <span className="text-yellow-400">⚠️ Complete current battle to change zones</span>
             ) : (

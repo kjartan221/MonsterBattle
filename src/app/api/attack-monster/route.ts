@@ -78,10 +78,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate time elapsed from server-side session.startedAt
-    // This prevents client-side time manipulation
+    // Calculate time elapsed from server-side actualBattleStartedAt (or startedAt as fallback)
+    // actualBattleStartedAt is set when user clicks "Start Battle" button
+    // This prevents client-side time manipulation and excludes time spent on start screen
     const currentTime = Date.now();
-    const startTime = new Date(session.startedAt).getTime();
+    const startTime = session.actualBattleStartedAt
+      ? new Date(session.actualBattleStartedAt).getTime()
+      : new Date(session.startedAt).getTime();
     const timeElapsed = currentTime - startTime;
     const timeInSeconds = timeElapsed / 1000;
 

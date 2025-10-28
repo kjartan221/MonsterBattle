@@ -105,7 +105,8 @@ export interface BattleSession {
   lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
   selectedLootId?: string; // The lootId the user chose
   usedItems: Array<{ lootTableId: string; usedAt: Date }>; // Track items used during battle (for HP verification)
-  startedAt: Date;
+  startedAt: Date; // When session was created (monster spawned)
+  actualBattleStartedAt?: Date; // When user clicked "Start Battle" button (for HP verification)
   completedAt?: Date;
 }
 
@@ -137,5 +138,6 @@ export interface BattleSessionFrontend {
   selectedLootId?: string;
   usedItems?: Array<{ lootTableId: string; usedAt: Date | string }>; // Track items used during battle
   startedAt: Date | string;
+  actualBattleStartedAt?: Date | string; // When user clicked "Start Battle" button
   completedAt?: Date | string;
 }

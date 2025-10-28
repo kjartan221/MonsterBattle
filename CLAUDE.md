@@ -47,20 +47,6 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 **Reference**: GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
-- **Phase 1.1: Player HP System with Full Restore on Win** (GAME_DESIGN_PROPOSAL.md:1063-1075)
-  - Backend: HP verification on battle completion (attack-monster route:92-138)
-  - Backend: Monster attackDamage field added to monster-table.ts
-  - Backend: usedItems tracking in BattleSession (types.ts:100)
-  - Frontend: HP display component in battle UI (PlayerStatsDisplay.tsx:16-47)
-  - Frontend: Full HP restore after battle win (BattlePage.tsx:267)
-  - Frontend: Death mechanic with streak system (BattlePage.tsx:60-103)
-    - Added battlesWonStreak field to PlayerStats (types.ts:81)
-    - Streak resets on death, increments on win
-    - Streak display with icons (🎯/⚡/🔥) (PlayerStatsDisplay.tsx:12-25)
-    - Streak multiplier for all rarities (multiplicative: 1.0x → 1.3x at 10 wins)
-      - Rare: 30% → 39% at 10 streak (loot-table.ts:175-176)
-      - Monster-specific (epic/legendary): 25%/5% → 32.5%/6.5% (loot-table.ts:150-151)
-
 - **Phase 1.2: Monster Attack Loop** (GAME_DESIGN_PROPOSAL.md:1076-1082)
   - Backend: Monster attack damage defined in monster-table.ts (2-12 DPS)
   - Frontend: setInterval loop to damage player every second (BattlePage.tsx:63-79)
@@ -81,17 +67,65 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - "Try Again" button restarts battle
     - Gold loss mechanism (BattlePage.tsx:108-120)
 
-### 📋 Next Steps (To Implement)
-- **Phase 1.3: Biome & Tier System** (GAME_DESIGN_PROPOSAL.md lines 959-965)
-  - 2 biomes to start: Forest (Tier 1-2), Desert (Tier 1)
-  - Circular unlock logic
-  - Tier scaling formula
-  - Map UI widget
+- **Phase 1.3: Biome & Tier System** (GAME_DESIGN_PROPOSAL.md:959-965)
+  - Backend: Biome configuration system (biome-config.ts)
+    - BiomeId type: 'forest' | 'desert' | 'ocean' | 'volcano' | 'castle'
+    - Tier type: 1-5 with multipliers (1x, 2x, 4x, 8x, 15x)
+    - BIOMES config with maxTier and monster lists
+    - Helper functions: getNextUnlock(), applyTierScaling(), formatBiomeTierKey()
+  - Backend: Monster organization by biome (monster-table.ts)
+    - MonsterTemplate with biomes array and base stats
+    - Tier scaling for clicksRequired and attackDamage
+    - getRandomMonsterTemplateForBiome() function
+  - Backend: Updated types.ts with biome/tier fields (Monster, BattleSession)
+  - Backend: start-battle API validates unlocked zones and creates monsters with tier scaling
+  - Backend: attack-monster API unlocks next biome/tier in circular progression
+  - Frontend: BiomeContext with localStorage persistence (BiomeContext.tsx)
+  - Frontend: BiomeMapWidget component (BiomeMapWidget.tsx)
+    - Collapsed/expanded views with current biome display
+    - Visual indicators: current (blue), unlocked (green), locked (gray)
+    - Click to select unlocked biome/tiers
+    - Mobile responsive design (320px width, adjustable on small screens)
+  - Frontend: Integration with BattlePage using useBiome() hook
+  - Frontend: PlayerStatsDisplay mobile responsive updates (320px width match)
 
-- **Phase 1.4: Equipment System** (GAME_DESIGN_PROPOSAL.md lines 967-971)
-  - Equipment slots: Weapon, Armor, 2 Accessories
-  - Basic item stats
-  - Equip/unequip UI
+- **Phase 1.4: Equipment System** (GAME_DESIGN_PROPOSAL.md:967-971)
+  - Backend: Equipment slot fields in PlayerStats (types.ts:64-68)
+    - equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2
+    - Store ObjectId references to UserInventory items
+  - Backend: EquipmentStats interface in loot-table.ts
+    - damageBonus, critChance, hpReduction, maxHpBonus, attackSpeed, coinBonus
+    - Added equipmentStats to 20+ equippable items across all rarities
+  - Backend: API routes for equipment management
+    - GET /api/equipment/get - Fetch equipped items
+    - POST /api/equipment/equip - Equip item to slot with validation
+    - POST /api/equipment/unequip - Unequip item from slot
+  - Frontend: EquipmentContext with React Context (EquipmentContext.tsx)
+    - Global state for equipped items
+    - equipItem(), unequipItem(), refreshEquipment() functions
+    - Optimistic UI updates with server confirmation
+  - Frontend: EquipmentWidget component (EquipmentWidget.tsx)
+    - Positioned left middle, under BiomeMapWidget (top: 380px)
+    - Shows 4 equipment slots with icons and names
+    - Click to open selection modal
+    - Rarity-colored borders for equipped items
+    - Mobile responsive (320px width)
+  - Frontend: EquipmentSelectionModal component (EquipmentSelectionModal.tsx)
+    - Filters inventory items by slot type (weapon/armor/artifact)
+    - Shows currently equipped item with Unequip button
+    - Grid display of available items with equipment stats
+    - User-specific gradient borders on item cards
+    - Equip/unequip functionality with toast notifications
+  - Frontend: Integration with BattlePage
+    - Added EquipmentProvider to layout.tsx
+    - Equipment widget disabled during battle submission
+
+### 📋 Next Steps (To Implement)
+- **Phase 1.5: Player Progression** (GAME_DESIGN_PROPOSAL.md lines 973-977)
+  - Player stats: Level, XP, Coins, Base Damage
+  - Leveling: Defeat monsters to gain XP
+  - Tier unlocking: Player level determines accessible tiers
+  - Basic loot table: 10-15 items across common/rare/epic
 
 ### 📝 Instructions for Claude
 **IMPORTANT**: After completing each implementation session:

@@ -10,6 +10,7 @@ import { BiomeId, Tier, getBiomeTierDisplayName } from '@/lib/biome-config';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
+import { EquipmentSlot } from '@/contexts/EquipmentContext';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
@@ -17,6 +18,8 @@ import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterCard from '@/components/battle/MonsterCard';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
+import EquipmentWidget from '@/components/battle/EquipmentWidget';
+import EquipmentSelectionModal from '@/components/battle/EquipmentSelectionModal';
 
 export default function BattlePage() {
   const router = useRouter();
@@ -41,6 +44,10 @@ export default function BattlePage() {
     goldLost: number;
     streakLost: number;
   }>({ show: false, goldLost: 0, streakLost: 0 });
+  const [equipmentModal, setEquipmentModal] = useState<{
+    show: boolean;
+    slot: EquipmentSlot | null;
+  }>({ show: false, slot: null });
 
   useEffect(() => {
     // Start battle once player stats are loaded (only if we don't have a monster yet)
@@ -343,6 +350,14 @@ export default function BattlePage() {
     setCheatModal({ show: false, message: '' });
   };
 
+  const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
+    setEquipmentModal({ show: true, slot });
+  };
+
+  const closeEquipmentModal = () => {
+    setEquipmentModal({ show: false, slot: null });
+  };
+
   const handleLootSelection = async (loot: LootItem) => {
     if (!session) return;
 
@@ -440,7 +455,21 @@ export default function BattlePage() {
     }
   };
 
-  const handleStartBattle = () => {
+  const handleStartBattle = async () => {
+    if (!session) return;
+
+    // Update the battle timer on the server
+    try {
+      await fetch('/api/start-battle-timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session._id })
+      });
+    } catch (error) {
+      console.error('Failed to start battle timer:', error);
+      // Continue anyway - don't block the user
+    }
+
     setBattleStarted(true);
     toast.success('Battle started! Fight!', { duration: 2000 });
   };
@@ -645,6 +674,23 @@ export default function BattlePage() {
           goldLost={defeatScreen.goldLost}
           streakLost={defeatScreen.streakLost}
           onContinue={handleDefeatContinue}
+        />
+      )}
+
+      {/* Equipment Widget - Left side under BiomeMapWidget */}
+      {!loading && playerStats && (
+        <EquipmentWidget
+          onSlotClick={handleEquipmentSlotClick}
+          disabled={!battleStarted || isSubmitting}
+        />
+      )}
+
+      {/* Equipment Selection Modal */}
+      {equipmentModal.show && equipmentModal.slot && (
+        <EquipmentSelectionModal
+          isOpen={equipmentModal.show}
+          onClose={closeEquipmentModal}
+          slot={equipmentModal.slot}
         />
       )}
     </div>

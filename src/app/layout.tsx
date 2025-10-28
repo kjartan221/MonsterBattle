@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { PlayerProvider } from "@/contexts/PlayerContext";
 import { BiomeProvider } from "@/contexts/BiomeContext";
+import { EquipmentProvider } from "@/contexts/EquipmentContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,31 +33,33 @@ export default function RootLayout({
       >
         <PlayerProvider>
           <BiomeProvider>
-            {children}
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#1f2937',
-                  color: '#fff',
-                  borderRadius: '0.5rem',
-                  padding: '1rem',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
+            <EquipmentProvider>
+              {children}
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#1f2937',
+                    color: '#fff',
+                    borderRadius: '0.5rem',
+                    padding: '1rem',
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#fff',
+                    },
                   },
-                },
-              }}
-            />
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </EquipmentProvider>
           </BiomeProvider>
         </PlayerProvider>
       </body>
