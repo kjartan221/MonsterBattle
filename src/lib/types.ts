@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import { BiomeId, Tier } from './biome-config';
 
 // ========== MongoDB Documents (Backend) ==========
 
@@ -16,9 +17,11 @@ export interface Monster {
   _id?: ObjectId;
   name: string;
   imageUrl: string; // URL or path to monster PNG
-  clicksRequired: number; // Number of clicks needed to defeat
-  attackDamage: number; // Damage per second dealt to player
+  clicksRequired: number; // Number of clicks needed to defeat (scaled by tier)
+  attackDamage: number; // Damage per second dealt to player (scaled by tier)
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  biome: BiomeId; // Which biome this monster belongs to
+  tier: Tier; // Which tier this monster instance is at
   createdAt: Date;
 }
 
@@ -95,6 +98,8 @@ export interface BattleSession {
   _id?: ObjectId;
   userId: string; // Reference to User.userId
   monsterId: ObjectId; // Reference to Monster._id
+  biome: BiomeId; // Which biome this battle is in
+  tier: Tier; // Which tier this battle is at
   clickCount: number;
   isDefeated: boolean;
   lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
@@ -114,6 +119,8 @@ export interface MonsterFrontend {
   clicksRequired: number;
   attackDamage: number;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  biome: BiomeId;
+  tier: Tier;
   createdAt: Date | string;
 }
 
@@ -122,6 +129,8 @@ export interface BattleSessionFrontend {
   _id?: string;
   userId: string;
   monsterId: string;
+  biome: BiomeId;
+  tier: Tier;
   clickCount: number;
   isDefeated: boolean;
   lootOptions?: string[];

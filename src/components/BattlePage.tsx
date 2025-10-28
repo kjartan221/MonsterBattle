@@ -6,7 +6,9 @@ import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
 import { getLootItemsByIds } from '@/lib/loot-table';
+import { BiomeId, Tier, getBiomeTierDisplayName } from '@/lib/biome-config';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { useBiome } from '@/contexts/BiomeContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
@@ -14,10 +16,12 @@ import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterCard from '@/components/battle/MonsterCard';
+import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 
 export default function BattlePage() {
   const router = useRouter();
   const { playerStats, loading: statsLoading, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
+  const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
@@ -171,15 +175,30 @@ export default function BattlePage() {
     }
   };
 
-  const startBattle = async () => {
+  const startBattle = async (useBiome?: BiomeId, useTier?: Tier) => {
     try {
       setLoading(true);
+
+      // Use provided values or fall back to context
+      const biome = useBiome || selectedBiome;
+      const tier = useTier || selectedTier;
+
+      // Prepare request body with optional biome/tier selection
+      const requestBody: any = {};
+      if (biome && tier) {
+        requestBody.biome = biome;
+        requestBody.tier = tier;
+        console.log(`🎯 Starting battle in zone: ${biome}, tier: ${tier}`);
+      } else {
+        console.log('🎯 Starting battle (no biome/tier specified, API will use default)');
+      }
 
       const response = await fetch('/api/start-battle', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
       });
 
       if (!response.ok) {
@@ -192,6 +211,14 @@ export default function BattlePage() {
       setClicks(data.session.clickCount);
       setLastSavedClicks(data.session.clickCount); // Initialize saved clicks
       setStartTime(new Date(data.session.startedAt));
+
+      // Sync selectedBiome/selectedTier with the monster we received
+      // This ensures "Next Monster" continues in the same zone
+      if (data.monster) {
+        console.log(`✅ Battle started! Monster: ${data.monster.name}, Biome: ${data.monster.biome}, Tier: ${data.monster.tier}`);
+        console.log(`🔄 Syncing context: selectedBiome=${selectedBiome} → ${data.monster.biome}, selectedTier=${selectedTier} → ${data.monster.tier}`);
+        setBiomeTier(data.monster.biome, data.monster.tier);
+      }
 
       // Check if session is defeated and has pending loot selection
       if (data.session.isDefeated && data.session.lootOptions && !data.session.selectedLootId) {
@@ -368,7 +395,11 @@ export default function BattlePage() {
     }
   };
 
-  const handleNextMonster = async () => {
+  const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
+    console.log(`🔄 Next Monster clicked.`);
+    console.log(`   Context state: selectedBiome=${selectedBiome}, selectedTier=${selectedTier}`);
+    console.log(`   Override values: overrideBiome=${overrideBiome}, overrideTier=${overrideTier}`);
+
     setShowNextMonster(false);
     setClicks(0);
     setLastSavedClicks(0);
@@ -381,8 +412,32 @@ export default function BattlePage() {
     // Reset HP to full before starting new battle
     await resetHealth();
 
-    // Start a new battle (will immediately begin attacking since battleStarted is true)
-    await startBattle();
+    // Refresh player stats to get updated unlocked zones
+    await fetchPlayerStats();
+
+    // Start a new battle, passing override values if provided
+    // This avoids stale closure issues with React state
+    await startBattle(overrideBiome, overrideTier);
+  };
+
+  const handleBiomeTierSelection = (biome: BiomeId, tier: Tier) => {
+    if (session && !session.isDefeated) {
+      toast.error('Complete your current battle first!');
+      return;
+    }
+
+    console.log(`🗺️ User selected biome: ${biome}, tier: ${tier}`);
+    console.log(`📊 Current context before change: selectedBiome=${selectedBiome}, selectedTier=${selectedTier}`);
+    setBiomeTier(biome, tier);
+    console.log(`📊 Context updated to: selectedBiome=${biome}, selectedTier=${tier}`);
+    toast.success(`Selected: ${getBiomeTierDisplayName(biome, tier)}`);
+
+    // If there's a completed battle (loot selected), start new battle immediately
+    // Pass the biome/tier as parameters to avoid stale closure values
+    if (session && session.isDefeated && session.selectedLootId) {
+      console.log('⚡ Auto-starting next battle with new selection...');
+      handleNextMonster(biome, tier);
+    }
   };
 
   const handleStartBattle = () => {
@@ -422,7 +477,7 @@ export default function BattlePage() {
         <div className="text-center">
           <div className="text-red-400 text-2xl mb-4">Failed to load battle</div>
           <button
-            onClick={startBattle}
+            onClick={() => startBattle()}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer"
           >
             Try Again
@@ -439,6 +494,15 @@ export default function BattlePage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
       {/* Player Stats - Top Left */}
       <PlayerStatsDisplay />
+
+      {/* Biome Map Widget - Top Left (below player stats) */}
+      {playerStats && (
+        <BiomeMapWidget
+          unlockedZones={playerStats.unlockedZones}
+          onSelectBiomeTier={handleBiomeTierSelection}
+          disabled={session?.isDefeated === false} // Disable during active battle
+        />
+      )}
 
       {/* Navigation Buttons */}
       <div className="absolute top-4 right-4 flex gap-2">
@@ -463,14 +527,19 @@ export default function BattlePage() {
         {/* Monster Info */}
         <div className="text-center mb-2">
           <h2 className="text-3xl font-bold text-white mb-1">{monster.name}</h2>
-          <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-            monster.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white' :
-            monster.rarity === 'epic' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white' :
-            monster.rarity === 'rare' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
-            'bg-gray-500 text-white'
-          }`}>
-            {monster.rarity.toUpperCase()}
-          </span>
+          <div className="flex items-center justify-center gap-2">
+            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+              monster.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white' :
+              monster.rarity === 'epic' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white' :
+              monster.rarity === 'rare' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
+              'bg-gray-500 text-white'
+            }`}>
+              {monster.rarity.toUpperCase()}
+            </span>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-gray-700 text-gray-200">
+              {getBiomeTierDisplayName(monster.biome, monster.tier)}
+            </span>
+          </div>
         </div>
 
         {/* Monster Click Area */}
@@ -535,7 +604,7 @@ export default function BattlePage() {
       {/* Next Monster Button - Fixed position on right side */}
       {showNextMonster && !lootOptions && (
         <button
-          onClick={handleNextMonster}
+          onClick={() => handleNextMonster()}
           className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400 cursor-pointer"
         >
           <span className="text-lg">Next</span>

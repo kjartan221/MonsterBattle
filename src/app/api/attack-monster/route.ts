@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
+import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
 import { ObjectId } from 'mongodb';
 
 const MAX_CLICKS_PER_SECOND = 15;
@@ -232,6 +233,29 @@ export async function POST(request: NextRequest) {
         }
       }
     );
+
+    // BIOME UNLOCK PROGRESSION: Unlock next biome/tier after victory
+    const currentBiome = session.biome;
+    const currentTier = session.tier;
+    const nextUnlock = getNextUnlock(currentBiome, currentTier);
+
+    if (nextUnlock) {
+      const nextBiomeTierKey = formatBiomeTierKey(nextUnlock.biome, nextUnlock.tier);
+
+      // Check if player already has this biome/tier unlocked
+      if (!playerStats.unlockedZones.includes(nextBiomeTierKey)) {
+        // Unlock it!
+        await playerStatsCollection.updateOne(
+          { userId },
+          {
+            $addToSet: {
+              unlockedZones: nextBiomeTierKey // $addToSet prevents duplicates
+            }
+          }
+        );
+        console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,
