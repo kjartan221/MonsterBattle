@@ -4,6 +4,7 @@ import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
+import { getMonsterRewards, checkLevelUp } from '@/utils/playerProgression';
 import { ObjectId } from 'mongodb';
 
 const MAX_CLICKS_PER_SECOND = 15;
@@ -260,6 +261,53 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // REWARD PLAYER: Award XP and coins based on monster rarity
+    const rewards = getMonsterRewards(monster.rarity);
+    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster)`);
+
+    // Calculate new XP and coins
+    const newXP = playerStats.experience + rewards.xp;
+    const newCoins = playerStats.coins + rewards.coins;
+
+    // Check for level up
+    const levelUpResult = checkLevelUp(playerStats.level, newXP);
+
+    if (levelUpResult.leveledUp) {
+      console.log(`🎊 LEVEL UP! ${levelUpResult.previousLevel} → ${levelUpResult.newLevel}`);
+      console.log(`   +${levelUpResult.statIncreases.maxHealth} max HP, +${levelUpResult.statIncreases.baseDamage} base damage`);
+
+      // Calculate remaining XP after level up
+      const xpForPreviousLevel = newXP;
+      const xpForNextLevel = xpForPreviousLevel; // This will be recalculated on next level
+      const remainingXP = xpForPreviousLevel; // Keep all XP for now, let checkLevelUp handle it
+
+      // Update player stats with level up
+      await playerStatsCollection.updateOne(
+        { userId },
+        {
+          $set: {
+            level: levelUpResult.newLevel,
+            experience: 0, // Reset XP for new level
+            coins: newCoins,
+            maxHealth: playerStats.maxHealth + levelUpResult.statIncreases.maxHealth,
+            currentHealth: playerStats.maxHealth + levelUpResult.statIncreases.maxHealth, // Full heal on level up
+            baseDamage: playerStats.baseDamage + levelUpResult.statIncreases.baseDamage
+          }
+        }
+      );
+    } else {
+      // Just add XP and coins (no level up)
+      await playerStatsCollection.updateOne(
+        { userId },
+        {
+          $set: {
+            experience: newXP,
+            coins: newCoins
+          }
+        }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       monster: {
@@ -275,6 +323,15 @@ export async function POST(request: NextRequest) {
         completedAt: now
       },
       lootOptions, // Send the 5 full loot items for user to choose from
+      rewards: {
+        xp: rewards.xp,
+        coins: rewards.coins
+      },
+      levelUp: levelUpResult.leveledUp ? {
+        newLevel: levelUpResult.newLevel,
+        previousLevel: levelUpResult.previousLevel,
+        statIncreases: levelUpResult.statIncreases
+      } : null,
       stats: {
         timeElapsed: timeInSeconds.toFixed(2),
         clickRate: clickRate.toFixed(2)

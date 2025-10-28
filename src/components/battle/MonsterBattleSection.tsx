@@ -272,6 +272,24 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
         await incrementStreak();
         setSession({ ...session, isDefeated: true, lootOptions: data.lootOptions });
         setLootOptions(data.lootOptions);
+
+        // Show rewards (XP and coins)
+        if (data.rewards) {
+          console.log(`💰 Rewards: +${data.rewards.xp} XP, +${data.rewards.coins} coins`);
+        }
+
+        // Check for level up
+        if (data.levelUp) {
+          toast.success(
+            `🎊 LEVEL UP! ${data.levelUp.previousLevel} → ${data.levelUp.newLevel}\n` +
+            `+${data.levelUp.statIncreases.maxHealth} Max HP, ` +
+            `+${data.levelUp.statIncreases.baseDamage} Base Damage`,
+            { duration: 5000 }
+          );
+        }
+
+        // Refresh player stats to show updated XP/level/coins
+        await fetchPlayerStats();
       }
 
       setIsSubmitting(false);

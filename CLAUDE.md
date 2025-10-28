@@ -42,7 +42,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-28 (Phase 1.4 completion + Performance optimization)
+**Last Updated**: 2025-10-28 (Phase 1.5: Player Progression)
 
 **Reference**: GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
@@ -138,12 +138,38 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - Kept all error toasts for critical feedback
     - Reduced loot modal delay from 1500ms to 500ms
 
+- **Phase 1.5: Player Progression** (GAME_DESIGN_PROPOSAL.md:973-977)
+  - Backend: XP and reward utilities (playerProgression.ts)
+    - getXPForLevel() - Calculate XP requirement (100 * 1.5^(level-1))
+    - getMonsterRewards() - XP/coins by rarity (Common: 10XP/5g, Legendary: 80XP/50g)
+    - checkLevelUp() - Detect level-ups and calculate stat increases
+    - getBaseDamageForLevel() - Base damage scaling (1 + level/5)
+    - getMaxHealthForLevel() - Max HP scaling (100 + (level-1)*5)
+    - getBaseCritChance() - Returns 5% base crit
+  - Backend: attack-monster API rewards (attack-monster/route.ts)
+    - Award XP and coins based on monster rarity
+    - Check for level-ups automatically
+    - Update player stats: level, experience, coins, maxHealth, baseDamage
+    - Full HP restore on level-up
+    - Return rewards and levelUp info in response
+  - Frontend: Total stats display (PlayerStatsDisplay.tsx)
+    - Added XP progress bar (blue gradient)
+    - Shows total damage (base + equipment) with breakdown
+    - Shows total crit chance (5% base + equipment) with breakdown
+    - Base damage: 1 at level 1, +1 every 5 levels
+    - Base crit: Always 5%
+    - Equipment bonuses shown in parentheses
+  - Frontend: Level-up notifications (MonsterBattleSection.tsx)
+    - Toast notification on level-up (5s duration)
+    - Shows level progression and stat increases
+    - Auto-refresh player stats after battle completion
+
 ### 📋 Next Steps (To Implement)
-- **Phase 1.5: Player Progression** (GAME_DESIGN_PROPOSAL.md lines 973-977)
-  - Player stats: Level, XP, Coins, Base Damage
-  - Leveling: Defeat monsters to gain XP
-  - Tier unlocking: Player level determines accessible tiers
-  - Basic loot table: 10-15 items across common/rare/epic
+- **Phase 1.6: Core Items (Tier 1-3)** (GAME_DESIGN_PROPOSAL.md lines 979-983)
+  - Tiered weapons: Wooden Sword, Iron Sword, Steel Sword
+  - Tiered armor: Leather Armor, Chainmail
+  - Accessories: Lucky Coin, Ring of Haste
+  - Item tier scaling: Multiply stats by tier
 
 ### 📝 Instructions for Claude
 **IMPORTANT**: After completing each implementation session:
