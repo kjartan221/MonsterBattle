@@ -150,7 +150,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Refresh to confirm from server
+      // Refresh to confirm from server (blocking - equipment affects battle)
       await refreshEquipment();
     } catch (error) {
       console.error('Failed to equip item:', error);
@@ -190,7 +190,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
           break;
       }
 
-      // Refresh to confirm from server
+      // Refresh to confirm from server (blocking - equipment affects battle)
       await refreshEquipment();
     } catch (error) {
       console.error('Failed to unequip item:', error);

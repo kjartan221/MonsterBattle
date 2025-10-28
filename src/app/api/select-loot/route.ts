@@ -27,7 +27,17 @@ export async function POST(request: NextRequest) {
     const { sessionId, lootId } = body;
 
     // Validate input
-    if (!sessionId || !lootId) {
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user is skipping loot selection
+    const isSkipping = lootId === 'SKIPPED' || lootId === null;
+
+    if (!lootId && !isSkipping) {
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -72,6 +82,27 @@ export async function POST(request: NextRequest) {
         { error: 'Loot already selected for this session' },
         { status: 400 }
       );
+    }
+
+    // Handle skip case
+    if (isSkipping) {
+      // Just mark the session as skipped, don't add to inventory
+      await battleSessionsCollection.updateOne(
+        { _id: sessionObjectId },
+        {
+          $set: {
+            selectedLootId: 'SKIPPED'
+          }
+        }
+      );
+
+      console.log(`⏭️ User ${userId} skipped loot selection for session ${sessionId}`);
+
+      return NextResponse.json({
+        success: true,
+        selectedLootId: 'SKIPPED',
+        skipped: true
+      });
     }
 
     // Validate lootId is in the available options

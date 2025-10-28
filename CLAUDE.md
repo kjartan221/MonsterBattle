@@ -42,7 +42,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: This prompt session
+**Last Updated**: 2025-10-28 (Phase 1.4 completion + Performance optimization)
 
 **Reference**: GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
@@ -119,6 +119,24 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
   - Frontend: Integration with BattlePage
     - Added EquipmentProvider to layout.tsx
     - Equipment widget disabled during battle submission
+
+- **Performance Optimizations**
+  - Extracted MonsterBattleSection component (MonsterBattleSection.tsx)
+    - Moved all battle logic from BattlePage to separate component
+    - Only monster section re-renders on new battle, not entire page
+    - BattlePage refactored to layout-only component
+  - Non-blocking API calls for non-critical operations
+    - start-battle-timer API call fires in background
+    - resetHealth() and fetchPlayerStats() in background on Next Monster
+    - Equipment refresh remains blocking (affects battle stats)
+  - Toast notification cleanup
+    - Removed redundant "Battle started!" toast
+    - Removed redundant "Victory!" toast (green UI is clear)
+    - Removed redundant "You claimed [item]!" toast
+    - Removed redundant "Summoning new monster..." toast
+    - Kept informational "Resuming battle" toast
+    - Kept all error toasts for critical feedback
+    - Reduced loot modal delay from 1500ms to 500ms
 
 ### 📋 Next Steps (To Implement)
 - **Phase 1.5: Player Progression** (GAME_DESIGN_PROPOSAL.md lines 973-977)

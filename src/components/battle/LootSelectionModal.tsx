@@ -6,9 +6,10 @@ import type { LootItem } from '@/lib/loot-table';
 interface LootSelectionModalProps {
   lootOptions: LootItem[] | null;
   onLootSelect: (loot: LootItem) => void;
+  onSkip: () => void;
 }
 
-export default function LootSelectionModal({ lootOptions, onLootSelect }: LootSelectionModalProps) {
+export default function LootSelectionModal({ lootOptions, onLootSelect, onSkip }: LootSelectionModalProps) {
   const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
 
   if (!lootOptions || lootOptions.length === 0) return null;
@@ -16,6 +17,10 @@ export default function LootSelectionModal({ lootOptions, onLootSelect }: LootSe
   const handleSelection = (loot: LootItem) => {
     setSelectedLoot(loot);
     onLootSelect(loot);
+  };
+
+  const handleSkip = () => {
+    onSkip();
   };
 
   // Rarity colors
@@ -103,6 +108,18 @@ export default function LootSelectionModal({ lootOptions, onLootSelect }: LootSe
         {selectedLoot && (
           <div className="mt-6 text-center text-green-400 text-lg font-bold animate-pulse">
             You have claimed: {selectedLoot.name}!
+          </div>
+        )}
+
+        {/* Skip Button */}
+        {!selectedLoot && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={handleSkip}
+              className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors shadow-lg border-2 border-gray-500 hover:border-gray-400 cursor-pointer"
+            >
+              Skip Loot
+            </button>
           </div>
         )}
       </div>

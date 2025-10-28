@@ -103,7 +103,7 @@ export interface BattleSession {
   clickCount: number;
   isDefeated: boolean;
   lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
-  selectedLootId?: string; // The lootId the user chose
+  selectedLootId?: string; // The lootId the user chose, or 'SKIPPED' if user skipped loot selection
   usedItems: Array<{ lootTableId: string; usedAt: Date }>; // Track items used during battle (for HP verification)
   startedAt: Date; // When session was created (monster spawned)
   actualBattleStartedAt?: Date; // When user clicked "Start Battle" button (for HP verification)

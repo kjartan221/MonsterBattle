@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { PlayerStats } from '@/contexts/PlayerContext';
+import type { TotalEquipmentStats } from '@/utils/equipmentCalculations';
+import { calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
 
 interface UseMonsterAttackProps {
   monster: MonsterFrontend | null;
@@ -9,6 +11,7 @@ interface UseMonsterAttackProps {
   isSubmitting: boolean;
   playerStats: PlayerStats | null;
   takeDamage: (amount: number) => Promise<void>;
+  equipmentStats: TotalEquipmentStats;
 }
 
 /**
@@ -21,7 +24,8 @@ export function useMonsterAttack({
   battleStarted,
   isSubmitting,
   playerStats,
-  takeDamage
+  takeDamage,
+  equipmentStats
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -39,20 +43,31 @@ export function useMonsterAttack({
       return;
     }
 
-    // Monster attacks player every 1 second
+    // Calculate reduced damage based on armor (hpReduction)
+    const effectiveDamage = calculateMonsterDamage(
+      monster.attackDamage,
+      equipmentStats.hpReduction
+    );
+
+    // Calculate attack interval based on attack speed bonuses
+    const interval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
+
+    console.log(`⚔️ Monster attack: ${effectiveDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.hpReduction}%)`);
+
+    // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
       // Visual feedback: show attack animation
       setIsAttacking(true);
 
-      // Deal damage to player
-      await takeDamage(monster.attackDamage);
+      // Deal reduced damage to player
+      await takeDamage(effectiveDamage);
 
       // Reset attack animation after 300ms
       setTimeout(() => setIsAttacking(false), 300);
-    }, 1000); // Attack every 1 second
+    }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, playerStats, isSubmitting, takeDamage, battleStarted]);
+  }, [monster, session, playerStats, isSubmitting, takeDamage, battleStarted, equipmentStats]);
 
   return { isAttacking };
 }

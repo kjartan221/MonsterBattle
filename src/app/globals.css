@@ -24,3 +24,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes critFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(1);
+  }
+}
+
+.animate-crit-float {
+  animation: critFloat 1s ease-out forwards;
+}

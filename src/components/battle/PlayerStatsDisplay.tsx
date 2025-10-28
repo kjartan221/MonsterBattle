@@ -1,9 +1,12 @@
 'use client';
 
 import { usePlayer } from '@/contexts/PlayerContext';
+import { useEquipment } from '@/contexts/EquipmentContext';
+import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 
 export default function PlayerStatsDisplay() {
   const { playerStats } = usePlayer();
+  const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
 
   if (!playerStats) return null;
 
@@ -12,6 +15,14 @@ export default function PlayerStatsDisplay() {
   const streak = playerStats.stats.battlesWonStreak;
   const streakColor = streak >= 10 ? 'text-yellow-400' : streak >= 5 ? 'text-orange-400' : 'text-gray-300';
   const streakIcon = streak >= 10 ? '🔥' : streak >= 5 ? '⚡' : '🎯';
+
+  // Calculate total equipment bonuses
+  const equipmentStats = calculateTotalEquipmentStats(
+    equippedWeapon,
+    equippedArmor,
+    equippedAccessory1,
+    equippedAccessory2
+  );
 
   return (
     <div className="absolute top-4 left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
@@ -24,7 +35,9 @@ export default function PlayerStatsDisplay() {
           {streakIcon} {streak}
         </div>
       </div>
-      <div className="mb-1">
+
+      {/* HP Bar */}
+      <div className="mb-3">
         <div className="flex justify-between text-white text-sm mb-1">
           <span>HP</span>
           <span className="font-bold">
@@ -42,6 +55,34 @@ export default function PlayerStatsDisplay() {
               </span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Equipment Stats */}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="text-white/80">
+          <span className="text-white/60">⚔️ Damage:</span>{' '}
+          <span className={equipmentStats.damageBonus > 0 ? 'text-green-400 font-semibold' : ''}>
+            +{equipmentStats.damageBonus}
+          </span>
+        </div>
+        <div className="text-white/80">
+          <span className="text-white/60">💥 Crit:</span>{' '}
+          <span className={equipmentStats.critChance > 0 ? 'text-yellow-400 font-semibold' : ''}>
+            {equipmentStats.critChance}%
+          </span>
+        </div>
+        <div className="text-white/80">
+          <span className="text-white/60">🛡️ Defense:</span>{' '}
+          <span className={equipmentStats.hpReduction > 0 ? 'text-blue-400 font-semibold' : ''}>
+            {equipmentStats.hpReduction}%
+          </span>
+        </div>
+        <div className="text-white/80">
+          <span className="text-white/60">🐌 Slow:</span>{' '}
+          <span className={equipmentStats.attackSpeed > 0 ? 'text-purple-400 font-semibold' : ''}>
+            {equipmentStats.attackSpeed}%
+          </span>
         </div>
       </div>
     </div>
