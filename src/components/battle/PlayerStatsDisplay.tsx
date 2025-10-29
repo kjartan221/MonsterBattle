@@ -60,7 +60,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
   const xpProgress = xpForNextLevel > 0 ? (experience / xpForNextLevel) * 100 : 0;
 
   return (
-    <div className="absolute top-4 left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
+    <div className="absolute top-[100px] sm:top-[110px] left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
       <div className="text-white text-base mb-3 flex justify-between items-center">
         <div>
           <span className="font-bold text-lg">Level {level}</span>

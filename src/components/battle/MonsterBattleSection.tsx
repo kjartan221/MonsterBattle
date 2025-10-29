@@ -31,28 +31,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
 
-  // Battle data (not flow state)
-  const [session, setSession] = useState<BattleSessionFrontend | null>(null);
-  const [monster, setMonster] = useState<MonsterFrontend | null>(null);
+  // Local battle progress state
   const [clicks, setClicks] = useState(0);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
   const [lastSavedClicks, setLastSavedClicks] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
-
-  // Defeat screen data
   const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
     goldLost: 0,
     streakLost: 0
   });
-
-  // Cheat detection modal
   const [cheatModal, setCheatModal] = useState<{ show: boolean; message: string }>({
     show: false,
     message: ''
   });
 
-  // Calculate total equipment stats (memoized to prevent re-creating monster attack intervals)
+  // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
     calculateTotalEquipmentStats(
       equippedWeapon,
@@ -63,10 +55,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     [equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]
   );
 
-  // Monster attack hook (with debuff application)
+  // Monster attack system with debuff application
   const { isAttacking } = useMonsterAttack({
-    monster,
-    session,
+    monster: gameState.monster,
+    session: gameState.session,
     battleStarted: gameState.canAttackMonster(),
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     playerStats,
@@ -75,18 +67,16 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     applyDebuff
   });
 
+  // Auto-start initial battle when player stats load
   useEffect(() => {
-    // Start battle once player stats are loaded
-    // Only when game state allows it (prevents race conditions)
-    if (playerStats && !monster && gameState.canStartBattle()) {
-      console.log('🎮 Starting initial battle...');
+    if (playerStats && !gameState.monster && gameState.canStartBattle()) {
       startBattle();
     }
-  }, [playerStats, monster]);
+  }, [playerStats, gameState.monster]);
 
   // Auto-save clicks periodically
   useEffect(() => {
-    if (!gameState.canAttackMonster() || !session || session.isDefeated) return;
+    if (!gameState.canAttackMonster() || !gameState.session || gameState.session.isDefeated) return;
 
     const interval = setInterval(() => {
       if (clicks > lastSavedClicks) {
@@ -95,7 +85,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }, 10000); // Save every 10 seconds
 
     return () => clearInterval(interval);
-  }, [clicks, lastSavedClicks, gameState.gameState, session]);
+  }, [clicks, lastSavedClicks, gameState.gameState, gameState.session]);
 
   // Save clicks when reaching thresholds
   useEffect(() => {
@@ -113,7 +103,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   }, [playerStats?.currentHealth, gameState.gameState]);
 
   const handlePlayerDeath = async () => {
-    if (!playerStats || !session) return;
+    if (!playerStats || !gameState.session) return;
 
     // Clear all active debuffs
     clearDebuffs();
@@ -140,7 +130,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: session._id
+          sessionId: gameState.session._id
         }),
       });
     } catch (err) {
@@ -159,7 +149,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   };
 
   const saveClicksToBackend = async () => {
-    if (!session || clicks <= lastSavedClicks) return;
+    if (!gameState.session || clicks <= lastSavedClicks) return;
 
     try {
       await fetch('/api/update-clicks', {
@@ -168,7 +158,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId: gameState.session._id,
           clickCount: clicks,
         }),
       });
@@ -179,7 +169,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   };
 
-  const startBattle = async (useBiome?: BiomeId, useTier?: Tier) => {
+  const startBattle = async (useBiome?: BiomeId, useTier?: Tier, isConsecutiveBattle = false) => {
     try {
       gameState.setBattleLoading();
 
@@ -187,123 +177,113 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const tier = useTier || selectedTier;
 
       const requestBody: Record<string, any> = {};
-
       if (biome && tier) {
-        console.log(`🎯 Starting battle with: biome=${biome}, tier=${tier}`);
         requestBody.biome = biome;
         requestBody.tier = tier;
-      } else {
-        console.log('🎯 Starting battle (no biome/tier specified, API will use default)');
       }
 
       const response = await fetch('/api/start-battle', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to start battle');
-      }
+      if (!response.ok) throw new Error('Failed to start battle');
 
       const data = await response.json();
-      setSession(data.session);
-      setMonster(data.monster);
-      setClicks(data.session.clickCount);
-      setLastSavedClicks(data.session.clickCount);
-      setStartTime(new Date(data.session.startedAt));
 
-      // Sync selectedBiome/selectedTier
+      // Reset clicks for new sessions, restore for resumed sessions
+      const initialClicks = data.isNewSession ? 0 : data.session.clickCount;
+      setClicks(initialClicks);
+      setLastSavedClicks(initialClicks);
+
+      // Sync biome/tier selection
       if (data.monster) {
-        console.log(`✅ Battle started! Monster: ${data.monster.name}, Biome: ${data.monster.biome}, Tier: ${data.monster.tier}`);
         setBiomeTier(data.monster.biome, data.monster.tier);
       }
 
-      // Check if session is defeated and has pending loot selection
+      // Handle different session states
       if (data.session.isDefeated && data.session.lootOptions && !data.session.selectedLootId) {
+        // Restore pending loot selection
         const restoredLoot = getLootItemsByIds(data.session.lootOptions);
-        setLootOptions(restoredLoot);
-        gameState.setLootSelection();
+        gameState.setLootSelection(restoredLoot);
       } else if (data.session.isDefeated && data.session.selectedLootId) {
-        gameState.setNextMonsterReady();
+        // Session already complete, start fresh battle
+        gameState.setBattleLoading();
+        startBattle(biome || undefined, tier || undefined, false);
+        return;
       } else if (!data.isNewSession) {
-        // Resuming battle - show toast only for this case as it's informational
+        // Resuming in-progress battle
         toast.success(`Resuming battle (${data.session.clickCount} attacks)`, { duration: 2000 });
-        gameState.setBattleStartScreen();
+        gameState.setBattleStartScreen(data.monster, data.session);
+      } else if (isConsecutiveBattle) {
+        // Consecutive battle - skip start screen
+        gameState.setBattleInProgress(data.monster, data.session);
       } else {
         // New battle - show start screen
-        gameState.setBattleStartScreen();
+        gameState.setBattleStartScreen(data.monster, data.session);
       }
 
     } catch (err) {
       console.error('Error starting battle:', err);
       toast.error('Failed to start battle. Please refresh the page.');
-      gameState.setInitializing(); // Reset to allow retry
+      gameState.setInitializing();
     }
   };
 
   const submitBattleCompletion = async (finalClicks: number) => {
-    if (!monster || !session || !startTime) return;
-    if (gameState.gameState === 'BATTLE_COMPLETING') return; // Already submitting
+    // Validation checks
+    if (!gameState.monster || !gameState.session || !gameState.session.startedAt) return;
+    if (gameState.gameState === 'BATTLE_COMPLETING') return;
 
     gameState.setBattleCompleting();
 
     try {
       const response = await fetch('/api/attack-monster', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId: gameState.session._id,
           clickCount: finalClicks,
           usedItems: []
         }),
       });
 
       const data = await response.json();
-      console.log('📦 Battle completion response:', { success: data.success, hasLoot: !!data.lootOptions, lootCount: data.lootOptions?.length });
 
+      // Handle cheat detection
       if (data.cheatingDetected) {
         setCheatModal({
           show: true,
           message: data.message || 'Suspicious click rate detected!'
         });
-
-        if (data.newClicksRequired) {
-          setMonster({ ...monster, clicksRequired: data.newClicksRequired });
-        }
         setClicks(0);
         setLastSavedClicks(0);
-        gameState.setBattleInProgress(); // Return to battle
+        gameState.setBattleInProgress();
         return;
       }
 
       if (data.hpCheatDetected) {
-        // Player should have died but defeated monster anyway
         await handlePlayerDeath();
         return;
       }
 
+      // Handle victory
       if (data.success && data.lootOptions) {
-        console.log('✅ Victory confirmed! Processing rewards...');
-
-        console.log('⏳ Incrementing streak...');
         await incrementStreak();
-        console.log('✅ Streak incremented');
 
-        setSession({ ...session, isDefeated: true, lootOptions: data.lootOptions });
-        setLootOptions(data.lootOptions);
-        console.log('🎁 Loot options set:', data.lootOptions.map((l: LootItem) => l.name).join(', '));
+        // Convert loot IDs to full items if needed
+        const lootItems = Array.isArray(data.lootOptions) && typeof data.lootOptions[0] === 'string'
+          ? getLootItemsByIds(data.lootOptions)
+          : data.lootOptions;
 
-        // Show rewards (XP and coins)
-        if (data.rewards) {
-          console.log(`💰 Rewards: +${data.rewards.xp} XP, +${data.rewards.coins} coins`);
+        // Update session and transition to loot selection
+        if (gameState.session) {
+          gameState.updateSession({ ...gameState.session, isDefeated: true, lootOptions: data.lootOptions });
         }
+        gameState.setLootSelection(lootItems);
 
-        // Check for level up
+        // Show level up notification
         if (data.levelUp) {
           toast.success(
             `🎊 LEVEL UP! ${data.levelUp.previousLevel} → ${data.levelUp.newLevel}\n` +
@@ -312,44 +292,32 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
             { duration: 5000 }
           );
         }
-
-        // Refresh player stats to show updated XP/level/coins
-        console.log('⏳ Fetching updated player stats...');
-        await fetchPlayerStats();
-        console.log('✅ Player stats refreshed');
-
-        // Transition to loot selection
-        console.log('✅ Transitioning to loot selection...');
-        gameState.setLootSelection();
       }
 
     } catch (err) {
       console.error('Error submitting battle completion:', err);
       toast.error('Failed to complete battle. Please try again.');
-      gameState.setBattleInProgress(); // Return to battle on error
+      gameState.setBattleInProgress();
     }
   };
 
   const handleClick = () => {
-    if (!gameState.canAttackMonster() || session?.isDefeated) return;
+    if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
 
-    // Calculate damage with equipment bonuses (base damage is 1 per click)
     const { damage, isCrit } = calculateClickDamage(
-      1, // base damage per click
+      1,
       equipmentStats.damageBonus,
       equipmentStats.critChance
     );
 
-    // Show crit feedback
     if (isCrit) {
-      console.log(`💥 CRITICAL HIT! Dealt ${damage} damage!`);
-      setCritTrigger(prev => prev + 1); // Trigger crit badge animation
+      setCritTrigger(prev => prev + 1);
     }
 
     const newClicks = clicks + damage;
     setClicks(newClicks);
 
-    if (newClicks >= monster!.clicksRequired) {
+    if (gameState.monster && newClicks >= gameState.monster.clicksRequired) {
       submitBattleCompletion(newClicks);
     }
   };
@@ -358,100 +326,70 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setCheatModal({ show: false, message: '' });
   };
 
-  const handleLootSelection = async (loot: LootItem) => {
-    if (!session) return;
-
-    console.log('User selected loot:', loot);
+  const handleLootSelection = useCallback(async (loot: LootItem) => {
+    if (!gameState.session) return;
 
     try {
       const response = await fetch('/api/select-loot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId: gameState.session._id,
           lootId: loot.lootId,
         }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save loot selection');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save loot selection');
-      }
-
-      setTimeout(() => {
-        setLootOptions(null);
-        gameState.setNextMonsterReady();
-      }, 500);
-
+      setTimeout(() => gameState.setBattleVictory(), 500);
     } catch (err) {
       console.error('Error saving loot selection:', err);
       toast.error('Failed to save loot selection. Please try again.');
     }
-  };
+  }, [gameState.session, gameState]);
 
-  const handleSkipLoot = async () => {
-    if (!session) return;
-
-    console.log('User skipped loot selection');
+  const handleSkipLoot = useCallback(async () => {
+    if (!gameState.session) return;
 
     try {
       const response = await fetch('/api/select-loot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId: gameState.session._id,
           lootId: 'SKIPPED',
         }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to skip loot selection');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to skip loot selection');
-      }
-
-      console.log('✅ Loot selection skipped, session marked as complete');
-
-      setTimeout(() => {
-        setLootOptions(null);
-        gameState.setNextMonsterReady();
-      }, 300);
-
+      setTimeout(() => gameState.setBattleVictory(), 300);
     } catch (err) {
       console.error('Error skipping loot selection:', err);
       toast.error('Failed to skip loot selection. Please try again.');
     }
-  };
+  }, [gameState.session, gameState]);
 
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
-    console.log(`🔄 Next Monster clicked.`);
-
-    // Clear all active debuffs
     clearDebuffs();
-
     setClicks(0);
     setLastSavedClicks(0);
 
-    // Reset HP and refresh stats in background (non-blocking)
-    resetHealth().catch(err => console.error('Failed to reset health:', err));
-    fetchPlayerStats().catch(err => console.error('Failed to fetch player stats:', err));
-
-    await startBattle(overrideBiome, overrideTier);
+    await resetHealth();
+    await fetchPlayerStats();
+    await startBattle(overrideBiome, overrideTier, true);
   };
 
   const handleStartBattle = () => {
-    if (!session) return;
+    if (!gameState.session) return;
 
     // Update battle timer on server (non-blocking)
     fetch('/api/start-battle-timer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: session._id })
+      body: JSON.stringify({ sessionId: gameState.session._id })
     }).catch(error => console.error('Failed to start battle timer:', error));
 
     gameState.setBattleInProgress();
@@ -467,14 +405,14 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     );
   }
 
-  // Loot selection - render modal even if monster/session are temporarily null
-  if (gameState.canShowLootModal()) {
+  // Loot selection modal
+  if (gameState.canShowLootModal() && gameState.lootOptions) {
     return (
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
         <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
         <LootSelectionModal
-          lootOptions={lootOptions}
-          tier={session?.tier || 1}
+          lootOptions={gameState.lootOptions}
+          tier={gameState.session?.tier || 1}
           onLootSelect={handleLootSelection}
           onSkip={handleSkipLoot}
         />
@@ -482,8 +420,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     );
   }
 
-  // Failed to load - only show if not in a modal state
-  if (!monster || !session) {
+  // Error state - no monster or session loaded
+  if (!gameState.monster || !gameState.session) {
+    if (gameState.isLoading()) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 p-12 bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 min-h-[400px]">
+          <div className="text-white text-2xl animate-pulse">Loading battle...</div>
+          <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12 bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 min-h-[400px]">
         <div className="text-red-400 text-2xl mb-4">Failed to load battle</div>
@@ -497,8 +444,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     );
   }
 
-  const progress = (clicks / monster.clicksRequired) * 100;
-  const isDefeated = clicks >= monster.clicksRequired;
+  const remainingHP = gameState.monster ? Math.max(0, gameState.monster.clicksRequired - clicks) : 0;
+  const remainingHPPercent = gameState.monster ? (remainingHP / gameState.monster.clicksRequired) * 100 : 0;
+  const isDefeated = gameState.monster ? clicks >= gameState.monster.clicksRequired : false;
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
@@ -506,47 +454,47 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       {/* Monster Info */}
       <div className="text-center mb-2">
-        <h2 className="text-3xl font-bold text-white mb-1">{monster.name}</h2>
+        <h2 className="text-3xl font-bold text-white mb-1">{gameState.monster.name}</h2>
         <div className="flex items-center justify-center gap-2">
           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-            monster.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white' :
-            monster.rarity === 'epic' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white' :
-            monster.rarity === 'rare' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
+            gameState.monster.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white' :
+            gameState.monster.rarity === 'epic' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white' :
+            gameState.monster.rarity === 'rare' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
             'bg-gray-500 text-white'
           }`}>
-            {monster.rarity.toUpperCase()}
+            {gameState.monster.rarity.toUpperCase()}
           </span>
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-gray-700 text-gray-200">
-            {getBiomeTierDisplayName(monster.biome, monster.tier)}
+            {getBiomeTierDisplayName(gameState.monster.biome, gameState.monster.tier)}
           </span>
         </div>
       </div>
 
       {/* Monster Click Area */}
       <MonsterCard
-        monster={monster}
+        monster={gameState.monster}
         isAttacking={isAttacking}
         isDefeated={isDefeated}
         onAttack={handleClick}
         critTrigger={critTrigger}
       />
 
-      {/* Progress Bar */}
+      {/* HP Bar */}
       <div className="w-full">
         <div className="flex justify-between mb-2">
           <span className="text-white font-semibold">HP</span>
           <span className="text-white font-semibold">
-            {Math.max(0, monster.clicksRequired - clicks)} / {monster.clicksRequired}
+            {remainingHP} / {gameState.monster.clicksRequired}
           </span>
         </div>
         <div className="w-full bg-black/30 rounded-full h-6 overflow-hidden border border-white/20">
           <div
             className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 flex items-center justify-center"
-            style={{ width: `${Math.min(100, progress)}%` }}
+            style={{ width: `${Math.min(100, remainingHPPercent)}%` }}
           >
-            {progress > 10 && (
+            {remainingHPPercent > 10 && (
               <span className="text-white text-xs font-bold">
-                {Math.round(progress)}%
+                {Math.round(remainingHPPercent)}%
               </span>
             )}
           </div>
@@ -556,19 +504,36 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       {/* Click Counter */}
       <div className="px-8 py-3 bg-black/30 rounded-lg border border-white/20">
         <p className="text-white text-lg">
-          Attacks: <span className="font-bold text-yellow-400">{clicks}</span> / {monster.clicksRequired}
+          Attacks: <span className="font-bold text-yellow-400">{clicks}</span> / {gameState.monster.clicksRequired}
         </p>
       </div>
 
-      {/* Defeated Message */}
-      {isDefeated && gameState.gameState !== 'BATTLE_COMPLETING' && (
+      {/* Victory: Calculating rewards */}
+      {isDefeated && gameState.gameState === 'BATTLE_COMPLETING' && (
         <div className="mt-4 p-6 bg-green-500/20 rounded-lg border-2 border-green-400 animate-pulse">
           <p className="text-green-400 text-xl font-bold text-center">
             🎉 Victory! Monster Defeated! 🎉
           </p>
           <p className="text-white text-center mt-2">
-            Loot will be awarded soon...
+            Calculating rewards...
           </p>
+        </div>
+      )}
+
+      {/* Victory: Rest phase */}
+      {isDefeated && gameState.gameState === 'BATTLE_VICTORY' && (
+        <div className="mt-4 p-6 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg border-2 border-green-400">
+          <p className="text-green-400 text-xl font-bold text-center mb-2">
+            🎉 Victory Complete! 🎉
+          </p>
+          <p className="text-white text-center mb-3">
+            Loot claimed! Take your time to prepare for the next battle.
+          </p>
+          <div className="text-center text-sm text-gray-300 space-y-1">
+            <p>• Check your equipment and stats</p>
+            <p>• Review your inventory</p>
+            <p>• Ready for the next challenge? →</p>
+          </div>
         </div>
       )}
 
@@ -601,21 +566,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       />
 
       {/* Battle Start Screen */}
-      {gameState.gameState === 'BATTLE_START_SCREEN' && monster && (
+      {gameState.gameState === 'BATTLE_START_SCREEN' && gameState.monster && (
         <BattleStartScreen
-          monsterName={monster.name}
-          monsterRarity={monster.rarity}
-          monsterIcon={monster.imageUrl}
+          monsterName={gameState.monster.name}
+          monsterRarity={gameState.monster.rarity}
+          monsterIcon={gameState.monster.imageUrl}
           onStartBattle={handleStartBattle}
         />
       )}
 
       {/* Battle Defeat Screen */}
-      {gameState.canShowDefeatScreen() && monster && (
+      {gameState.canShowDefeatScreen() && gameState.monster && (
         <BattleDefeatScreen
-          monsterName={monster.name}
-          monsterRarity={monster.rarity}
-          monsterIcon={monster.imageUrl}
+          monsterName={gameState.monster.name}
+          monsterRarity={gameState.monster.rarity}
+          monsterIcon={gameState.monster.imageUrl}
           goldLost={defeatData.goldLost}
           streakLost={defeatData.streakLost}
           onContinue={handleDefeatContinue}

@@ -29,10 +29,30 @@ export function useDebuffs({ maxHP, takeDamage, isActive }: UseDebuffsProps) {
   const [activeDebuffs, setActiveDebuffs] = useState<ActiveDebuff[]>([]);
 
   /**
-   * Apply a new debuff
-   * Checks apply chance and adds debuff to active list
+   * Apply a new debuff with stacking and diminishing returns
+   * Stacking formula:
+   * - Stack 1: 100% damage (base amount)
+   * - Stack 2: 75% damage (diminishing)
+   * - Stack 3: 50% damage (further diminishing)
+   * - Max 3 stacks
+   *
+   * Example: Poison at 2% base
+   * - 1 stack: 2% damage
+   * - 2 stacks: 2% + 1.5% = 3.5% total
+   * - 3 stacks: 2% + 1.5% + 1% = 4.5% total
    */
   const applyDebuff = useCallback((effect: DebuffEffect, appliedBy?: string) => {
+    const MAX_STACKS = 3;
+    const STACK_MULTIPLIERS = [1.0, 0.75, 0.5]; // Diminishing returns per stack
+
+    // Check current stack count for this debuff type
+    const currentStacks = activeDebuffs.filter(d => d.type === effect.type).length;
+
+    if (currentStacks >= MAX_STACKS) {
+      console.log(`⚠️ ${effect.type} already at max stacks (${MAX_STACKS}), cannot apply more`);
+      return false;
+    }
+
     // Roll for apply chance
     const applyChance = effect.applyChance ?? 100;
     const roll = Math.random() * 100;
@@ -42,9 +62,14 @@ export function useDebuffs({ maxHP, takeDamage, isActive }: UseDebuffsProps) {
       return false;
     }
 
-    // Create active debuff
+    // Apply diminishing returns based on current stack count
+    const stackMultiplier = STACK_MULTIPLIERS[currentStacks];
+    const adjustedDamage = effect.damageAmount * stackMultiplier;
+
+    // Create active debuff with adjusted damage
     const newDebuff: ActiveDebuff = {
       ...effect,
+      damageAmount: adjustedDamage, // Apply diminishing returns
       id: `${effect.type}-${Date.now()}-${Math.random()}`,
       startTime: Date.now(),
       appliedBy,
@@ -52,10 +77,10 @@ export function useDebuffs({ maxHP, takeDamage, isActive }: UseDebuffsProps) {
     };
 
     setActiveDebuffs(prev => [...prev, newDebuff]);
-    console.log(`✅ Applied ${effect.type} debuff: ${effect.damageAmount}${effect.damageType === 'percentage' ? '%' : ''} damage every ${effect.tickInterval}ms for ${effect.duration}ms`);
+    console.log(`✅ Applied ${effect.type} debuff (stack ${currentStacks + 1}/${MAX_STACKS}): ${adjustedDamage.toFixed(2)}${effect.damageType === 'percentage' ? '%' : ''} damage (${(stackMultiplier * 100).toFixed(0)}% effectiveness)`);
 
     return true;
-  }, [maxHP]);
+  }, [maxHP, activeDebuffs]);
 
   /**
    * Remove expired debuffs (without useCallback to avoid dependency issues)
