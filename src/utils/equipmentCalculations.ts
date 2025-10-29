@@ -1,4 +1,6 @@
 import type { EquippedItem } from '@/contexts/EquipmentContext';
+import { scaleItemStats } from '@/utils/itemTierScaling';
+import type { Tier } from '@/lib/biome-config';
 
 export interface TotalEquipmentStats {
   damageBonus: number;
@@ -11,6 +13,7 @@ export interface TotalEquipmentStats {
 
 /**
  * Calculate total equipment bonuses from all equipped items
+ * Applies tier scaling to each item's base stats before summing
  */
 export function calculateTotalEquipmentStats(
   equippedWeapon: EquippedItem | null,
@@ -32,14 +35,29 @@ export function calculateTotalEquipmentStats(
   for (const item of equippedItems) {
     if (!item?.lootItem?.equipmentStats) continue;
 
-    const itemStats = item.lootItem.equipmentStats;
+    const baseStats = item.lootItem.equipmentStats;
+    const itemTier = item.tier as Tier;
 
-    stats.damageBonus += itemStats.damageBonus || 0;
-    stats.critChance += itemStats.critChance || 0;
-    stats.hpReduction += itemStats.hpReduction || 0;
-    stats.maxHpBonus += itemStats.maxHpBonus || 0;
-    stats.attackSpeed += itemStats.attackSpeed || 0;
-    stats.coinBonus += itemStats.coinBonus || 0;
+    // Apply tier scaling to each stat individually
+    // scaleItemStats() creates a Record<string, number> which we convert to individual stats
+    const statsToScale = {
+      damageBonus: baseStats.damageBonus || 0,
+      critChance: baseStats.critChance || 0,
+      hpReduction: baseStats.hpReduction || 0,
+      maxHpBonus: baseStats.maxHpBonus || 0,
+      attackSpeed: baseStats.attackSpeed || 0,
+      coinBonus: baseStats.coinBonus || 0
+    };
+
+    const scaledStats = scaleItemStats(statsToScale, itemTier);
+
+    // Sum the scaled stats
+    stats.damageBonus += scaledStats.damageBonus;
+    stats.critChance += scaledStats.critChance;
+    stats.hpReduction += scaledStats.hpReduction;
+    stats.maxHpBonus += scaledStats.maxHpBonus;
+    stats.attackSpeed += scaledStats.attackSpeed;
+    stats.coinBonus += scaledStats.coinBonus;
   }
 
   return stats;

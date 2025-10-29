@@ -9,6 +9,7 @@ import { BiomeId, Tier, getBiomeTierDisplayName } from '@/lib/biome-config';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
+import { useGameState } from '@/contexts/GameStateContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
 import { calculateTotalEquipmentStats, calculateClickDamage } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
@@ -25,26 +26,28 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
   const { playerStats, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
-  const [loading, setLoading] = useState(true);
+  const gameState = useGameState();
+
+  // Battle data (not flow state)
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [monster, setMonster] = useState<MonsterFrontend | null>(null);
   const [clicks, setClicks] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
+  const [lastSavedClicks, setLastSavedClicks] = useState(0);
+  const [critTrigger, setCritTrigger] = useState(0);
+
+  // Defeat screen data
+  const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
+    goldLost: 0,
+    streakLost: 0
+  });
+
+  // Cheat detection modal
   const [cheatModal, setCheatModal] = useState<{ show: boolean; message: string }>({
     show: false,
     message: ''
   });
-  const [lootOptions, setLootOptions] = useState<LootItem[] | null>(null);
-  const [lastSavedClicks, setLastSavedClicks] = useState(0);
-  const [showNextMonster, setShowNextMonster] = useState(false);
-  const [battleStarted, setBattleStarted] = useState(false);
-  const [defeatScreen, setDefeatScreen] = useState<{
-    show: boolean;
-    goldLost: number;
-    streakLost: number;
-  }>({ show: false, goldLost: 0, streakLost: 0 });
-  const [critTrigger, setCritTrigger] = useState(0);
 
   // Calculate total equipment stats
   const equipmentStats = calculateTotalEquipmentStats(
@@ -58,8 +61,8 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
   const { isAttacking } = useMonsterAttack({
     monster,
     session,
-    battleStarted,
-    isSubmitting,
+    battleStarted: gameState.canAttackMonster(),
+    isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     playerStats,
     takeDamage,
     equipmentStats
@@ -67,14 +70,16 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
 
   useEffect(() => {
     // Start battle once player stats are loaded
-    if (playerStats && !monster) {
+    // Only when game state allows it (prevents race conditions)
+    if (playerStats && !monster && gameState.canStartBattle()) {
+      console.log('🎮 Starting initial battle...');
       startBattle();
     }
   }, [playerStats, monster]);
 
   // Auto-save clicks periodically
   useEffect(() => {
-    if (!battleStarted || !session || session.isDefeated) return;
+    if (!gameState.canAttackMonster() || !session || session.isDefeated) return;
 
     const interval = setInterval(() => {
       if (clicks > lastSavedClicks) {
@@ -83,22 +88,22 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
     }, 10000); // Save every 10 seconds
 
     return () => clearInterval(interval);
-  }, [clicks, lastSavedClicks, battleStarted, session]);
+  }, [clicks, lastSavedClicks, gameState.gameState, session]);
 
   // Save clicks when reaching thresholds
   useEffect(() => {
-    if (!battleStarted) return;
+    if (!gameState.canAttackMonster()) return;
     if (clicks > 0 && clicks % 5 === 0 && clicks > lastSavedClicks) {
       saveClicksToBackend();
     }
-  }, [clicks, lastSavedClicks, battleStarted]);
+  }, [clicks, lastSavedClicks, gameState.gameState]);
 
   // Check for player death
   useEffect(() => {
-    if (playerStats && playerStats.currentHealth <= 0 && battleStarted && !defeatScreen.show) {
+    if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster()) {
       handlePlayerDeath();
     }
-  }, [playerStats?.currentHealth, battleStarted, defeatScreen.show]);
+  }, [playerStats?.currentHealth, gameState.gameState]);
 
   const handlePlayerDeath = async () => {
     if (!playerStats || !session) return;
@@ -132,16 +137,13 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       console.error('Error ending battle session:', err);
     }
 
-    setBattleStarted(false);
-    setDefeatScreen({
-      show: true,
-      goldLost,
-      streakLost
-    });
+    // Store defeat data and transition to defeat screen
+    setDefeatData({ goldLost, streakLost });
+    gameState.setPlayerDefeated();
   };
 
   const handleDefeatContinue = async () => {
-    setDefeatScreen({ show: false, goldLost: 0, streakLost: 0 });
+    setDefeatData({ goldLost: 0, streakLost: 0 });
     await resetHealth();
     await startBattle();
   };
@@ -169,6 +171,8 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
 
   const startBattle = async (useBiome?: BiomeId, useTier?: Tier) => {
     try {
+      gameState.setBattleLoading();
+
       const biome = useBiome || selectedBiome;
       const tier = useTier || selectedTier;
 
@@ -211,25 +215,30 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       if (data.session.isDefeated && data.session.lootOptions && !data.session.selectedLootId) {
         const restoredLoot = getLootItemsByIds(data.session.lootOptions);
         setLootOptions(restoredLoot);
+        gameState.setLootSelection();
       } else if (data.session.isDefeated && data.session.selectedLootId) {
-        setShowNextMonster(true);
+        gameState.setNextMonsterReady();
       } else if (!data.isNewSession) {
         // Resuming battle - show toast only for this case as it's informational
         toast.success(`Resuming battle (${data.session.clickCount} attacks)`, { duration: 2000 });
+        gameState.setBattleStartScreen();
+      } else {
+        // New battle - show start screen
+        gameState.setBattleStartScreen();
       }
 
     } catch (err) {
       console.error('Error starting battle:', err);
       toast.error('Failed to start battle. Please refresh the page.');
-    } finally {
-      setLoading(false);
+      gameState.setInitializing(); // Reset to allow retry
     }
   };
 
   const submitBattleCompletion = async (finalClicks: number) => {
-    if (!monster || !session || !startTime || isSubmitting) return;
+    if (!monster || !session || !startTime) return;
+    if (gameState.gameState === 'BATTLE_COMPLETING') return; // Already submitting
 
-    setIsSubmitting(true);
+    gameState.setBattleCompleting();
 
     try {
       const response = await fetch('/api/attack-monster', {
@@ -245,6 +254,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       });
 
       const data = await response.json();
+      console.log('📦 Battle completion response:', { success: data.success, hasLoot: !!data.lootOptions, lootCount: data.lootOptions?.length });
 
       if (data.cheatingDetected) {
         setCheatModal({
@@ -257,21 +267,26 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
         }
         setClicks(0);
         setLastSavedClicks(0);
-        setIsSubmitting(false);
+        gameState.setBattleInProgress(); // Return to battle
         return;
       }
 
       if (data.hpCheatDetected) {
         // Player should have died but defeated monster anyway
         await handlePlayerDeath();
-        setIsSubmitting(false);
         return;
       }
 
       if (data.success && data.lootOptions) {
+        console.log('✅ Victory confirmed! Processing rewards...');
+
+        console.log('⏳ Incrementing streak...');
         await incrementStreak();
+        console.log('✅ Streak incremented');
+
         setSession({ ...session, isDefeated: true, lootOptions: data.lootOptions });
         setLootOptions(data.lootOptions);
+        console.log('🎁 Loot options set:', data.lootOptions.map((l: LootItem) => l.name).join(', '));
 
         // Show rewards (XP and coins)
         if (data.rewards) {
@@ -289,20 +304,24 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
         }
 
         // Refresh player stats to show updated XP/level/coins
+        console.log('⏳ Fetching updated player stats...');
         await fetchPlayerStats();
-      }
+        console.log('✅ Player stats refreshed');
 
-      setIsSubmitting(false);
+        // Transition to loot selection
+        console.log('✅ Transitioning to loot selection...');
+        gameState.setLootSelection();
+      }
 
     } catch (err) {
       console.error('Error submitting battle completion:', err);
       toast.error('Failed to complete battle. Please try again.');
-      setIsSubmitting(false);
+      gameState.setBattleInProgress(); // Return to battle on error
     }
   };
 
   const handleClick = () => {
-    if (!battleStarted || isSubmitting || session?.isDefeated) return;
+    if (!gameState.canAttackMonster() || session?.isDefeated) return;
 
     // Calculate damage with equipment bonuses (base damage is 1 per click)
     const { damage, isCrit } = calculateClickDamage(
@@ -354,7 +373,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
 
       setTimeout(() => {
         setLootOptions(null);
-        setShowNextMonster(true);
+        gameState.setNextMonsterReady();
       }, 500);
 
     } catch (err) {
@@ -390,7 +409,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
 
       setTimeout(() => {
         setLootOptions(null);
-        setShowNextMonster(true);
+        gameState.setNextMonsterReady();
       }, 300);
 
     } catch (err) {
@@ -402,11 +421,8 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     console.log(`🔄 Next Monster clicked.`);
 
-    setShowNextMonster(false);
     setClicks(0);
     setLastSavedClicks(0);
-    setIsSubmitting(false);
-    setLoading(true);
 
     // Reset HP and refresh stats in background (non-blocking)
     resetHealth().catch(err => console.error('Failed to reset health:', err));
@@ -425,10 +441,10 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       body: JSON.stringify({ sessionId: session._id })
     }).catch(error => console.error('Failed to start battle timer:', error));
 
-    setBattleStarted(true);
+    gameState.setBattleInProgress();
   };
 
-  if (loading) {
+  if (gameState.isLoading()) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12 bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 min-h-[400px]">
         <div className="text-white text-2xl animate-pulse">Loading battle...</div>
@@ -515,7 +531,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       </div>
 
       {/* Defeated Message */}
-      {isDefeated && !isSubmitting && (
+      {isDefeated && gameState.gameState !== 'BATTLE_COMPLETING' && (
         <div className="mt-4 p-6 bg-green-500/20 rounded-lg border-2 border-green-400 animate-pulse">
           <p className="text-green-400 text-xl font-bold text-center">
             🎉 Victory! Monster Defeated! 🎉
@@ -527,7 +543,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       )}
 
       {/* Submitting Message */}
-      {isSubmitting && (
+      {gameState.gameState === 'BATTLE_COMPLETING' && (
         <div className="mt-4 p-4 bg-blue-500/20 rounded-lg border border-blue-400">
           <p className="text-blue-400 text-center">
             Validating your victory...
@@ -536,7 +552,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       )}
 
       {/* Next Monster Button - Fixed position on right side */}
-      {showNextMonster && !lootOptions && (
+      {gameState.canShowNextMonsterButton() && (
         <button
           onClick={() => handleNextMonster()}
           className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400 cursor-pointer"
@@ -555,15 +571,17 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       />
 
       {/* Loot Selection Modal */}
-      <LootSelectionModal
-        lootOptions={lootOptions}
-        tier={session?.tier || 1}
-        onLootSelect={handleLootSelection}
-        onSkip={handleSkipLoot}
-      />
+      {gameState.canShowLootModal() && (
+        <LootSelectionModal
+          lootOptions={lootOptions}
+          tier={session?.tier || 1}
+          onLootSelect={handleLootSelection}
+          onSkip={handleSkipLoot}
+        />
+      )}
 
       {/* Battle Start Screen */}
-      {!battleStarted && monster && (
+      {gameState.gameState === 'BATTLE_START_SCREEN' && monster && (
         <BattleStartScreen
           monsterName={monster.name}
           monsterRarity={monster.rarity}
@@ -573,13 +591,13 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
       )}
 
       {/* Battle Defeat Screen */}
-      {defeatScreen.show && monster && (
+      {gameState.canShowDefeatScreen() && monster && (
         <BattleDefeatScreen
           monsterName={monster.name}
           monsterRarity={monster.rarity}
           monsterIcon={monster.imageUrl}
-          goldLost={defeatScreen.goldLost}
-          streakLost={defeatScreen.streakLost}
+          goldLost={defeatData.goldLost}
+          streakLost={defeatData.streakLost}
           onContinue={handleDefeatContinue}
         />
       )}

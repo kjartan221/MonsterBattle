@@ -41,7 +41,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-GAME_DESIGN_PROPOSAL.md
-EQUIPMENT_STATS_IMPLEMENTATION.md
-ITEM_TIER_SCALING_CHANGES.md
+# Documentation folder (app system docs and implementation notes)
+/docs/
+
+# Backup files
 *BACKUP*

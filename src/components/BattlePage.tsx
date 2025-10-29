@@ -9,6 +9,7 @@ import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
 import EquipmentSelectionModal from '@/components/battle/EquipmentSelectionModal';
 import MonsterBattleSection from '@/components/battle/MonsterBattleSection';
+import Hotbar from '@/components/battle/Hotbar';
 import toast from 'react-hot-toast';
 
 export default function BattlePage() {
@@ -92,6 +93,18 @@ export default function BattlePage() {
 
       {/* Monster Battle Section - Center (only this re-renders when getting new monster) */}
       <MonsterBattleSection />
+
+      {/* Hotbar - Bottom Center */}
+      <Hotbar
+        onSpellCast={() => {
+          console.log('Spell cast!');
+          toast.success('Spell cast!');
+        }}
+        onConsumableUse={(slot) => {
+          console.log(`Consumable used from slot ${slot}`);
+          toast.success(`Used consumable from slot ${slot + 1}`);
+        }}
+      />
 
       {/* Equipment Selection Modal */}
       {equipmentModal.show && equipmentModal.slot && (

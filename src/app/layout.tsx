@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { PlayerProvider } from "@/contexts/PlayerContext";
 import { BiomeProvider } from "@/contexts/BiomeContext";
 import { EquipmentProvider } from "@/contexts/EquipmentContext";
+import { GameStateProvider } from "@/contexts/GameStateContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,31 +35,33 @@ export default function RootLayout({
         <PlayerProvider>
           <BiomeProvider>
             <EquipmentProvider>
-              {children}
-              <Toaster
-                position="top-center"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#1f2937',
-                    color: '#fff',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                  },
-                  success: {
-                    iconTheme: {
-                      primary: '#10b981',
-                      secondary: '#fff',
+              <GameStateProvider>
+                {children}
+                <Toaster
+                  position="top-center"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: '#1f2937',
+                      color: '#fff',
+                      borderRadius: '0.5rem',
+                      padding: '1rem',
                     },
-                  },
-                  error: {
-                    iconTheme: {
-                      primary: '#ef4444',
-                      secondary: '#fff',
+                    success: {
+                      iconTheme: {
+                        primary: '#10b981',
+                        secondary: '#fff',
+                      },
                     },
-                  },
-                }}
-              />
+                    error: {
+                      iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#fff',
+                      },
+                    },
+                  }}
+                />
+              </GameStateProvider>
             </EquipmentProvider>
           </BiomeProvider>
         </PlayerProvider>

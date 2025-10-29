@@ -7,6 +7,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Claude agents are stored in the following directory:
 C:\Users\user\.claude\agents
 
+---
+
+## 📚 Documentation Workflow
+
+**IMPORTANT: Where to Create Documentation Files**
+
+### Documentation Structure:
+- **CLAUDE.md** (this file) - Project-level instructions for Claude Code
+  - Location: Root directory
+  - Purpose: Configuration, architecture, rules for Claude
+  - Git: Tracked (committed to repository)
+
+- **README.md** - Standard project readme
+  - Location: Root directory
+  - Purpose: User-facing project documentation
+  - Git: Tracked (committed to repository)
+
+- **docs/ folder** - Implementation details and system documentation
+  - Location: `/docs/` directory
+  - Purpose: Design documents, implementation notes, system changes
+  - Git: **Ignored** (not committed to repository)
+  - Examples:
+    - `GAME_DESIGN_PROPOSAL.md` - Game design specifications
+    - `EQUIPMENT_STATS_IMPLEMENTATION.md` - Equipment system details
+    - `TIER_SCALING_IMPLEMENTATION.md` - Implementation notes
+    - `REFACTORING_PLAN.md` - Code refactoring documentation
+
+### Rule for Future Sessions:
+**When creating new documentation:**
+1. ✅ **System/implementation docs** → Create in `/docs/` folder
+2. ✅ **Project instructions** → Update `CLAUDE.md` (root)
+3. ✅ **User-facing info** → Update `README.md` (root)
+4. ❌ **Never create loose .md files** in root (except CLAUDE.md and README.md)
+
+### Benefits:
+- Keeps root directory clean
+- Separates public docs (tracked) from private notes (ignored)
+- All implementation details stay local and private
+- Easy to find related documentation in `/docs/` folder
+
+---
+
 ## Project Overview
 
 This is a Next.js 16 application using React 19, TypeScript, and TailwindCSS v4. The project uses the App Router architecture.
@@ -28,14 +70,14 @@ This is a demo application where:
 - ✅ Toast notifications (react-hot-toast)
 - ✅ Inventory system (userInventory collection stores collected items)
 - ✅ Inventory page with treasure chest UI
-- 🚧 Implementing Phase 1 of GAME_DESIGN_PROPOSAL.md (RPG transformation)
+- 🚧 Implementing Phase 1 of docs/GAME_DESIGN_PROPOSAL.md (RPG transformation)
 
 **IMPORTANT: Phased Implementation Rule**
-When implementing features from GAME_DESIGN_PROPOSAL.md:
+When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 - **Only implement ONE phase item per prompt/session**
 - Wait for user review and testing before proceeding
 - This ensures code quality and allows for adjustments
-- Reference: See Phase 1, Phase 2, Phase 3 sections in GAME_DESIGN_PROPOSAL.md
+- Reference: See Phase 1, Phase 2, Phase 3 sections in docs/GAME_DESIGN_PROPOSAL.md
 - ⏳ NFT minting to blockchain (placeholder for future BSV integration)
 
 ---
@@ -44,10 +86,10 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 
 **Last Updated**: 2025-10-28 (Phase 1.5: Player Progression)
 
-**Reference**: GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
+**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
-- **Phase 1.2: Monster Attack Loop** (GAME_DESIGN_PROPOSAL.md:1076-1082)
+- **Phase 1.2: Monster Attack Loop** (docs/GAME_DESIGN_PROPOSAL.md:1076-1082)
   - Backend: Monster attack damage defined in monster-table.ts (2-12 DPS)
   - Frontend: setInterval loop to damage player every second (BattlePage.tsx:63-79)
   - Frontend: Visual feedback for monster attacks (BattlePage.tsx:423, 426)
@@ -67,7 +109,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - "Try Again" button restarts battle
     - Gold loss mechanism (BattlePage.tsx:108-120)
 
-- **Phase 1.3: Biome & Tier System** (GAME_DESIGN_PROPOSAL.md:959-965)
+- **Phase 1.3: Biome & Tier System** (docs/GAME_DESIGN_PROPOSAL.md:959-965)
   - Backend: Biome configuration system (biome-config.ts)
     - BiomeId type: 'forest' | 'desert' | 'ocean' | 'volcano' | 'castle'
     - Tier type: 1-5 with multipliers (1x, 2x, 4x, 8x, 15x)
@@ -89,7 +131,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
   - Frontend: Integration with BattlePage using useBiome() hook
   - Frontend: PlayerStatsDisplay mobile responsive updates (320px width match)
 
-- **Phase 1.4: Equipment System** (GAME_DESIGN_PROPOSAL.md:967-971)
+- **Phase 1.4: Equipment System** (docs/GAME_DESIGN_PROPOSAL.md:967-971)
   - Backend: Equipment slot fields in PlayerStats (types.ts:64-68)
     - equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2
     - Store ObjectId references to UserInventory items
@@ -138,7 +180,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - Kept all error toasts for critical feedback
     - Reduced loot modal delay from 1500ms to 500ms
 
-- **Phase 1.5: Player Progression** (GAME_DESIGN_PROPOSAL.md:973-977)
+- **Phase 1.5: Player Progression** (docs/GAME_DESIGN_PROPOSAL.md:973-977)
   - Backend: XP and reward utilities (playerProgression.ts)
     - getXPForLevel() - Calculate XP requirement (100 * 1.5^(level-1))
     - getMonsterRewards() - XP/coins by rarity (Common: 10XP/5g, Legendary: 80XP/50g)
@@ -165,7 +207,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
     - Auto-refresh player stats after battle completion
 
 ### 📋 Next Steps (To Implement)
-- **Phase 1.6: Core Items (Tier 1-3)** (GAME_DESIGN_PROPOSAL.md lines 979-983)
+- **Phase 1.6: Core Items (Tier 1-3)** (docs/GAME_DESIGN_PROPOSAL.md lines 979-983)
   - Tiered weapons: Wooden Sword, Iron Sword, Steel Sword
   - Tiered armor: Leather Armor, Chainmail
   - Accessories: Lucky Coin, Ring of Haste
@@ -177,7 +219,7 @@ When implementing features from GAME_DESIGN_PROPOSAL.md:
 2. Move the completed item from "Next Steps" to "Recently Completed"
 3. Update the "Last Updated" field
 4. Keep only the most recent 2-3 completed items in "Recently Completed"
-5. Always reference GAME_DESIGN_PROPOSAL.md line numbers for traceability
+5. Always reference docs/GAME_DESIGN_PROPOSAL.md line numbers for traceability
 
 ## Build and Development Commands
 
