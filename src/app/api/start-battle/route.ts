@@ -4,6 +4,7 @@ import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
 import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable } from '@/lib/biome-config';
+import { generateMonsterBuffs } from '@/utils/monsterBuffs';
 import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
@@ -105,6 +106,9 @@ export async function POST(request: NextRequest) {
     const clicksRequired = getRandomClicksRequired(monsterTemplate.baseClicksRange, tier);
     const attackDamage = getScaledAttackDamage(monsterTemplate.baseAttackDamage, tier);
 
+    // Generate buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
+    const buffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false);
+
     const newMonster = {
       name: monsterTemplate.name,
       imageUrl: monsterTemplate.imageUrl,
@@ -114,6 +118,7 @@ export async function POST(request: NextRequest) {
       biome,
       tier,
       dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
+      buffs, // Add monster buffs (none for bosses except Tier 5)
       createdAt: new Date()
     };
 

@@ -10,6 +10,7 @@ export interface MonsterTemplate {
   baseAttackDamage: number; // BASE damage per second (will be scaled by tier)
   biomes: BiomeId[]; // Which biomes this monster can appear in
   dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
+  isBoss?: boolean; // True for boss monsters (no buffs except Tier 5)
 }
 
 // Monster Templates - BASE stats for each monster type (Tier 1)
@@ -69,7 +70,8 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     rarity: 'epic',
     baseClicksRange: [45, 50], // 150 HP for Tier 2 (scaled from T1 base)
     baseAttackDamage: 4, // 4 HP/sec, regenerates, summons sprites
-    biomes: ['forest']
+    biomes: ['forest'],
+    isBoss: true // Boss: No buffs except Tier 5
   },
 
   // ===== DESERT BIOME =====
@@ -125,7 +127,8 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     rarity: 'epic',
     baseClicksRange: [40, 45], // 120 HP + 40 HP shield = 160 total ÷ 3.5 damage
     baseAttackDamage: 4, // 4 HP/sec, shield mechanic, sandstorm blind
-    biomes: ['desert']
+    biomes: ['desert'],
+    isBoss: true // Mini-Boss: No buffs except Tier 5
   },
 
   // ===== LEGACY MONSTERS (will be deprecated) =====

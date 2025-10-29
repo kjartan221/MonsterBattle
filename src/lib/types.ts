@@ -23,6 +23,7 @@ export interface Monster {
   biome: BiomeId; // Which biome this monster belongs to
   tier: Tier; // Which tier this monster instance is at
   dotEffect?: DebuffEffect; // Optional DoT effect on attack
+  buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
   createdAt: Date;
 }
 
@@ -112,6 +113,17 @@ export interface BattleSession {
   completedAt?: Date;
 }
 
+// ========== Monster Buff System ==========
+
+export type MonsterBuffType =
+  | 'shield'    // Has shield HP that must be broken first
+  | 'fast';     // Escapes if not defeated in time
+
+export interface MonsterBuff {
+  type: MonsterBuffType;
+  value: number; // For shield: shield HP amount, for fast: escape time in seconds
+}
+
 // ========== Debuff System ==========
 
 export type DebuffType =
@@ -154,6 +166,7 @@ export interface MonsterFrontend {
   tier: Tier;
   createdAt: Date | string;
   dotEffect?: DebuffEffect;       // Optional DoT effect on attack
+  buffs?: MonsterBuff[];          // Monster buffs (Shield, Fast, etc.)
 }
 
 // Frontend Battle Session type (IDs as strings)

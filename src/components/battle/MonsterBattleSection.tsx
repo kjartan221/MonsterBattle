@@ -18,6 +18,7 @@ import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterCard from '@/components/battle/MonsterCard';
+import BuffIndicators from '@/components/battle/BuffIndicators';
 
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
@@ -43,6 +44,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     show: false,
     message: ''
   });
+
+  // Monster buff tracking
+  const [shieldHP, setShieldHP] = useState<number>(0);
+  const [escapeTimer, setEscapeTimer] = useState<number | null>(null); // Seconds remaining
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -73,6 +78,46 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       startBattle();
     }
   }, [playerStats, gameState.monster]);
+
+  // Initialize monster buffs when battle starts
+  useEffect(() => {
+    if (!gameState.monster) return;
+
+    // Initialize shield HP
+    const shieldBuff = gameState.monster.buffs?.find(b => b.type === 'shield');
+    if (shieldBuff) {
+      setShieldHP(shieldBuff.value);
+    } else {
+      setShieldHP(0);
+    }
+
+    // Initialize escape timer
+    const fastBuff = gameState.monster.buffs?.find(b => b.type === 'fast');
+    if (fastBuff && gameState.gameState === 'BATTLE_IN_PROGRESS') {
+      setEscapeTimer(fastBuff.value);
+    } else {
+      setEscapeTimer(null);
+    }
+  }, [gameState.monster, gameState.gameState]);
+
+  // Escape timer countdown
+  useEffect(() => {
+    if (escapeTimer === null || !gameState.canAttackMonster()) return;
+
+    const interval = setInterval(() => {
+      setEscapeTimer(prev => {
+        if (prev === null || prev <= 0) {
+          clearInterval(interval);
+          // Monster escaped!
+          handleMonsterEscape();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [escapeTimer, gameState.gameState]);
 
   // Auto-save clicks periodically
   useEffect(() => {
@@ -304,7 +349,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handleClick = () => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
 
-    const { damage, isCrit } = calculateClickDamage(
+    let { damage, isCrit } = calculateClickDamage(
       1,
       equipmentStats.damageBonus,
       equipmentStats.critChance
@@ -314,12 +359,52 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       setCritTrigger(prev => prev + 1);
     }
 
+    // Damage shield first if it exists (with 25% damage reduction)
+    if (shieldHP > 0) {
+      const reducedDamage = Math.ceil(damage * 0.75); // 25% damage reduction
+      const newShieldHP = Math.max(0, shieldHP - reducedDamage);
+      setShieldHP(newShieldHP);
+      return; // Shield absorbs all damage, excess is ignored
+    }
+
+    // Normal damage to monster HP
     const newClicks = clicks + damage;
     setClicks(newClicks);
 
     if (gameState.monster && newClicks >= gameState.monster.clicksRequired) {
       submitBattleCompletion(newClicks);
     }
+  };
+
+  const handleMonsterEscape = async () => {
+    if (!gameState.session) return;
+
+    toast.error('The monster escaped!', { duration: 3000 });
+
+    // Treat escape as battle loss (same as player death)
+    const goldLost = Math.floor((playerStats?.coins || 0) * 0.10);
+    const streakLost = playerStats?.stats?.battlesWonStreak || 0;
+
+    setDefeatData({ goldLost, streakLost });
+
+    // Deduct gold and reset streak
+    if (goldLost > 0) {
+      await updatePlayerStats({ coins: (playerStats?.coins || 0) - goldLost });
+    }
+    await resetStreak();
+
+    // Mark session as defeated
+    try {
+      await fetch('/api/end-battle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: gameState.session._id }),
+      });
+    } catch (err) {
+      console.error('Error ending battle after escape:', err);
+    }
+
+    gameState.setPlayerDefeated();
   };
 
   const closeCheatModal = () => {
@@ -376,6 +461,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearDebuffs();
     setClicks(0);
     setLastSavedClicks(0);
+    setShieldHP(0);
+    setEscapeTimer(null);
 
     await resetHealth();
     await fetchPlayerStats();
@@ -470,6 +557,26 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         </div>
       </div>
 
+      {/* Monster Buffs */}
+      {gameState.monster.buffs && gameState.monster.buffs.length > 0 && (
+        <div className="w-full flex justify-center">
+          <BuffIndicators buffs={gameState.monster.buffs} size="medium" />
+        </div>
+      )}
+
+      {/* Escape Timer (Fast Buff) */}
+      {escapeTimer !== null && escapeTimer > 0 && (
+        <div className="w-full px-6 py-3 bg-yellow-500/20 rounded-lg border-2 border-yellow-400 animate-pulse">
+          <div className="flex items-center justify-between">
+            <span className="text-yellow-400 font-bold text-lg">⚡ Monster Escaping!</span>
+            <span className="text-yellow-200 font-bold text-xl">{escapeTimer}s</span>
+          </div>
+          <div className="mt-2 text-yellow-200 text-sm text-center">
+            Defeat it before it escapes!
+          </div>
+        </div>
+      )}
+
       {/* Monster Click Area */}
       <MonsterCard
         monster={gameState.monster}
@@ -478,6 +585,36 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         onAttack={handleClick}
         critTrigger={critTrigger}
       />
+
+      {/* Shield HP Bar */}
+      {shieldHP > 0 && (
+        <div className="w-full">
+          <div className="flex justify-between mb-2">
+            <span className="text-blue-400 font-semibold flex items-center gap-2">
+              <span>🛡️</span>
+              <span>Shield</span>
+              <span className="text-xs bg-blue-500/30 px-2 py-0.5 rounded-full border border-blue-400">
+                -25% Damage
+              </span>
+            </span>
+            <span className="text-blue-400 font-semibold">
+              {shieldHP} / {gameState.monster.buffs?.find(b => b.type === 'shield')?.value || shieldHP}
+            </span>
+          </div>
+          <div className="w-full bg-black/30 rounded-full h-6 overflow-hidden border-2 border-blue-400">
+            <div
+              className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300 flex items-center justify-center"
+              style={{
+                width: `${Math.min(100, (shieldHP / (gameState.monster.buffs?.find(b => b.type === 'shield')?.value || shieldHP)) * 100)}%`
+              }}
+            >
+              <span className="text-white text-xs font-bold">
+                SHIELD
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HP Bar */}
       <div className="w-full">
