@@ -11,7 +11,8 @@ import { useBiome } from '@/contexts/BiomeContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
-import type { DebuffEffect } from '@/lib/types';
+import { useSpecialAttacks } from '@/hooks/useSpecialAttacks';
+import type { DebuffEffect, SpecialAttack } from '@/lib/types';
 import { calculateTotalEquipmentStats, calculateClickDamage } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
@@ -19,6 +20,7 @@ import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterCard from '@/components/battle/MonsterCard';
 import BuffIndicators from '@/components/battle/BuffIndicators';
+import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
@@ -70,6 +72,25 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     takeDamage,
     equipmentStats,
     applyDebuff
+  });
+
+  // Boss special attacks system
+  const handleSpecialAttack = useCallback((attack: SpecialAttack) => {
+    if (attack.damage) {
+      console.log(`💥 Special Attack Hit! ${attack.type} dealt ${attack.damage} damage`);
+      takeDamage(attack.damage);
+    }
+    if (attack.healing) {
+      console.log(`💚 Boss Healed! ${attack.type} restored ${attack.healing} HP`);
+      // TODO: Implement boss healing
+    }
+  }, [takeDamage]);
+
+  const { lastAttack } = useSpecialAttacks({
+    monster: gameState.monster,
+    battleStarted: gameState.canAttackMonster(),
+    isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
+    onSpecialAttack: handleSpecialAttack
   });
 
   // Auto-start initial battle when player stats load
@@ -536,8 +557,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const isDefeated = gameState.monster ? clicks >= gameState.monster.clicksRequired : false;
 
   return (
-    <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
-      <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
+    <>
+      {/* Special Attack Visual Feedback */}
+      <SpecialAttackFlash attack={lastAttack} />
+
+      <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
+        <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
 
       {/* Monster Info */}
       <div className="text-center mb-2">
@@ -724,5 +749,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         />
       )}
     </div>
+    </>
   );
 }

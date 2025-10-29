@@ -119,6 +119,8 @@ export async function POST(request: NextRequest) {
       tier,
       dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
       buffs, // Add monster buffs (none for bosses except Tier 5)
+      specialAttacks: monsterTemplate.specialAttacks, // Boss special attacks
+      bossPhases: monsterTemplate.bossPhases, // Boss phase system
       createdAt: new Date()
     };
 

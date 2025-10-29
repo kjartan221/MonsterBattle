@@ -24,6 +24,8 @@ export interface Monster {
   tier: Tier; // Which tier this monster instance is at
   dotEffect?: DebuffEffect; // Optional DoT effect on attack
   buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
+  specialAttacks?: SpecialAttack[]; // Boss special attacks (fireball, etc.)
+  bossPhases?: BossPhase[]; // Boss phase system (for multi-phase bosses)
   createdAt: Date;
 }
 
@@ -124,6 +126,31 @@ export interface MonsterBuff {
   value: number; // For shield: shield HP amount, for fast: escape time in seconds
 }
 
+// ========== Boss Special Attack System ==========
+
+export type SpecialAttackType =
+  | 'fireball'     // Direct damage attack with visual effect
+  | 'lightning'    // Direct damage attack
+  | 'meteor'       // AoE damage
+  | 'heal';        // Boss heals
+
+export interface SpecialAttack {
+  type: SpecialAttackType;
+  damage?: number;         // Damage to player (if applicable)
+  healing?: number;        // Healing to monster (if applicable)
+  cooldown: number;        // Seconds between attacks
+  visualEffect?: string;   // Color for screen flash (e.g., 'orange', 'blue', 'purple')
+  message?: string;        // Message to display to player
+}
+
+export interface BossPhase {
+  phaseNumber: number;     // 1, 2, 3, etc.
+  hpThreshold: number;     // % of HP when phase triggers (e.g., 66, 33)
+  invulnerabilityDuration: number; // MS of invulnerability
+  specialAttacks?: SpecialAttack[]; // Special attacks during this phase
+  message?: string;        // Message shown when phase starts
+}
+
 // ========== Debuff System ==========
 
 export type DebuffType =
@@ -167,6 +194,8 @@ export interface MonsterFrontend {
   createdAt: Date | string;
   dotEffect?: DebuffEffect;       // Optional DoT effect on attack
   buffs?: MonsterBuff[];          // Monster buffs (Shield, Fast, etc.)
+  specialAttacks?: SpecialAttack[]; // Boss special attacks
+  bossPhases?: BossPhase[];       // Boss phase system
 }
 
 // Frontend Battle Session type (IDs as strings)

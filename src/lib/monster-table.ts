@@ -1,5 +1,5 @@
 import { BiomeId, Tier, applyTierScaling, BIOMES } from './biome-config';
-import type { DebuffEffect } from './types';
+import type { DebuffEffect, SpecialAttack, BossPhase } from './types';
 
 // Monster Definition Template (BASE stats, before tier scaling)
 export interface MonsterTemplate {
@@ -11,6 +11,8 @@ export interface MonsterTemplate {
   biomes: BiomeId[]; // Which biomes this monster can appear in
   dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
   isBoss?: boolean; // True for boss monsters (no buffs except Tier 5)
+  specialAttacks?: SpecialAttack[]; // Boss special attacks (e.g., fireball)
+  bossPhases?: BossPhase[]; // Multi-phase boss system
 }
 
 // Monster Templates - BASE stats for each monster type (Tier 1)
@@ -128,7 +130,16 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     baseClicksRange: [40, 45], // 120 HP + 40 HP shield = 160 total ÷ 3.5 damage
     baseAttackDamage: 4, // 4 HP/sec, shield mechanic, sandstorm blind
     biomes: ['desert'],
-    isBoss: true // Mini-Boss: No buffs except Tier 5
+    isBoss: true, // Mini-Boss: No buffs except Tier 5
+    specialAttacks: [
+      {
+        type: 'fireball',
+        damage: 15, // Direct damage to player
+        cooldown: 5, // 5 seconds between fireballs
+        visualEffect: 'orange',
+        message: '🔥 The Sand Djinn hurls a blazing fireball!'
+      }
+    ]
   },
 
   // ===== LEGACY MONSTERS (will be deprecated) =====

@@ -84,11 +84,65 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-29 (Phase 2.1: Debuff/DoT System)
+**Last Updated**: 2025-10-29 (Phase 2.1: Monster Buffs & Boss Special Attacks)
 
 **Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
+
+#### **Loot System Balance Changes**
+- **Spell Scroll Rarity Adjustment**
+  - Removed generic "Magic Scroll" from RARE_LOOT pool
+  - Changed "Minor Heal Scroll" → **legendary** (only drops from Treant Guardian boss)
+  - Changed "Fireball Scroll" → **legendary** (only drops from Sand Djinn mini-boss)
+  - Result: Spell scrolls now VERY rare, only from bosses
+
+- **Inventory Item Stacking**
+  - Items with same name + tier stack into single card
+  - Count badge displays in bottom-right corner ("x#")
+  - Details modal shows "You have # of these"
+  - Visual: Tier badge (bottom-left), Count badge (bottom-right)
+  - Code: InventoryPage.tsx stackItems() function
+
+#### **Phase 2.1: Monster Buffs System** (types.ts:116-150)
+- **Buff Types**: Shield (🛡️), Fast (⚡)
+- **Spawn Rules** (utils/monsterBuffs.ts):
+  - T1: No buffs
+  - T2: 40% for 1 buff (Shield 30% HP, Fast 90s) - Weakened intro
+  - T3: 60% for 1 buff, 20% for 2 buffs (Shield 50% HP, Fast 60s)
+  - T4: 70% for 1 buff, 30% for 2 buffs
+  - T5: 80% for 1 buff, 40% for 2 buffs
+  - **Bosses**: No buffs except Tier 5
+- **Shield Buff**:
+  - Blue HP bar above monster HP (components/battle/BuffIndicators.tsx)
+  - **-25% player damage** while shield is active
+  - Shield absorbs all damage (excess ignored)
+  - Visual: "-25% Damage" badge on shield bar
+  - Future: Can be removed with consumables (Acid Bottle) or spells
+- **Fast Buff**:
+  - Yellow countdown timer above monster
+  - Monster escapes if timer reaches 0
+  - Escape = Battle loss (10% gold, streak reset)
+  - Visual: Pulsing warning with countdown
+- **Boss Exclusions**: Treant Guardian, Sand Djinn marked `isBoss: true` (no buffs except T5)
+
+#### **Phase 2.1: Boss Special Attacks** (types.ts:127-150)
+- **Special Attack System**:
+  - SpecialAttackType: fireball, lightning, meteor, heal
+  - SpecialAttack interface: damage, cooldown, visualEffect, message
+  - BossPhase interface: For future multi-phase bosses
+- **Sand Djinn Fireball** (monster-table.ts:134-141):
+  - Direct damage: 15 HP
+  - Cooldown: 5 seconds
+  - Visual: Orange screen flash
+  - Message: "🔥 The Sand Djinn hurls a blazing fireball!"
+- **Implementation**:
+  - useSpecialAttacks hook (hooks/useSpecialAttacks.ts)
+  - SpecialAttackFlash component (visual feedback)
+  - Auto-triggers based on cooldown
+  - Fully extensible for multiple attacks per boss
+
+### ✅ Previously Completed
 - **Phase 2.1: Debuff/DoT System** (docs/DEBUFF_SYSTEM_IMPLEMENTATION.md)
   - Backend: Debuff types and interfaces (types.ts:117-141)
     - DebuffType: poison, burn, bleed, slow, stun, freeze
@@ -241,11 +295,68 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
     - Auto-refresh player stats after battle completion
 
 ### 📋 Next Steps (To Implement)
-- **Phase 1.6: Core Items (Tier 1-3)** (docs/GAME_DESIGN_PROPOSAL.md lines 979-983)
-  - Tiered weapons: Wooden Sword, Iron Sword, Steel Sword
-  - Tiered armor: Leather Armor, Chainmail
-  - Accessories: Lucky Coin, Ring of Haste
-  - Item tier scaling: Multiply stats by tier
+
+**Priority 1: Boss Phase System**
+- **Multi-Phase Boss HP Bars**
+  - Stacked HP system (e.g., 3x 33 HP = 100 total)
+  - Visual: Multiple HP bars with phase counter badge (bottom-right)
+  - Decrement phase counter as each bar is depleted
+  - Example: Treant Guardian (T2) could have 2 phases
+- **Phase Transitions**
+  - Brief invulnerability period (1-2 seconds) between phases
+  - Visual indicator during invulnerability (shield effect/pulsing)
+  - Optional phase message ("The boss enters Phase 2!")
+  - Can trigger phase-specific mechanics
+- **BossPhase Integration** (types.ts:144-150 already defined)
+  - Use existing BossPhase interface
+  - hpThreshold: % HP when phase triggers (66, 33, etc.)
+  - invulnerabilityDuration: MS of invulnerability
+  - specialAttacks: Phase-specific attacks
+  - message: Phase transition message
+
+**Priority 2: More Boss Special Attacks**
+- **Lightning Attack** ⚡ (Blue visual effect)
+  - Damage: 10-15 HP
+  - Cooldown: 8 seconds
+  - Visual: Blue screen flash
+- **Meteor Strike** ☄️ (Red visual effect)
+  - Damage: 20 HP
+  - Cooldown: 15 seconds
+  - Visual: Red screen flash with falling meteor icon
+- **Boss Healing** 💚 (Green visual effect)
+  - Healing: 10% of max HP
+  - Cooldown: 20 seconds
+  - Visual: Green pulse around boss
+  - Requires boss HP tracking for healing
+
+**Priority 3: Shield-Breaking Consumables/Spells**
+- **Acid Bottle** (Consumable)
+  - Instantly removes monster shield
+  - Single-use item
+  - Craftable or rare drop
+- **Shield Break Spell** (Legendary scroll drop)
+  - 45-second cooldown
+  - Removes shield instantly
+  - Visual: Purple shatter effect
+- **Integration**: Add shield removal to battle UI
+  - Quick-use bar for consumables
+  - Spell hotkey system
+
+**Priority 4: More Monster Buffs**
+- **Regeneration** 💚
+  - Boss heals 5-10% HP every 10 seconds
+  - Visual: Green pulse effect
+  - Can stack with other buffs
+- **Enraged** 😡
+  - +50% attack damage
+  - Visual: Red aura around monster
+  - Triggered at low HP (< 30%)
+
+**Priority 5: Phase 1.6 - Core Items (Tier 1-3)** (docs/GAME_DESIGN_PROPOSAL.md lines 979-983)
+- Tiered weapons: Wooden Sword, Iron Sword, Steel Sword
+- Tiered armor: Leather Armor, Chainmail
+- Accessories: Lucky Coin, Ring of Haste
+- Item tier scaling: Multiply stats by tier
 
 ### 📝 Instructions for Claude
 **IMPORTANT**: After completing each implementation session:
