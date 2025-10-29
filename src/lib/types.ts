@@ -22,6 +22,7 @@ export interface Monster {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   biome: BiomeId; // Which biome this monster belongs to
   tier: Tier; // Which tier this monster instance is at
+  dotEffect?: DebuffEffect; // Optional DoT effect on attack
   createdAt: Date;
 }
 
@@ -111,6 +112,34 @@ export interface BattleSession {
   completedAt?: Date;
 }
 
+// ========== Debuff System ==========
+
+export type DebuffType =
+  | 'poison'    // Green - gradual damage over time
+  | 'burn'      // Orange - higher damage over time
+  | 'bleed'     // Red - medium damage over time
+  | 'slow'      // Blue - reduces attack/click speed
+  | 'stun'      // Yellow - prevents actions temporarily
+  | 'freeze';   // Cyan - slows movement/attacks
+
+export type DamageType = 'flat' | 'percentage';
+
+export interface DebuffEffect {
+  type: DebuffType;
+  damageType: DamageType;        // 'flat' or 'percentage'
+  damageAmount: number;           // If percentage: 5 = 5% of max HP, if flat: raw damage
+  tickInterval: number;           // MS between damage ticks (usually 1000)
+  duration: number;               // Total duration in MS
+  applyChance?: number;           // 0-100 chance to apply (optional, default 100)
+}
+
+export interface ActiveDebuff extends DebuffEffect {
+  id: string;                     // Unique ID for tracking
+  startTime: number;              // Timestamp when applied
+  appliedBy?: string;             // Source (monster ID, spell ID, etc.)
+  targetMaxHP: number;            // Max HP of target at time of application (for percentage calc)
+}
+
 // ========== Frontend Types (with string IDs) ==========
 
 // Frontend Monster type (IDs as strings)
@@ -124,6 +153,7 @@ export interface MonsterFrontend {
   biome: BiomeId;
   tier: Tier;
   createdAt: Date | string;
+  dotEffect?: DebuffEffect;       // Optional DoT effect on attack
 }
 
 // Frontend Battle Session type (IDs as strings)

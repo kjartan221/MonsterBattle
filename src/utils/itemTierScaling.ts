@@ -65,12 +65,17 @@ export function scaleItemStats<T extends Record<string, number>>(
   baseStats: T,
   tier: Tier
 ): T {
-  const multiplier = ITEM_TIER_MULTIPLIERS[tier];
+  const multiplier = ITEM_TIER_MULTIPLIERS[tier] || 1; // Default to 1x if tier is invalid
   const scaled = {} as T;
 
   for (const [key, value] of Object.entries(baseStats)) {
-    if (typeof value === 'number') {
-      scaled[key as keyof T] = Math.round(value * multiplier) as T[keyof T];
+    if (typeof value === 'number' && !isNaN(value)) {
+      const scaledValue = Math.round(value * multiplier);
+      // Defensive check - ensure result is not NaN
+      scaled[key as keyof T] = (isNaN(scaledValue) ? 0 : scaledValue) as T[keyof T];
+    } else {
+      // If value is not a valid number, default to 0
+      scaled[key as keyof T] = 0 as T[keyof T];
     }
   }
 

@@ -1,4 +1,5 @@
 import { BiomeId, Tier, applyTierScaling, BIOMES } from './biome-config';
+import type { DebuffEffect } from './types';
 
 // Monster Definition Template (BASE stats, before tier scaling)
 export interface MonsterTemplate {
@@ -8,6 +9,7 @@ export interface MonsterTemplate {
   baseClicksRange: [number, number]; // BASE clicks required (will be scaled by tier)
   baseAttackDamage: number; // BASE damage per second (will be scaled by tier)
   biomes: BiomeId[]; // Which biomes this monster can appear in
+  dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
 }
 
 // Monster Templates - BASE stats for each monster type (Tier 1)
@@ -41,7 +43,15 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     rarity: 'rare',
     baseClicksRange: [35, 40], // 90 HP ÷ 2.5 damage = 36 clicks
     baseAttackDamage: 3, // 3 HP/sec, armored (high HP), charge attack
-    biomes: ['forest']
+    biomes: ['forest'],
+    dotEffect: {
+      type: 'bleed',
+      damageType: 'percentage',
+      damageAmount: 1.5, // 1.5% max HP per second
+      tickInterval: 1000,
+      duration: 6000, // 6 seconds
+      applyChance: 30 // 30% chance to cause bleed on charge
+    }
   },
   {
     name: 'Forest Sprite',
@@ -70,8 +80,16 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     imageUrl: '🦂',
     rarity: 'common',
     baseClicksRange: [28, 32], // 70 HP ÷ 2.5 damage = 28 clicks
-    baseAttackDamage: 3, // 3 HP/sec + poison (1 HP/sec for 5s)
-    biomes: ['desert']
+    baseAttackDamage: 3, // 3 HP/sec + poison
+    biomes: ['desert'],
+    dotEffect: {
+      type: 'poison',
+      damageType: 'percentage',
+      damageAmount: 2, // 2% max HP per second
+      tickInterval: 1000,
+      duration: 5000, // 5 seconds
+      applyChance: 50 // 50% chance to poison on hit
+    }
   },
   {
     name: 'Desert Viper',
@@ -88,8 +106,16 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     imageUrl: '🔥',
     rarity: 'rare',
     baseClicksRange: [35, 40], // 100 HP ÷ 3 damage = 33 clicks
-    baseAttackDamage: 3, // 3 HP/sec + burn (3 HP/sec for 4s)
-    biomes: ['desert']
+    baseAttackDamage: 3, // 3 HP/sec + burn
+    biomes: ['desert'],
+    dotEffect: {
+      type: 'burn',
+      damageType: 'percentage',
+      damageAmount: 3, // 3% max HP per second
+      tickInterval: 1000,
+      duration: 4000, // 4 seconds
+      applyChance: 75 // 75% chance to burn on hit
+    }
   },
 
   // Desert Tier 1 - Epic Mini-Boss

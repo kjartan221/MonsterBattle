@@ -84,11 +84,45 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-28 (Phase 1.5: Player Progression)
+**Last Updated**: 2025-10-29 (Phase 2.1: Debuff/DoT System)
 
 **Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
+- **Phase 2.1: Debuff/DoT System** (docs/DEBUFF_SYSTEM_IMPLEMENTATION.md)
+  - Backend: Debuff types and interfaces (types.ts:117-141)
+    - DebuffType: poison, burn, bleed, slow, stun, freeze
+    - DamageType: flat or percentage-based
+    - DebuffEffect and ActiveDebuff interfaces
+  - Backend: DoT effects on monsters (monster-table.ts)
+    - Added dotEffect field to MonsterTemplate interface
+    - Sand Scorpion: 2% poison, 5s duration, 50% chance
+    - Fire Elemental: 3% burn, 4s duration, 75% chance
+    - Wild Boar: 1.5% bleed, 6s duration, 30% chance
+  - Backend: start-battle API passes dotEffect to frontend
+  - Frontend: useDebuffs hook (hooks/useDebuffs.ts - 172 lines)
+    - Percentage-based damage calculation (scales with target max HP)
+    - Apply chance rolling (RNG-based debuff application)
+    - Individual tick intervals for each debuff type
+    - Bidirectional support (works for player and monster debuffs)
+    - Methods: applyDebuff(), clearDebuffs(), removeDebuff(), hasDebuff()
+  - Frontend: DebuffIndicators component (components/battle/DebuffIndicators.tsx - 120 lines)
+    - Color-coded icons with borders (poison green, burn orange, etc.)
+    - Real-time countdown timers
+    - Pulse animations during active ticks
+    - Hover tooltips with damage info
+  - Frontend: useMonsterAttack integration
+    - Accepts applyDebuff callback prop
+    - Applies debuffs on monster hit with chance rolling
+    - Console logs for debugging
+  - Frontend: MonsterBattleSection integration
+    - useDebuffs hook initialized with player maxHP and takeDamage
+    - activeDebuffs passed to PlayerStatsDisplay
+    - clearDebuffs() called on death, victory, and new monster
+    - PlayerStatsDisplay moved into MonsterBattleSection for direct access to debuff state
+  - Documentation: Complete system documentation (docs/DEBUFF_SYSTEM_IMPLEMENTATION.md - 493 lines)
+
+### ✅ Previously Completed
 - **Phase 1.2: Monster Attack Loop** (docs/GAME_DESIGN_PROPOSAL.md:1076-1082)
   - Backend: Monster attack damage defined in monster-table.ts (2-12 DPS)
   - Frontend: setInterval loop to damage player every second (BattlePage.tsx:63-79)

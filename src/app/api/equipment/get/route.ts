@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedWeapon = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier
+          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
         };
       }
     }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedArmor = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier
+          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
         };
       }
     }
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedAccessory1 = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier
+          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
         };
       }
     }
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedAccessory2 = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier
+          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
         };
       }
     }

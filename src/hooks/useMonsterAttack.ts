@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
+import type { MonsterFrontend, BattleSessionFrontend, DebuffEffect } from '@/lib/types';
 import type { PlayerStats } from '@/contexts/PlayerContext';
 import type { TotalEquipmentStats } from '@/utils/equipmentCalculations';
 import { calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
@@ -12,6 +12,7 @@ interface UseMonsterAttackProps {
   playerStats: PlayerStats | null;
   takeDamage: (amount: number) => Promise<void>;
   equipmentStats: TotalEquipmentStats;
+  applyDebuff?: (effect: DebuffEffect, appliedBy?: string) => boolean;
 }
 
 /**
@@ -25,7 +26,8 @@ export function useMonsterAttack({
   isSubmitting,
   playerStats,
   takeDamage,
-  equipmentStats
+  equipmentStats,
+  applyDebuff
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -35,6 +37,8 @@ export function useMonsterAttack({
     // - Session already marked as defeated
     // - Currently submitting battle completion
     // - Battle hasn't started yet
+    // Note: playerStats is checked for existence but NOT in dependency array
+    // to prevent re-creating interval on every HP change
     if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted) return;
 
     // Safety check for monster.attackDamage
@@ -62,12 +66,22 @@ export function useMonsterAttack({
       // Deal reduced damage to player
       await takeDamage(effectiveDamage);
 
+      // Apply DoT effect if monster has one
+      if (monster.dotEffect && applyDebuff) {
+        const applied = applyDebuff(monster.dotEffect, monster._id);
+        if (applied) {
+          console.log(`🦠 Monster applied ${monster.dotEffect.type} debuff!`);
+        }
+      }
+
       // Reset attack animation after 300ms
       setTimeout(() => setIsAttacking(false), 300);
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, playerStats, isSubmitting, takeDamage, battleStarted, equipmentStats]);
+  }, [monster, session, isSubmitting, takeDamage, battleStarted, equipmentStats, applyDebuff]);
+  // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
+  // when HP changes from takeDamage calls
 
   return { isAttacking };
 }

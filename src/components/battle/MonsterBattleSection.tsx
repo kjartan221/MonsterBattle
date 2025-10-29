@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
@@ -11,6 +11,7 @@ import { useBiome } from '@/contexts/BiomeContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
+import type { DebuffEffect } from '@/lib/types';
 import { calculateTotalEquipmentStats, calculateClickDamage } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
@@ -20,9 +21,11 @@ import MonsterCard from '@/components/battle/MonsterCard';
 
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
+  applyDebuff: (effect: DebuffEffect, appliedBy?: string) => boolean;
+  clearDebuffs: () => void;
 }
 
-export default function MonsterBattleSection({ onBattleComplete }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -49,15 +52,18 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
     message: ''
   });
 
-  // Calculate total equipment stats
-  const equipmentStats = calculateTotalEquipmentStats(
-    equippedWeapon,
-    equippedArmor,
-    equippedAccessory1,
-    equippedAccessory2
+  // Calculate total equipment stats (memoized to prevent re-creating monster attack intervals)
+  const equipmentStats = useMemo(() =>
+    calculateTotalEquipmentStats(
+      equippedWeapon,
+      equippedArmor,
+      equippedAccessory1,
+      equippedAccessory2
+    ),
+    [equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]
   );
 
-  // Monster attack hook
+  // Monster attack hook (with debuff application)
   const { isAttacking } = useMonsterAttack({
     monster,
     session,
@@ -65,7 +71,8 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     playerStats,
     takeDamage,
-    equipmentStats
+    equipmentStats,
+    applyDebuff
   });
 
   useEffect(() => {
@@ -107,6 +114,9 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
 
   const handlePlayerDeath = async () => {
     if (!playerStats || !session) return;
+
+    // Clear all active debuffs
+    clearDebuffs();
 
     // Calculate gold loss (10% of current gold, rounded)
     const goldLost = Math.floor(playerStats.coins * 0.10);
@@ -421,6 +431,9 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     console.log(`🔄 Next Monster clicked.`);
 
+    // Clear all active debuffs
+    clearDebuffs();
+
     setClicks(0);
     setLastSavedClicks(0);
 
@@ -444,6 +457,7 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
     gameState.setBattleInProgress();
   };
 
+  // Loading state
   if (gameState.isLoading()) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12 bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 min-h-[400px]">
@@ -453,6 +467,22 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
     );
   }
 
+  // Loot selection - render modal even if monster/session are temporarily null
+  if (gameState.canShowLootModal()) {
+    return (
+      <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
+        <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
+        <LootSelectionModal
+          lootOptions={lootOptions}
+          tier={session?.tier || 1}
+          onLootSelect={handleLootSelection}
+          onSkip={handleSkipLoot}
+        />
+      </div>
+    );
+  }
+
+  // Failed to load - only show if not in a modal state
   if (!monster || !session) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-12 bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 min-h-[400px]">
@@ -569,16 +599,6 @@ export default function MonsterBattleSection({ onBattleComplete }: MonsterBattle
         message={cheatModal.message}
         onClose={closeCheatModal}
       />
-
-      {/* Loot Selection Modal */}
-      {gameState.canShowLootModal() && (
-        <LootSelectionModal
-          lootOptions={lootOptions}
-          tier={session?.tier || 1}
-          onLootSelect={handleLootSelection}
-          onSkip={handleSkipLoot}
-        />
-      )}
 
       {/* Battle Start Screen */}
       {gameState.gameState === 'BATTLE_START_SCREEN' && monster && (

@@ -7,14 +7,33 @@ if (!process.env.MONGODB_URI) {
 
 const uri = process.env.MONGODB_URI;
 
-// Create the MongoClient
-const client = new MongoClient(uri, {
+// Connection options with pooling configuration
+const options = {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
-});
+  },
+  maxPoolSize: 10, // Maximum number of connections in the pool
+  minPoolSize: 2,  // Minimum number of connections to maintain
+  maxIdleTimeMS: 30000, // Close connections that have been idle for 30 seconds
+};
+
+// Global cached connection (persists across serverless function invocations)
+declare global {
+  var mongoClientPromise: Promise<MongoClient> | undefined;
+}
+
+let clientPromise: Promise<MongoClient>;
+
+// Use global caching in both development and production to prevent connection leaks
+// This ensures the same connection is reused across serverless function invocations
+if (!global.mongoClientPromise) {
+  const client = new MongoClient(uri, options);
+  global.mongoClientPromise = client.connect();
+  console.log('Creating new MongoDB client connection');
+}
+clientPromise = global.mongoClientPromise;
 
 // Collection names
 export const COLLECTIONS = {
@@ -26,50 +45,26 @@ export const COLLECTIONS = {
   PLAYER_STATS: 'player_stats',
 } as const;
 
-// Database and collections
-let db: Db;
-let usersCollection: Collection<User>;
-let monstersCollection: Collection<Monster>;
-let nftLootCollection: Collection<NFTLoot>;
-let userInventoryCollection: Collection<UserInventory>;
-let battleSessionsCollection: Collection<BattleSession>;
-let playerStatsCollection: Collection<PlayerStats>;
+// Database and collections cache
+let db: Db | null = null;
+let usersCollection: Collection<User> | null = null;
+let monstersCollection: Collection<Monster> | null = null;
+let nftLootCollection: Collection<NFTLoot> | null = null;
+let userInventoryCollection: Collection<UserInventory> | null = null;
+let battleSessionsCollection: Collection<BattleSession> | null = null;
+let playerStatsCollection: Collection<PlayerStats> | null = null;
+let collectionsInitialized = false;
 
 // Connect to MongoDB and initialize collections
 async function connectToMongo() {
   if (!db) {
     try {
-      // Connect the client to the server
-      await client.connect();
-      console.log("Connected to MongoDB!");
+      // Use the cached client promise
+      const client = await clientPromise;
+      console.log("🔌 Initializing MongoDB database connection...");
 
       // Initialize database
       db = client.db();
-
-      // Check existing collections
-      const existing = new Set(
-        (await db.listCollections({}, { nameOnly: true }).toArray()).map(c => c.name)
-      );
-
-      // Create collections if they don't exist
-      if (!existing.has(COLLECTIONS.USERS)) {
-        await db.createCollection(COLLECTIONS.USERS);
-      }
-      if (!existing.has(COLLECTIONS.MONSTERS)) {
-        await db.createCollection(COLLECTIONS.MONSTERS);
-      }
-      if (!existing.has(COLLECTIONS.NFT_LOOT)) {
-        await db.createCollection(COLLECTIONS.NFT_LOOT);
-      }
-      if (!existing.has(COLLECTIONS.USER_INVENTORY)) {
-        await db.createCollection(COLLECTIONS.USER_INVENTORY);
-      }
-      if (!existing.has(COLLECTIONS.BATTLE_SESSIONS)) {
-        await db.createCollection(COLLECTIONS.BATTLE_SESSIONS);
-      }
-      if (!existing.has(COLLECTIONS.PLAYER_STATS)) {
-        await db.createCollection(COLLECTIONS.PLAYER_STATS);
-      }
 
       // Get typed collection handles
       usersCollection = db.collection<User>(COLLECTIONS.USERS);
@@ -79,87 +74,105 @@ async function connectToMongo() {
       battleSessionsCollection = db.collection<BattleSession>(COLLECTIONS.BATTLE_SESSIONS);
       playerStatsCollection = db.collection<PlayerStats>(COLLECTIONS.PLAYER_STATS);
 
-      // Create indexes for better performance
+      // Only create indexes once (not on every connection)
+      if (!collectionsInitialized) {
+        console.log("Initializing MongoDB indexes...");
 
-      // Users indexes
-      await usersCollection.createIndex({ userId: 1 }, { unique: true });
-      await usersCollection.createIndex({ username: 1 });
+        // Create indexes for better performance
+        // Using Promise.all for parallel index creation
+        await Promise.all([
+          // Users indexes
+          usersCollection.createIndex({ userId: 1 }, { unique: true }),
+          usersCollection.createIndex({ username: 1 }),
 
-      // Monsters indexes
-      await monstersCollection.createIndex({ rarity: 1 });
-      await monstersCollection.createIndex({ createdAt: -1 });
+          // Monsters indexes
+          monstersCollection.createIndex({ rarity: 1 }),
+          monstersCollection.createIndex({ createdAt: -1 }),
 
-      // NFT Loot indexes
-      await nftLootCollection.createIndex({ rarity: 1 });
-      await nftLootCollection.createIndex({ lootTableId: 1 });
-      await nftLootCollection.createIndex({ mintTransactionId: 1 }, {
-        partialFilterExpression: { mintTransactionId: { $exists: true } }
-      });
+          // NFT Loot indexes
+          nftLootCollection.createIndex({ rarity: 1 }),
+          nftLootCollection.createIndex({ lootTableId: 1 }),
+          nftLootCollection.createIndex({ mintTransactionId: 1 }, {
+            partialFilterExpression: { mintTransactionId: { $exists: true } }
+          }),
 
-      // User Inventory indexes
-      await userInventoryCollection.createIndex({ userId: 1 });
-      await userInventoryCollection.createIndex({ lootTableId: 1 });
-      await userInventoryCollection.createIndex({ nftLootId: 1 }, {
-        partialFilterExpression: { nftLootId: { $exists: true } }
-      });
-      await userInventoryCollection.createIndex({ userId: 1, acquiredAt: -1 });
-      await userInventoryCollection.createIndex({ fromMonsterId: 1 });
+          // User Inventory indexes
+          userInventoryCollection.createIndex({ userId: 1 }),
+          userInventoryCollection.createIndex({ lootTableId: 1 }),
+          userInventoryCollection.createIndex({ nftLootId: 1 }, {
+            partialFilterExpression: { nftLootId: { $exists: true } }
+          }),
+          userInventoryCollection.createIndex({ userId: 1, acquiredAt: -1 }),
+          userInventoryCollection.createIndex({ fromMonsterId: 1 }),
 
-      // Battle Sessions indexes
-      await battleSessionsCollection.createIndex({ userId: 1, startedAt: -1 });
-      await battleSessionsCollection.createIndex({ userId: 1, isDefeated: 1 });
-      await battleSessionsCollection.createIndex({ monsterId: 1 });
+          // Battle Sessions indexes
+          battleSessionsCollection.createIndex({ userId: 1, startedAt: -1 }),
+          battleSessionsCollection.createIndex({ userId: 1, isDefeated: 1 }),
+          battleSessionsCollection.createIndex({ monsterId: 1 }),
 
-      // Player Stats indexes
-      await playerStatsCollection.createIndex({ userId: 1 }, { unique: true });
-      await playerStatsCollection.createIndex({ level: 1 });
-      await playerStatsCollection.createIndex({ currentZone: 1, currentTier: 1 });
+          // Player Stats indexes
+          playerStatsCollection.createIndex({ userId: 1 }, { unique: true }),
+          playerStatsCollection.createIndex({ level: 1 }),
+          playerStatsCollection.createIndex({ currentZone: 1, currentTier: 1 }),
+        ]);
 
-      console.log("MongoDB indexes created successfully");
+        collectionsInitialized = true;
+        console.log("MongoDB indexes created successfully");
+      }
     } catch (error) {
       console.error("Error connecting to MongoDB:", error);
       throw error;
     }
   }
+
+  // Type assertion: collections will be initialized after the check above
   return {
-    db,
-    usersCollection,
-    monstersCollection,
-    nftLootCollection,
-    userInventoryCollection,
-    battleSessionsCollection,
-    playerStatsCollection
+    db: db!,
+    usersCollection: usersCollection!,
+    monstersCollection: monstersCollection!,
+    nftLootCollection: nftLootCollection!,
+    userInventoryCollection: userInventoryCollection!,
+    battleSessionsCollection: battleSessionsCollection!,
+    playerStatsCollection: playerStatsCollection!
   };
 }
 
-// Connect immediately when this module is imported
-connectToMongo().catch(console.error);
-
-// Handle application shutdown
-process.on('SIGINT', async () => {
-  try {
-    await client.close();
-    console.log('MongoDB connection closed.');
-    process.exit(0);
-  } catch (error) {
-    console.error('Error during MongoDB shutdown:', error);
-    process.exit(1);
-  }
-});
-
-// Export the connection function and collections
-export {
-  connectToMongo,
-  usersCollection,
-  monstersCollection,
-  nftLootCollection,
-  userInventoryCollection,
-  battleSessionsCollection,
-  playerStatsCollection
-};
+// Export connection function
+export { connectToMongo };
 
 // Helper function to get database (for backward compatibility)
 export async function getDatabase(): Promise<Db> {
   const { db } = await connectToMongo();
   return db;
+}
+
+// Export collection getters (lazy initialization)
+export async function getUsersCollection() {
+  const { usersCollection } = await connectToMongo();
+  return usersCollection;
+}
+
+export async function getMonstersCollection() {
+  const { monstersCollection } = await connectToMongo();
+  return monstersCollection;
+}
+
+export async function getNftLootCollection() {
+  const { nftLootCollection } = await connectToMongo();
+  return nftLootCollection;
+}
+
+export async function getUserInventoryCollection() {
+  const { userInventoryCollection } = await connectToMongo();
+  return userInventoryCollection;
+}
+
+export async function getBattleSessionsCollection() {
+  const { battleSessionsCollection } = await connectToMongo();
+  return battleSessionsCollection;
+}
+
+export async function getPlayerStatsCollection() {
+  const { playerStatsCollection } = await connectToMongo();
+  return playerStatsCollection;
 }

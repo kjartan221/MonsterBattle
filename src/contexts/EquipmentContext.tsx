@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getLootItemById, LootItem } from '@/lib/loot-table';
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
@@ -35,8 +35,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
 
   /**
    * Fetch equipped items from the server
+   * Memoized with useCallback to prevent infinite loops in hooks that depend on this function
    */
-  const refreshEquipment = async () => {
+  const refreshEquipment = useCallback(async () => {
     try {
       const response = await fetch('/api/equipment/get');
       if (!response.ok) {
@@ -111,12 +112,13 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // Empty deps - uses setState directly, no external dependencies
 
   /**
    * Equip an item to a specific slot
+   * Memoized with useCallback to prevent infinite loops
    */
-  const equipItem = async (inventoryId: string, lootTableId: string, slot: EquipmentSlot) => {
+  const equipItem = useCallback(async (inventoryId: string, lootTableId: string, slot: EquipmentSlot) => {
     try {
       const response = await fetch('/api/equipment/equip', {
         method: 'POST',
@@ -162,12 +164,13 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to equip item:', error);
       throw error;
     }
-  };
+  }, [refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   /**
    * Unequip an item from a specific slot
+   * Memoized with useCallback to prevent infinite loops
    */
-  const unequipItem = async (slot: EquipmentSlot) => {
+  const unequipItem = useCallback(async (slot: EquipmentSlot) => {
     try {
       const response = await fetch('/api/equipment/unequip', {
         method: 'POST',
@@ -202,12 +205,12 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to unequip item:', error);
       throw error;
     }
-  };
+  }, [refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   // Load equipment on mount
   useEffect(() => {
     refreshEquipment();
-  }, []);
+  }, [refreshEquipment]); // Include refreshEquipment in deps (it's memoized, so won't cause re-runs)
 
   return (
     <EquipmentContext.Provider

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToMongo, usersCollection } from '@/lib/mongodb';
+import { connectToMongo } from '@/lib/mongodb';
 import { createJWT } from '@/utils/jwt';
 
 export async function POST(request: NextRequest) {
@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Connect to MongoDB
-    await connectToMongo();
+    // Connect to MongoDB and get collections
+    const { usersCollection } = await connectToMongo();
 
     // Check if user exists
     let user = await usersCollection.findOne({ userId });

@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { EquipmentSlot } from '@/contexts/EquipmentContext';
+import { useGameState } from '@/contexts/GameStateContext';
 import { useState } from 'react';
+import { useDebuffs } from '@/hooks/useDebuffs';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
@@ -14,11 +16,19 @@ import toast from 'react-hot-toast';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading } = usePlayer();
+  const { playerStats, loading: statsLoading, takeDamage } = usePlayer();
+  const gameState = useGameState();
   const [equipmentModal, setEquipmentModal] = useState<{
     show: boolean;
     slot: EquipmentSlot | null;
   }>({ show: false, slot: null });
+
+  // Debuff system (managed at page level, passed to child components)
+  const { activeDebuffs, applyDebuff, clearDebuffs } = useDebuffs({
+    maxHP: playerStats?.maxHealth || 100,
+    takeDamage,
+    isActive: gameState.canAttackMonster()
+  });
 
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
@@ -55,7 +65,7 @@ export default function BattlePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
       {/* Player Stats - Top Left */}
-      <PlayerStatsDisplay />
+      <PlayerStatsDisplay activeDebuffs={activeDebuffs} />
 
       {/* Biome Map Widget - Top Left (below player stats) */}
       {playerStats && (
@@ -92,7 +102,10 @@ export default function BattlePage() {
       </div>
 
       {/* Monster Battle Section - Center (only this re-renders when getting new monster) */}
-      <MonsterBattleSection />
+      <MonsterBattleSection
+        applyDebuff={applyDebuff}
+        clearDebuffs={clearDebuffs}
+      />
 
       {/* Hotbar - Bottom Center */}
       <Hotbar

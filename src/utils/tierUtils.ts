@@ -19,7 +19,8 @@ export function tierToRoman(tier: number): string {
 /**
  * Tier badge component styles (reusable across components)
  * Returns className string for consistent tier badge styling
+ * Positioned at bottom-right of item icon, overlapping but not fully hiding
  */
 export function getTierBadgeClassName(): string {
-  return 'absolute bottom-2 left-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded border border-white/30';
+  return 'absolute bottom-1 left-8 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40';
 }

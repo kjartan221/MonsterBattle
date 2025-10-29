@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { connectToMongo, playerStatsCollection } from '@/lib/mongodb';
+import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 
 /**
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const userId = payload.userId as string;
 
     // Connect to MongoDB
-    await connectToMongo();
+    const { playerStatsCollection } = await connectToMongo();
 
     // Try to find existing stats
     let playerStats = await playerStatsCollection.findOne({ userId });
@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    await connectToMongo();
+    const { playerStatsCollection } = await connectToMongo();
 
     // Update player stats
     const result = await playerStatsCollection.updateOne(

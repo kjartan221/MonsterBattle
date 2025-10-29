@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 
 export interface PlayerStats {
@@ -66,12 +66,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch player stats on mount
-  useEffect(() => {
-    fetchPlayerStats();
-  }, []);
-
-  const fetchPlayerStats = async () => {
+  const fetchPlayerStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -92,7 +87,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch player stats on mount
+  useEffect(() => {
+    fetchPlayerStats();
+  }, [fetchPlayerStats]);
 
   const updatePlayerStats = async (updates: Partial<PlayerStats>) => {
     if (!playerStats) return;
@@ -132,11 +132,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * Client-side only HP reduction
    * Does NOT call backend - verification happens at battle completion
    * Similar to click tracking, HP is calculated on frontend and validated server-side
+   *
+   * IMPORTANT: Memoized with useCallback to prevent infinite loops in hooks
+   * that depend on this function (useMonsterAttack, useDebuffs)
    */
-  const takeDamage = async (amount: number) => {
-    if (!playerStats) return;
-
-    // Use functional setState to avoid stale state issues
+  const takeDamage = useCallback(async (amount: number) => {
+    // Use functional setState to avoid stale state issues and dependency on playerStats
     setPlayerStats((prevStats) => {
       if (!prevStats) return prevStats;
 
@@ -151,7 +152,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentHealth: newHealth,
       };
     });
-  };
+  }, []); // Empty dependency array - function uses functional setState
 
   /**
    * Client-side only HP restoration

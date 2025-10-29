@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { connectToMongo, playerStatsCollection } from '@/lib/mongodb';
+import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
 import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable } from '@/lib/biome-config';
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     let requestedTier = body.tier as Tier | undefined;
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, monstersCollection } = await connectToMongo();
+    const { battleSessionsCollection, monstersCollection, playerStatsCollection } = await connectToMongo();
 
     // Check if user already has an active battle session
     const activeSession = await battleSessionsCollection.findOne({
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
       rarity: monsterTemplate.rarity,
       biome,
       tier,
+      dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
       createdAt: new Date()
     };
 
