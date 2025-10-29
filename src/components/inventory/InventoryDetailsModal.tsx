@@ -12,6 +12,8 @@ interface InventoryDetailsModalProps {
     mintTransactionId?: string;
     isMinted: boolean;
     borderGradient?: { color1: string; color2: string }; // User-specific gradient
+    count?: number; // Number of items in stack (if stacked)
+    items?: any[]; // All individual items in the stack (if stacked)
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
@@ -106,6 +108,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           <h2 className={`text-2xl font-bold ${rarityColors[item.rarity].split(' ')[0]}`}>
             {item.name}
           </h2>
+          {item.count && item.count > 1 && (
+            <div className="mt-2 inline-block bg-gray-800 border-2 border-white text-white text-sm font-bold px-3 py-1 rounded-full">
+              You have {item.count} of these
+            </div>
+          )}
         </div>
 
         {/* Metadata grid */}

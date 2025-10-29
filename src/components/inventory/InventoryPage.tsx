@@ -18,11 +18,42 @@ interface InventoryItem extends LootItem {
   borderGradient?: { color1: string; color2: string }; // User-specific gradient
 }
 
+interface StackedInventoryItem extends InventoryItem {
+  count: number; // Number of items in this stack
+  items: InventoryItem[]; // All individual items in the stack
+}
+
 export default function InventoryPage() {
   const router = useRouter();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
+
+  // Stack items by name + tier
+  const stackItems = (items: InventoryItem[]): StackedInventoryItem[] => {
+    const stacks = new Map<string, InventoryItem[]>();
+
+    // Group items by name + tier
+    items.forEach(item => {
+      const key = `${item.name}_${item.tier}`;
+      if (!stacks.has(key)) {
+        stacks.set(key, []);
+      }
+      stacks.get(key)!.push(item);
+    });
+
+    // Convert to StackedInventoryItem array
+    return Array.from(stacks.values()).map(itemGroup => {
+      const firstItem = itemGroup[0];
+      return {
+        ...firstItem,
+        count: itemGroup.length,
+        items: itemGroup
+      } as StackedInventoryItem;
+    });
+  };
+
+  const stackedInventory = stackItems(inventory);
 
   useEffect(() => {
     fetchInventory();
@@ -141,7 +172,7 @@ export default function InventoryPage() {
           ) : (
             /* Items grid */
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-8">
-              {inventory.map((item, index) => {
+              {stackedInventory.map((item, index) => {
                 // Use custom gradient border if available
                 const wrapperStyle = item.borderGradient ? {
                   background: `linear-gradient(135deg, ${item.borderGradient.color1}, ${item.borderGradient.color2})`,
@@ -177,6 +208,13 @@ export default function InventoryPage() {
                     <div className={getTierBadgeClassName()}>
                       {tierToRoman(item.tier)}
                     </div>
+
+                    {/* Count badge (bottom right corner) */}
+                    {item.count > 1 && (
+                      <div className="absolute bottom-2 right-2 bg-gray-900 border-2 border-white text-white text-sm font-bold px-2 py-1 rounded-full shadow-lg">
+                        x{item.count}
+                      </div>
+                    )}
 
                     {/* Minting status badge */}
                     {!item.isMinted && (
