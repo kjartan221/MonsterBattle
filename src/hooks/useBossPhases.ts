@@ -4,151 +4,271 @@ import type { MonsterFrontend, BossPhase, SpecialAttack } from '@/lib/types';
 
 interface UseBossPhasesProps {
   monster: MonsterFrontend | null;
-  currentHP: number;
-  maxHP: number;
   battleStarted: boolean;
   isSubmitting: boolean;
   onPhaseAttack?: (attack: SpecialAttack) => void;
+  onBattleComplete?: () => void; // Callback when all phases defeated
 }
 
 interface PhaseData {
-  currentPhase: number;
-  totalPhases: number;
-  isInvulnerable: boolean;
-  phaseHP: number[]; // HP for each phase bar
-  phaseTransitionMessage: string | null; // Optional message for UI display (for future bosses)
+  currentPhaseHP: number;      // Current HP in active phase bar
+  maxPhaseHP: number;          // Max HP for active phase bar
+  currentPhaseNumber: number;  // Which phase (1, 2, 3, etc.)
+  phasesRemaining: number;     // Phases left (totalPhases, totalPhases-1, ..., 1)
+  isInvulnerable: boolean;     // Boss invulnerable during transitions
+  damagePhase: (damage: number) => void;  // Function to damage current phase HP
+  healPhase: (healing: number) => void;   // Function to heal current phase HP
 }
 
 /**
- * Manages boss phase transitions with invulnerability and special attacks
+ * Manages boss phase HP with stacked HP bar system
  *
  * Features:
- * - Tracks current phase based on HP threshold
- * - Triggers invulnerability during phase transitions
- * - Pauses monster attacks during transitions
- * - Executes phase-specific special attacks
- * - Provides stacked HP bar data for visual display
+ * - Divides boss HP into separate phase bars based on hpThreshold
+ * - Each phase is independent HP bar that depletes separately
+ * - Excess damage ignored at phase boundaries (like shields)
+ * - Phase transitions trigger when phase HP reaches 0
+ * - Invulnerability during phase transitions
+ * - Executes phase-specific special attacks (heal, summon, etc.)
+ * - Comprehensive debug logging for state verification
+ *
+ * System Design:
+ * - Total HP divided by phase thresholds (e.g., 50% = 2x 50% phases)
+ * - damagePhase() caps damage at 0, ignores excess
+ * - healPhase() can exceed maxPhaseHP (for boss heals)
+ * - Phase transition triggers automatically when phase HP = 0
+ * - Last phase shows regular HP bar (phasesRemaining = 1)
  */
 export function useBossPhases({
   monster,
-  currentHP,
-  maxHP,
   battleStarted,
   isSubmitting,
-  onPhaseAttack
+  onPhaseAttack,
+  onBattleComplete
 }: UseBossPhasesProps): PhaseData {
-  const [currentPhase, setCurrentPhase] = useState(1);
+  // Phase HP state
+  const [currentPhaseHP, setCurrentPhaseHP] = useState<number>(0);
+  const [maxPhaseHP, setMaxPhaseHP] = useState<number>(0);
+  const [currentPhaseNumber, setCurrentPhaseNumber] = useState<number>(1);
+  const [phasesRemaining, setPhasesRemaining] = useState<number>(1);
   const [isInvulnerable, setIsInvulnerable] = useState(false);
-  const [phaseTransitionMessage, setPhaseTransitionMessage] = useState<string | null>(null);
-  const hasTriggeredPhases = useRef<Set<number>>(new Set());
+
   const invulnerabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const phaseAttackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastInitializedMonsterIdRef = useRef<string | null>(null);
 
-  // Get boss phases from monster data
+  // Get boss data
   const bossPhases = monster?.bossPhases || [];
-  const totalPhases = bossPhases.length || 1;
   const isBoss = monster?.isBoss && bossPhases.length > 0;
+  const totalPhases = isBoss ? bossPhases.length + 1 : 1;
 
-  // Calculate HP per phase (for stacked HP bars)
-  const phaseHP: number[] = [];
-  if (isBoss && bossPhases.length > 0) {
-    // Calculate HP for each phase based on thresholds
-    const sortedPhases = [...bossPhases].sort((a, b) => b.hpThreshold - a.hpThreshold);
-
-    for (let i = 0; i < sortedPhases.length; i++) {
-      const phase = sortedPhases[i];
-      const nextThreshold = sortedPhases[i + 1]?.hpThreshold || 0;
-      const phaseHPAmount = Math.ceil(maxHP * ((phase.hpThreshold - nextThreshold) / 100));
-      phaseHP.push(phaseHPAmount);
-    }
-  } else {
-    // Not a boss, single HP bar
-    phaseHP.push(maxHP);
-  }
-
-  // Reset phase tracking when monster changes or battle ends
+  // Initialize phase HP when monster loads (only when monster ID changes)
   useEffect(() => {
-    if (!monster || !battleStarted) {
-      setCurrentPhase(1);
+    if (!monster) {
+      // Only reset if we haven't already reset
+      if (lastInitializedMonsterIdRef.current !== null) {
+        console.log('[useBossPhases] No monster, resetting state');
+        lastInitializedMonsterIdRef.current = null;
+        setCurrentPhaseHP(0);
+        setMaxPhaseHP(0);
+        setCurrentPhaseNumber(1);
+        setPhasesRemaining(1);
+        setIsInvulnerable(false);
+      }
+      return;
+    }
+
+    const monsterId = monster._id?.toString() || monster.name;
+
+    // Skip if already initialized this monster (prevents rerender spam)
+    if (lastInitializedMonsterIdRef.current === monsterId) {
+      return;
+    }
+
+    const totalHP = monster.clicksRequired;
+    console.log(`[useBossPhases] Initializing for ${monster.name} (isBoss: ${monster.isBoss}, phases: ${bossPhases.length})`);
+
+    if (isBoss) {
+      // Calculate first phase HP
+      const sortedPhases = [...bossPhases].sort((a, b) => b.hpThreshold - a.hpThreshold);
+      const firstThreshold = sortedPhases[0]?.hpThreshold || 0;
+      const firstPhaseHP = Math.ceil(totalHP * ((100 - firstThreshold) / 100));
+
+      console.log(`[useBossPhases] Boss initialized with ${totalPhases} phases`);
+      console.log(`[useBossPhases] Total HP: ${totalHP}, First phase: 100%→${firstThreshold}% = ${firstPhaseHP} HP`);
+
+      setMaxPhaseHP(firstPhaseHP);
+      setCurrentPhaseHP(firstPhaseHP);
+      setCurrentPhaseNumber(1);
+      setPhasesRemaining(totalPhases);
       setIsInvulnerable(false);
-      setPhaseTransitionMessage(null);
-      hasTriggeredPhases.current.clear();
-
-      // Clear any pending timeouts
-      if (invulnerabilityTimeoutRef.current) {
-        clearTimeout(invulnerabilityTimeoutRef.current);
-        invulnerabilityTimeoutRef.current = null;
-      }
-      if (phaseAttackTimeoutRef.current) {
-        clearTimeout(phaseAttackTimeoutRef.current);
-        phaseAttackTimeoutRef.current = null;
-      }
+    } else {
+      // Regular monster, single HP bar
+      console.log(`[useBossPhases] Regular monster, HP: ${totalHP}`);
+      setMaxPhaseHP(totalHP);
+      setCurrentPhaseHP(totalHP);
+      setCurrentPhaseNumber(1);
+      setPhasesRemaining(1);
+      setIsInvulnerable(false);
     }
-  }, [monster, battleStarted]);
 
-  // Check for phase transitions based on HP percentage
+    // Mark this monster as initialized
+    lastInitializedMonsterIdRef.current = monsterId;
+
+    // Clear any pending timeouts
+    if (invulnerabilityTimeoutRef.current) {
+      clearTimeout(invulnerabilityTimeoutRef.current);
+      invulnerabilityTimeoutRef.current = null;
+    }
+    if (phaseAttackTimeoutRef.current) {
+      clearTimeout(phaseAttackTimeoutRef.current);
+      phaseAttackTimeoutRef.current = null;
+    }
+  }, [monster, isBoss, bossPhases, totalPhases]);
+
+  // Phase transition logic - triggers when phase HP reaches 0
   useEffect(() => {
-    if (!isBoss || !battleStarted || isSubmitting) return;
+    if (!monster || !battleStarted || isSubmitting) {
+      return;
+    }
 
-    const currentHPPercent = (currentHP / maxHP) * 100;
+    console.log(`[useBossPhases] Phase transition check: phaseHP=${currentPhaseHP}, phasesRemaining=${phasesRemaining}, isInvulnerable=${isInvulnerable}`);
 
-    // Check each phase threshold
-    for (const phase of bossPhases) {
-      // If HP drops below threshold and phase hasn't been triggered yet
-      if (currentHPPercent <= phase.hpThreshold && !hasTriggeredPhases.current.has(phase.phaseNumber)) {
-        console.log(`🔥 PHASE TRANSITION! Boss entering Phase ${phase.phaseNumber}`);
+    // Check if phase HP depleted and more phases remain
+    if (currentPhaseHP <= 0 && phasesRemaining > 1 && !isInvulnerable) {
+      const nextPhaseNumber = currentPhaseNumber + 1;
+      const phaseDefinition = bossPhases.find(p => p.phaseNumber === nextPhaseNumber);
 
-        // Mark phase as triggered
-        hasTriggeredPhases.current.add(phase.phaseNumber);
-        setCurrentPhase(phase.phaseNumber);
+      console.log(`🔥 PHASE TRANSITION! Phase ${currentPhaseNumber} → Phase ${nextPhaseNumber}`);
+      console.log(`[useBossPhases] Phase definition:`, phaseDefinition);
 
-        // Start invulnerability
-        setIsInvulnerable(true);
+      if (!phaseDefinition) {
+        console.error(`[useBossPhases] ERROR: No phase definition found for phase ${nextPhaseNumber}`);
+        return;
+      }
 
-        // Show phase message
-        if (phase.message) {
-          setPhaseTransitionMessage(phase.message);
-          toast(phase.message, {
-            icon: '⚔️',
-            duration: 3000,
-            style: {
-              background: '#7c3aed',
-              color: '#fff',
-              fontWeight: 'bold'
+      // Start invulnerability
+      setIsInvulnerable(true);
+      console.log(`[useBossPhases] Boss is now INVULNERABLE for ${phaseDefinition.invulnerabilityDuration}ms`);
+
+      // Show phase message
+      if (phaseDefinition.message) {
+        console.log(`[useBossPhases] Showing phase message: "${phaseDefinition.message}"`);
+        toast(phaseDefinition.message, {
+          icon: '⚔️',
+          duration: 3000,
+          style: {
+            background: '#7c3aed',
+            color: '#fff',
+            fontWeight: 'bold'
+          }
+        });
+      }
+
+      // Calculate next phase HP
+      const totalHP = monster.clicksRequired;
+      const sortedPhases = [...bossPhases].sort((a, b) => b.hpThreshold - a.hpThreshold);
+      const currentThreshold = phaseDefinition.hpThreshold;
+      const nextThreshold = sortedPhases.find(p => p.hpThreshold < currentThreshold)?.hpThreshold || 0;
+      const nextPhaseHP = Math.ceil(totalHP * ((currentThreshold - nextThreshold) / 100));
+
+      console.log(`[useBossPhases] Next phase HP: ${currentThreshold}%→${nextThreshold}% = ${nextPhaseHP} HP`);
+
+      // Execute phase-specific special attacks after 1 second (during invulnerability)
+      if (phaseDefinition.specialAttacks && phaseDefinition.specialAttacks.length > 0) {
+        console.log(`[useBossPhases] Scheduling ${phaseDefinition.specialAttacks.length} phase attacks to execute in 1 second`);
+        phaseAttackTimeoutRef.current = setTimeout(() => {
+          console.log(`[useBossPhases] Executing phase attacks now!`);
+
+          // First, set the new phase HP
+          setCurrentPhaseNumber(nextPhaseNumber);
+          setMaxPhaseHP(nextPhaseHP);
+          setCurrentPhaseHP(nextPhaseHP);
+          setPhasesRemaining(prev => prev - 1);
+          console.log(`[useBossPhases] Phase ${nextPhaseNumber} started with ${nextPhaseHP} HP`);
+
+          // Then execute special attacks (healing will add to the NEW phase HP)
+          phaseDefinition.specialAttacks!.forEach((attack, index) => {
+            console.log(`💥 Phase Attack ${index + 1}/${phaseDefinition.specialAttacks!.length}: ${attack.type}`, attack);
+
+            // Handle healing internally
+            if (attack.healing) {
+              const healAmount = Math.ceil(attack.healing);
+              console.log(`[useBossPhases] Auto-healing ${healAmount} HP from phase attack`);
+              setCurrentPhaseHP(prev => {
+                const newHP = prev + healAmount;
+                console.log(`[useBossPhases] Phase HP: ${prev} + ${healAmount} = ${newHP}`);
+                return newHP;
+              });
+            }
+
+            // Call external handler for other effects (damage, summon, etc.)
+            if (onPhaseAttack) {
+              onPhaseAttack(attack);
             }
           });
+        }, 1000);
+      }
 
-          // Clear message after 3 seconds
-          setTimeout(() => {
-            setPhaseTransitionMessage(null);
-          }, 3000);
+      // End invulnerability after transition duration
+      invulnerabilityTimeoutRef.current = setTimeout(() => {
+        console.log(`[useBossPhases] Invulnerability ended`);
+        setIsInvulnerable(false);
+
+        // Only set phase HP if no special attacks (they already set it)
+        if (!phaseDefinition.specialAttacks || phaseDefinition.specialAttacks.length === 0) {
+          setCurrentPhaseNumber(nextPhaseNumber);
+          setMaxPhaseHP(nextPhaseHP);
+          setCurrentPhaseHP(nextPhaseHP);
+          setPhasesRemaining(prev => prev - 1);
+          console.log(`[useBossPhases] Phase ${nextPhaseNumber} started with ${nextPhaseHP} HP (no special attacks)`);
         }
 
-        // Execute phase-specific special attacks after 1 second (during invulnerability)
-        if (phase.specialAttacks && phase.specialAttacks.length > 0 && onPhaseAttack) {
-          phaseAttackTimeoutRef.current = setTimeout(() => {
-            const attack = phase.specialAttacks![0]; // Execute first special attack
-            console.log(`💥 Phase Attack: ${attack.type}`);
-            onPhaseAttack(attack);
-          }, 1000);
-        }
-
-        // End invulnerability after specified duration
-        invulnerabilityTimeoutRef.current = setTimeout(() => {
-          setIsInvulnerable(false);
-          console.log(`✅ Invulnerability ended. Boss is vulnerable again!`);
-
-          toast('The boss is vulnerable again!', {
-            icon: '⚔️',
-            duration: 2000
-          });
-        }, phase.invulnerabilityDuration);
-
-        // Only trigger one phase at a time
-        break;
+        toast('The boss is vulnerable again!', {
+          icon: '⚔️',
+          duration: 2000
+        });
+      }, phaseDefinition.invulnerabilityDuration);
+    }
+    // Check if last phase depleted
+    else if (currentPhaseHP <= 0 && phasesRemaining === 1) {
+      console.log(`🎉 Boss defeated! All phases completed.`);
+      if (onBattleComplete) {
+        onBattleComplete();
       }
     }
-  }, [currentHP, maxHP, isBoss, battleStarted, isSubmitting, bossPhases, onPhaseAttack]);
+  }, [currentPhaseHP, phasesRemaining, currentPhaseNumber, monster, battleStarted, isSubmitting, isInvulnerable, bossPhases, onPhaseAttack, onBattleComplete]);
+
+  // Damage phase HP (caps at 0, ignores excess)
+  const damagePhase = useCallback((damage: number) => {
+    if (isInvulnerable) {
+      console.log(`[useBossPhases] damagePhase called during invulnerability - ignoring ${damage} damage`);
+      return;
+    }
+
+    setCurrentPhaseHP(prev => {
+      const newHP = Math.max(0, prev - damage);
+      console.log(`[useBossPhases] damagePhase: ${prev} - ${damage} = ${newHP} (max: ${maxPhaseHP})`);
+
+      if (newHP === 0 && prev > 0) {
+        console.log(`🛡️ Phase ${currentPhaseNumber} HP depleted! Excess damage ignored.`);
+      }
+
+      return newHP;
+    });
+  }, [isInvulnerable, maxPhaseHP, currentPhaseNumber]);
+
+  // Heal phase HP (can exceed maxPhaseHP for boss heals)
+  const healPhase = useCallback((healing: number) => {
+    const healAmount = Math.ceil(healing);
+    console.log(`[useBossPhases] healPhase: Healing ${healAmount} HP`);
+
+    setCurrentPhaseHP(prev => {
+      const newHP = prev + healAmount;
+      console.log(`[useBossPhases] healPhase: ${prev} + ${healAmount} = ${newHP} (max: ${maxPhaseHP})`);
+      return newHP;
+    });
+  }, [maxPhaseHP]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -163,10 +283,12 @@ export function useBossPhases({
   }, []);
 
   return {
-    currentPhase,
-    totalPhases,
+    currentPhaseHP,
+    maxPhaseHP,
+    currentPhaseNumber,
+    phasesRemaining,
     isInvulnerable,
-    phaseHP,
-    phaseTransitionMessage
+    damagePhase,
+    healPhase
   };
 }

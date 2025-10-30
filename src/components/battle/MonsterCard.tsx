@@ -36,8 +36,10 @@ export default function MonsterCard({
   useEffect(() => {
     if (critTrigger === 0) return;
 
+    // Use timestamp for unique ID to prevent duplicate keys
+    const badgeId = Date.now();
     const newBadge: CritBadge = {
-      id: critTrigger,
+      id: badgeId,
       // Random position in top-right area (60-90% width, 10-30% height)
       x: 60 + Math.random() * 30,
       y: 10 + Math.random() * 20
@@ -47,7 +49,7 @@ export default function MonsterCard({
 
     // Remove badge after animation (1 second)
     const timer = setTimeout(() => {
-      setCritBadges(prev => prev.filter(badge => badge.id !== critTrigger));
+      setCritBadges(prev => prev.filter(badge => badge.id !== badgeId));
     }, 1000);
 
     return () => clearTimeout(timer);

@@ -83,11 +83,90 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-30 (Documentation cleanup and review)
+**Last Updated**: 2025-10-30 (Phase 2.4: HP System Architecture Refactor + Boss Phase Polish)
 
 **Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
+
+#### **Phase 2.4: HP System Architecture Refactor**
+- **Hook Separation** (Proper separation of concerns):
+  - Created `useMonsterHP` hook (src/hooks/useMonsterHP.ts) for regular monsters
+    - Simple HP tracking: currentHP, maxHP, damageHP()
+    - ~60 lines vs 280 lines in useBossPhases
+    - No phase logic, no special attacks - just clean HP management
+  - Refactored `useBossPhases` hook to ONLY handle bosses
+    - Only called when `monster.isBoss && monster.bossPhases.length > 0`
+    - Eliminated "No monster, resetting state" spam for regular monsters
+  - MonsterBattleSection conditionally uses correct hook:
+    - `const isBoss = monster?.isBoss && ...` (determined first)
+    - Boss: `useBossPhases({ monster: isBoss ? monster : null })`
+    - Regular: `useMonsterHP({ monster: !isBoss ? monster : null })`
+    - Unified interface for both paths (currentPhaseHP, maxPhaseHP, damagePhase)
+- **Bug Fixes**:
+  - Fixed boss appearing defeated on spawn (checked `maxPhaseHP > 0` for initialization)
+  - Fixed console log spam (only log on state transitions, not every render)
+  - Fixed duplicate key warning in crit badges (use `Date.now()` instead of trigger count)
+  - Fixed backend click validation for bosses with healing (exempt from strict click count)
+  - Fixed frontend error handling (properly reset state on API errors)
+- **Performance Improvements**:
+  - Regular monsters no longer trigger boss phase logic
+  - Hooks use ref-based initialization tracking (prevents rerender spam)
+  - Removed debug logging from BossPhaseIndicator renders
+
+#### **Phase 2.4: Boss Phase Visual Polish**
+- **Depleting HP Bars with Color Progression** (BossPhaseIndicator.tsx):
+  - Single bar that depletes, showing next phase color underneath
+  - Color scheme: 4th phase → very dark gray, 3rd → purple, 2nd → orange, last → red
+  - Layered rendering: Background (next phase color) + Foreground (current phase, depletes)
+  - Phase counter badge positioned bottom-right outside bar (no overlap)
+  - HP numbers displayed: "48 / 48 HP" (not just "HP")
+  - Overheal indicator: Green text with ↑ arrow when HP > maxHP
+- **Shield Buff Integration**:
+  - Shield bar shows phase color underneath when depleting
+  - Dynamic background color matches current phase (gray/purple/orange/red)
+  - Shield remains enabled for bosses at all tiers (especially Tier 5)
+  - Visual: Blue shield → depletes → reveals phase color beneath
+- **Special Attack Visual Improvements** (SpecialAttackFlash.tsx):
+  - Added 'heal' case to color mapping (was missing, defaulted to white)
+  - Increased z-index from 50 to 999 (always on top)
+  - Extended heal flash duration: 2s → 3.5s
+  - Increased heal pulses: 3 → 5, slower animation (0.6s per pulse)
+  - Shows healing amount: "+15 HP" in green text
+  - Phase attacks now trigger visual feedback (separate state from regular attacks)
+
+#### **Phase 2.4: System Cleanup**
+- **Removed Testing Overrides**:
+  - Removed Treant Guardian forced spawn in Forest biome (monster-table.ts:282-286)
+  - Monsters now spawn naturally based on rarity weights
+- **Code Documentation**:
+  - Updated hook comments to reflect architectural separation
+  - Added initialization guard explanations (maxPhaseHP > 0 checks)
+  - Documented unified HP interface pattern
+
+#### **Phase 2.2-2.3: Boss Phase System + Summon Mechanic**
+- **Stacked HP Bar System** (MonsterBattleSection.tsx):
+  - Refactored boss phases to use separate HP bars per phase
+  - Phase HP tracking: currentPhaseHP, maxPhaseHP, phasesRemaining
+  - Damage system caps at phase boundaries (ignores excess like shields)
+  - Phase transitions trigger when phase HP reaches 0 (not percentage-based)
+  - Badge shows "x2", "x3", etc. for multiple phases (bottom-right)
+  - Last phase displays as regular HP bar (no badge for clean UI)
+- **Summon Mechanic** (useSummonedCreatures.ts, SummonCard.tsx):
+  - Click-to-target system for summoned creatures
+  - 3-card horizontal layout: [Left Summon] [Boss] [Right Summon]
+  - Summon HP calculated as % of boss max HP
+  - Summon damage added to total monster attack (not reduced by armor)
+  - Auto-removal of defeated summons after 500ms
+- **Treant Guardian Configuration** (monster-table.ts:68-115):
+  - Phase 2 triggers at 50% HP boundary
+  - Heals 15 HP + Summons 2 Forest Sprites (15% boss HP each)
+  - Visual: x2 badge → phase transition → heal + summons → x1 badge → regular HP bar
+- **Documentation Updates**:
+  - Updated BossPhase interface comments (types.ts:170-179)
+  - Updated monster-table.ts with stacked HP bar system comments
+  - Updated CLAUDE.md with comprehensive boss phase + summon documentation
+  - Moved boss phase system from "Next Steps" to "Recently Completed"
 
 #### **Loot System Balance Changes**
 - **Spell Scroll Rarity Adjustment**
@@ -140,6 +219,63 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
   - SpecialAttackFlash component (visual feedback)
   - Auto-triggers based on cooldown
   - Fully extensible for multiple attacks per boss
+
+#### **Phase 2.2: Boss Phase System with Stacked HP Bars** (types.ts:170-179)
+- **Stacked HP Bar System**:
+  - Boss HP divided into separate phase bars based on hpThreshold (e.g., 50% = 2 phases)
+  - Each phase is a separate HP bar that depletes independently
+  - Excess damage ignored at phase boundaries (like shields)
+  - Phase counter badge shows phases remaining (x3 → x2 → x1 → no badge)
+  - Last phase displays as regular HP bar for clean UI
+- **Phase Transitions**:
+  - Triggered when phase HP bar reaches 0
+  - Boss becomes invulnerable during transition (2s default)
+  - Executes ALL phase-specific special attacks (heal, summon, etc.)
+  - Visual: Cyan border + pulsing animation + shield badge
+  - Toast message displays phase transition message
+- **Implementation** (MonsterBattleSection.tsx):
+  - Phase HP tracking: currentPhaseHP, maxPhaseHP, currentPhaseNumber, phasesRemaining
+  - handleClick: Damages phase HP, caps at 0, ignores excess
+  - useEffect: Watches for phase HP = 0, triggers transition automatically
+  - Phase HP calculation: Divides total HP by thresholds (100%→50%→0%)
+  - Healing: Adds HP to current phase bar (can exceed maxPhaseHP)
+- **Visual Components**:
+  - BossPhaseIndicator: Shows current phase HP bar or stacked bars
+  - Badge positioning: Bottom-right for multi-phase, hidden for last phase
+  - Invulnerability effects: Cyan HP bar + shield badge at top-center
+- **Treant Guardian Example** (monster-table.ts:68-115):
+  - 2-phase boss (100 total HP at T1, 96 HP at T2)
+  - Phase 1: 50% HP bar (48 HP at T2)
+  - Phase 1 depletes → Invulnerable → Heal 15 HP → Summon 2 sprites
+  - Phase 2: 50% HP bar + heal = 63 HP at T2
+  - Badge shows x2 → x1 (then removed for clean final phase)
+
+#### **Phase 2.3: Summon Mechanic** (types.ts:138-167)
+- **Summon System**:
+  - Bosses can summon creatures during phase transitions
+  - summons.count: Number to spawn (typically 1-2)
+  - summons.creature: SummonDefinition (name, hpPercent, attackDamage, icon)
+  - Spawns on left and right sides of boss card
+  - Each summon is a clickable target (click-to-attack)
+- **Summon Stats**:
+  - HP: Calculated as % of boss max HP (e.g., 15% = 14 HP for 96 HP boss)
+  - Attack: Added to total monster damage (not reduced by armor)
+  - Position: 'left' or 'right' for visual layout
+- **UI Layout**:
+  - 3-card horizontal layout: [Left Summon] [Boss] [Right Summon]
+  - SummonCard: 140x140 purple-themed card (smaller than boss 288x288)
+  - Placeholder divs maintain alignment when no summons
+  - Defeated summons show grayed-out with "DEFEATED!" text
+- **Implementation**:
+  - useSummonedCreatures hook: addSummons, damageSummon, getTotalSummonDamage
+  - SummonCard component: Click handler, HP bar, attack stat display
+  - handleSummonClick: Applies player damage to specific summon
+  - handleSpecialAttack: Detects 'summon' type, calls addSummons()
+  - Auto-removal: Defeated summons removed after 500ms for visual feedback
+- **Treant Guardian Summons**:
+  - Summons 2 Forest Sprites on Phase 2 transition
+  - Each sprite: 15% boss HP (~14 HP at T2), 2 HP/sec attack
+  - Total: 4 HP/sec additional damage from summons
 
 ### ✅ Previously Completed
 - **Phase 2.1: Debuff/DoT System** (docs/DEBUFF_SYSTEM_IMPLEMENTATION.md)
@@ -294,40 +430,23 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ### 📋 Next Steps (To Implement)
 
-**Priority 1: Boss Phase System**
-- **Multi-Phase Boss HP Bars**
-  - Stacked HP system (e.g., 3x 33 HP = 100 total)
-  - Visual: Multiple HP bars with phase counter badge (bottom-right)
-  - Decrement phase counter as each bar is depleted
-  - Example: Treant Guardian (T2) could have 2 phases
-- **Phase Transitions**
-  - Brief invulnerability period (1-2 seconds) between phases
-  - Visual indicator during invulnerability (shield effect/pulsing)
-  - Optional phase message ("The boss enters Phase 2!")
-  - Can trigger phase-specific mechanics
-- **BossPhase Integration** (types.ts:144-150 already defined)
-  - Use existing BossPhase interface
-  - hpThreshold: % HP when phase triggers (66, 33, etc.)
-  - invulnerabilityDuration: MS of invulnerability
-  - specialAttacks: Phase-specific attacks
-  - message: Phase transition message
-
-**Priority 2: More Boss Special Attacks**
+**Priority 1: More Boss Special Attacks**
 - **Lightning Attack** ⚡ (Blue visual effect)
   - Damage: 10-15 HP
   - Cooldown: 8 seconds
   - Visual: Blue screen flash
+  - Can be added to existing boss special attack system
 - **Meteor Strike** ☄️ (Red visual effect)
   - Damage: 20 HP
   - Cooldown: 15 seconds
   - Visual: Red screen flash with falling meteor icon
-- **Boss Healing** 💚 (Green visual effect)
-  - Healing: 10% of max HP
-  - Cooldown: 20 seconds
-  - Visual: Green pulse around boss
-  - Requires boss HP tracking for healing
+  - High-damage, long-cooldown attack for harder bosses
+- **Repeating Special Attacks** (outside phase transitions)
+  - Add cooldown-based attacks during normal combat (not just phase transitions)
+  - Example: Sand Djinn fireball every 5 seconds throughout battle
+  - Requires separate useEffect timer system
 
-**Priority 3: Shield-Breaking Consumables/Spells**
+**Priority 2: Shield-Breaking Consumables/Spells**
 - **Acid Bottle** (Consumable)
   - Instantly removes monster shield
   - Single-use item
@@ -340,7 +459,7 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
   - Quick-use bar for consumables
   - Spell hotkey system
 
-**Priority 4: More Monster Buffs**
+**Priority 3: More Monster Buffs**
 - **Regeneration** 💚
   - Boss heals 5-10% HP every 10 seconds
   - Visual: Green pulse effect
@@ -350,7 +469,7 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
   - Visual: Red aura around monster
   - Triggered at low HP (< 30%)
 
-**Priority 5: Phase 1.6 - Core Items (Tier 1-3)** (docs/GAME_DESIGN_PROPOSAL.md lines 979-983)
+**Priority 4: Phase 1.6 - Core Items (Tier 1-3)** (docs/GAME_DESIGN_PROPOSAL.md lines 979-983)
 - Tiered weapons: Wooden Sword, Iron Sword, Steel Sword
 - Tiered armor: Leather Armor, Chainmail
 - Accessories: Lucky Coin, Ring of Haste

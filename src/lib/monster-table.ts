@@ -10,9 +10,26 @@ export interface MonsterTemplate {
   baseAttackDamage: number; // BASE damage per second (will be scaled by tier)
   biomes: BiomeId[]; // Which biomes this monster can appear in
   dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
-  isBoss?: boolean; // True for boss monsters (no buffs except Tier 5)
-  specialAttacks?: SpecialAttack[]; // Boss special attacks (e.g., fireball)
-  bossPhases?: BossPhase[]; // Multi-phase boss system
+  isBoss?: boolean; // True for boss monsters (no buffs except Tier 5, enables phase system)
+
+  // SPECIAL ATTACKS (Monster-level):
+  // - Repeating attacks based on cooldown throughout the entire battle
+  // - Example: Sand Djinn fireball every 5 seconds
+  // - Handled by useSpecialAttacks hook (cooldown-based, always active)
+  specialAttacks?: SpecialAttack[];
+
+  // BOSS PHASE SYSTEM:
+  // - Stacked HP bars: hpThreshold divides HP into separate phase bars (100% → 50% → 0%)
+  // - Phase triggers when phase HP bar reaches 0 (not percentage-based)
+  // - Excess damage ignored at phase boundaries (like shields)
+  // - Badge shows phases remaining (x2 → x1 → no badge for last phase)
+  // - Each BossPhase has its own specialAttacks (see below)
+  bossPhases?: BossPhase[];
+  // SPECIAL ATTACKS (Phase-level, nested in BossPhase):
+  // - Only trigger during phase transitions (when phase HP reaches 0)
+  // - Execute once per transition (or based on cooldown if specified)
+  // - Example: Treant heal + summon when entering Phase 2
+  // - Handled in MonsterBattleSection phase transition logic
 }
 
 // Monster Templates - BASE stats for each monster type (Tier 1)
@@ -70,22 +87,37 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     name: 'Treant Guardian',
     imageUrl: '🌳',
     rarity: 'epic',
-    baseClicksRange: [45, 50], // 150 HP for Tier 2 (scaled from T1 base)
-    baseAttackDamage: 4, // 4 HP/sec, regenerates, summons sprites
+    baseClicksRange: [45, 50], // Base 48 HP → 96 HP at T2 (2x multiplier)
+    baseAttackDamage: 4, // 4 HP/sec
     biomes: ['forest'],
-    isBoss: true, // Boss: No buffs except Tier 5
+    isBoss: true,
     bossPhases: [
       {
         phaseNumber: 2,
-        hpThreshold: 50, // Phase 2 triggers at 50% HP
-        invulnerabilityDuration: 2000, // 2 seconds of invulnerability
+        hpThreshold: 50, // Divides HP: Phase 1 = 100%→50% (48 HP), Phase 2 = 50%→0% (48 HP)
+        invulnerabilityDuration: 2000, // 2 seconds
         specialAttacks: [
           {
             type: 'heal',
-            healing: 15, // Heals 15 HP (10% of max HP at T1)
-            cooldown: 0, // Instant during phase transition
+            healing: 15, // Heals 15 HP (~31% of phase HP at T2)
+            cooldown: 0,
             visualEffect: 'green',
             message: '🌿 The Treant Guardian draws strength from the forest!'
+          },
+          {
+            type: 'summon',
+            cooldown: 0,
+            visualEffect: 'purple',
+            message: '✨ The Treant Guardian summons Forest Sprites to aid in battle!',
+            summons: {
+              count: 2,
+              creature: {
+                name: 'Forest Sprite',
+                hpPercent: 25, // 25% of boss max HP (~35 HP at T2)
+                attackDamage: 2, // 2 HP/sec each (4 HP/sec total)
+                imageUrl: '🧚'
+              }
+            }
           }
         ],
         message: '🌳 The Treant Guardian enters a defensive stance!'

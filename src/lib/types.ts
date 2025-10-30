@@ -22,6 +22,7 @@ export interface Monster {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   biome: BiomeId; // Which biome this monster belongs to
   tier: Tier; // Which tier this monster instance is at
+  isBoss?: boolean; // True for boss monsters (enables phase system)
   dotEffect?: DebuffEffect; // Optional DoT effect on attack
   buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
   specialAttacks?: SpecialAttack[]; // Boss special attacks (fireball, etc.)
@@ -132,7 +133,15 @@ export type SpecialAttackType =
   | 'fireball'     // Direct damage attack with visual effect
   | 'lightning'    // Direct damage attack
   | 'meteor'       // AoE damage
-  | 'heal';        // Boss heals
+  | 'heal'         // Boss heals
+  | 'summon';      // Summons creatures to fight alongside boss
+
+export interface SummonDefinition {
+  name: string;
+  hpPercent: number;       // % of boss max HP (e.g., 15 = 15% of boss HP)
+  attackDamage: number;    // Damage per second
+  imageUrl: string;        // Emoji icon
+}
 
 export interface SpecialAttack {
   type: SpecialAttackType;
@@ -141,14 +150,32 @@ export interface SpecialAttack {
   cooldown: number;        // Seconds between attacks
   visualEffect?: string;   // Color for screen flash (e.g., 'orange', 'blue', 'purple')
   message?: string;        // Message to display to player
+  summons?: {              // Summon configuration (for summon type)
+    count: number;         // Number of creatures to summon (typically 1-2)
+    creature: SummonDefinition;
+  };
+}
+
+// Active summoned creature in battle
+export interface SummonedCreature {
+  id: string;              // Unique ID for this summon instance
+  name: string;
+  currentHP: number;
+  maxHP: number;
+  attackDamage: number;
+  imageUrl: string;
+  position: 'left' | 'right';
 }
 
 export interface BossPhase {
-  phaseNumber: number;     // 1, 2, 3, etc.
-  hpThreshold: number;     // % of HP when phase triggers (e.g., 66, 33)
-  invulnerabilityDuration: number; // MS of invulnerability
-  specialAttacks?: SpecialAttack[]; // Special attacks during this phase
-  message?: string;        // Message shown when phase starts
+  phaseNumber: number;     // Phase to trigger (2, 3, 4, etc.) - Phase 1 is always initial
+  hpThreshold: number;     // % HP boundary for this phase (e.g., 50 = divides at 50%)
+                          // Creates stacked HP bars: 100%→50% (Phase 1), 50%→0% (Phase 2)
+                          // Phase triggers when previous phase HP bar depletes (reaches 0)
+                          // Excess damage is ignored at phase boundaries (like shields)
+  invulnerabilityDuration: number; // MS of invulnerability during phase transition
+  specialAttacks?: SpecialAttack[]; // Attacks executed during transition (heal, summon, etc.)
+  message?: string;        // Toast message shown when phase starts
 }
 
 // ========== Debuff System ==========

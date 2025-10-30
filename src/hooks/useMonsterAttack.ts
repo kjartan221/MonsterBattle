@@ -14,6 +14,7 @@ interface UseMonsterAttackProps {
   takeDamage: (amount: number) => Promise<void>;
   equipmentStats: TotalEquipmentStats;
   applyDebuff?: (effect: DebuffEffect, appliedBy?: string) => boolean;
+  additionalDamage?: number; // Additional damage from summons, etc.
 }
 
 /**
@@ -30,7 +31,8 @@ export function useMonsterAttack({
   playerStats,
   takeDamage,
   equipmentStats,
-  applyDebuff
+  applyDebuff,
+  additionalDamage = 0
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -57,18 +59,21 @@ export function useMonsterAttack({
       equipmentStats.hpReduction
     );
 
+    // Add additional damage from summons (not reduced by armor)
+    const totalDamage = effectiveDamage + additionalDamage;
+
     // Calculate attack interval based on attack speed bonuses
     const interval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
 
-    console.log(`⚔️ Monster attack: ${effectiveDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.hpReduction}%)`);
+    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.hpReduction}%, summons: +${additionalDamage})`);
 
     // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
       // Visual feedback: show attack animation
       setIsAttacking(true);
 
-      // Deal reduced damage to player
-      await takeDamage(effectiveDamage);
+      // Deal total damage to player (monster + summons)
+      await takeDamage(totalDamage);
 
       // Apply DoT effect if monster has one
       if (monster.dotEffect && applyDebuff) {
@@ -83,7 +88,7 @@ export function useMonsterAttack({
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, isSubmitting, takeDamage, battleStarted, isInvulnerable, equipmentStats, applyDebuff]);
+  }, [monster, session, isSubmitting, takeDamage, battleStarted, isInvulnerable, equipmentStats, applyDebuff, additionalDamage]);
   // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
   // when HP changes from takeDamage calls
 

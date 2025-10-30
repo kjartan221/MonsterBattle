@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { EquipmentSlot } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
+import { useBiome } from '@/contexts/BiomeContext';
 import { useState } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
@@ -18,6 +19,7 @@ export default function BattlePage() {
   const router = useRouter();
   const { playerStats, loading: statsLoading, takeDamage } = usePlayer();
   const gameState = useGameState();
+  const { setBiomeTier } = useBiome();
   const [equipmentModal, setEquipmentModal] = useState<{
     show: boolean;
     slot: EquipmentSlot | null;
@@ -71,8 +73,8 @@ export default function BattlePage() {
       {playerStats && (
         <BiomeMapWidget
           unlockedZones={playerStats.unlockedZones}
-          onSelectBiomeTier={() => {}} // BiomeContext handles this
-          disabled={false}
+          onSelectBiomeTier={setBiomeTier}
+          disabled={gameState.canAttackMonster()}
         />
       )}
 

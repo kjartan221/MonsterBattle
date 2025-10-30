@@ -207,11 +207,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate that clicks are sufficient to defeat monster
-    if (clickCount < monster.clicksRequired) {
+    // NOTE: For bosses with healing/phases, clicks may be less than clicksRequired
+    // The frontend validates boss defeat via phase system before calling this API
+    const isBossMonster = monster.isBoss === true;
+
+    if (!isBossMonster && clickCount < monster.clicksRequired) {
       return NextResponse.json(
         { error: 'Insufficient clicks to defeat monster' },
         { status: 400 }
       );
+    }
+
+    // For bosses, log the click discrepancy for debugging
+    if (isBossMonster && clickCount < monster.clicksRequired) {
+      console.log(`ℹ️ Boss defeated with fewer clicks than required: ${clickCount}/${monster.clicksRequired} (likely due to healing)`);
     }
 
     // Generate random loot drops (5 items) with streak multiplier
