@@ -192,6 +192,7 @@ export interface MonsterFrontend {
   biome: BiomeId;
   tier: Tier;
   createdAt: Date | string;
+  isBoss?: boolean;               // True for boss monsters
   dotEffect?: DebuffEffect;       // Optional DoT effect on attack
   buffs?: MonsterBuff[];          // Monster buffs (Shield, Fast, etc.)
   specialAttacks?: SpecialAttack[]; // Boss special attacks

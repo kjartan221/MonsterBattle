@@ -12,6 +12,7 @@ import { useEquipment } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
 import { useSpecialAttacks } from '@/hooks/useSpecialAttacks';
+import { useBossPhases } from '@/hooks/useBossPhases';
 import type { DebuffEffect, SpecialAttack } from '@/lib/types';
 import { calculateTotalEquipmentStats, calculateClickDamage } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
@@ -21,6 +22,7 @@ import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterCard from '@/components/battle/MonsterCard';
 import BuffIndicators from '@/components/battle/BuffIndicators';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
+import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
 
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
@@ -62,18 +64,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     [equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]
   );
 
-  // Monster attack system with debuff application
-  const { isAttacking } = useMonsterAttack({
-    monster: gameState.monster,
-    session: gameState.session,
-    battleStarted: gameState.canAttackMonster(),
-    isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
-    playerStats,
-    takeDamage,
-    equipmentStats,
-    applyDebuff
-  });
-
   // Boss special attacks system
   const handleSpecialAttack = useCallback((attack: SpecialAttack) => {
     if (attack.damage) {
@@ -82,15 +72,49 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
     if (attack.healing) {
       console.log(`💚 Boss Healed! ${attack.type} restored ${attack.healing} HP`);
-      // TODO: Implement boss healing
+      // Reduce clicks to simulate healing (increase HP)
+      setClicks(prev => Math.max(0, prev - Math.ceil(attack.healing || 0)));
     }
   }, [takeDamage]);
+
+  // Boss phase management system (must come before useMonsterAttack to provide isInvulnerable)
+  const remainingHP = gameState.monster ? Math.max(0, gameState.monster.clicksRequired - clicks) : 0;
+  const maxHP = gameState.monster?.clicksRequired || 0;
+  const isDefeated = gameState.monster ? clicks >= gameState.monster.clicksRequired : false;
+
+  const {
+    currentPhase,
+    totalPhases,
+    isInvulnerable,
+    phaseHP,
+    phaseTransitionMessage
+  } = useBossPhases({
+    monster: gameState.monster,
+    currentHP: remainingHP,
+    maxHP: maxHP,
+    battleStarted: gameState.canAttackMonster(),
+    isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
+    onPhaseAttack: handleSpecialAttack
+  });
 
   const { lastAttack } = useSpecialAttacks({
     monster: gameState.monster,
     battleStarted: gameState.canAttackMonster(),
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     onSpecialAttack: handleSpecialAttack
+  });
+
+  // Monster attack system with debuff application
+  const { isAttacking } = useMonsterAttack({
+    monster: gameState.monster,
+    session: gameState.session,
+    battleStarted: gameState.canAttackMonster(),
+    isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
+    isInvulnerable: isInvulnerable,
+    playerStats,
+    takeDamage,
+    equipmentStats,
+    applyDebuff
   });
 
   // Auto-start initial battle when player stats load
@@ -388,8 +412,28 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       return; // Shield absorbs all damage, excess is ignored
     }
 
-    // Normal damage to monster HP
-    const newClicks = clicks + damage;
+    // Calculate new clicks with damage
+    let newClicks = clicks + damage;
+
+    // For bosses with phases, cap damage at phase thresholds (ignore excess like shields)
+    if (gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0) {
+      const currentHPPercent = ((gameState.monster.clicksRequired - clicks) / gameState.monster.clicksRequired) * 100;
+      const newHPPercent = ((gameState.monster.clicksRequired - newClicks) / gameState.monster.clicksRequired) * 100;
+
+      // Check if this click would cross a phase threshold
+      for (const phase of gameState.monster.bossPhases) {
+        // If we're above threshold now, but would go below with this click
+        if (currentHPPercent > phase.hpThreshold && newHPPercent <= phase.hpThreshold) {
+          // Cap clicks at exactly the threshold (excess damage ignored)
+          const thresholdClicks = Math.ceil(gameState.monster.clicksRequired * (1 - phase.hpThreshold / 100));
+          newClicks = Math.min(newClicks, thresholdClicks);
+          console.log(`🛡️ Phase threshold reached! Capping damage at ${phase.hpThreshold}% HP (${thresholdClicks} clicks)`);
+          break; // Only check first threshold crossed
+        }
+      }
+    }
+
+    // Apply damage to monster HP
     setClicks(newClicks);
 
     if (gameState.monster && newClicks >= gameState.monster.clicksRequired) {
@@ -552,10 +596,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     );
   }
 
-  const remainingHP = gameState.monster ? Math.max(0, gameState.monster.clicksRequired - clicks) : 0;
-  const remainingHPPercent = gameState.monster ? (remainingHP / gameState.monster.clicksRequired) * 100 : 0;
-  const isDefeated = gameState.monster ? clicks >= gameState.monster.clicksRequired : false;
-
   return (
     <>
       {/* Special Attack Visual Feedback */}
@@ -607,6 +647,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         monster={gameState.monster}
         isAttacking={isAttacking}
         isDefeated={isDefeated}
+        isInvulnerable={isInvulnerable}
         onAttack={handleClick}
         critTrigger={critTrigger}
       />
@@ -641,27 +682,16 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         </div>
       )}
 
-      {/* HP Bar */}
-      <div className="w-full">
-        <div className="flex justify-between mb-2">
-          <span className="text-white font-semibold">HP</span>
-          <span className="text-white font-semibold">
-            {remainingHP} / {gameState.monster.clicksRequired}
-          </span>
-        </div>
-        <div className="w-full bg-black/30 rounded-full h-6 overflow-hidden border border-white/20">
-          <div
-            className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 flex items-center justify-center"
-            style={{ width: `${Math.min(100, remainingHPPercent)}%` }}
-          >
-            {remainingHPPercent > 10 && (
-              <span className="text-white text-xs font-bold">
-                {Math.round(remainingHPPercent)}%
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* HP Bar / Boss Phase Indicator */}
+      <BossPhaseIndicator
+        monster={gameState.monster}
+        currentHP={remainingHP}
+        maxHP={maxHP}
+        currentPhase={currentPhase}
+        totalPhases={totalPhases}
+        phaseHP={phaseHP}
+        isInvulnerable={isInvulnerable}
+      />
 
       {/* Click Counter */}
       <div className="px-8 py-3 bg-black/30 rounded-lg border border-white/20">

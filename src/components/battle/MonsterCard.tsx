@@ -7,6 +7,7 @@ interface MonsterCardProps {
   monster: MonsterFrontend;
   isAttacking: boolean;
   isDefeated: boolean;
+  isInvulnerable?: boolean;
   onAttack: () => void;
   critTrigger?: number;
 }
@@ -25,6 +26,7 @@ export default function MonsterCard({
   monster,
   isAttacking,
   isDefeated,
+  isInvulnerable = false,
   onAttack,
   critTrigger = 0
 }: MonsterCardProps) {
@@ -70,10 +72,12 @@ export default function MonsterCard({
     <div className="relative">
       <button
         onClick={onAttack}
-        disabled={isDefeated}
+        disabled={isDefeated || isInvulnerable}
         className={`w-72 h-72 bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl transition-all duration-150 flex items-center justify-center cursor-pointer border-4 ${rarityBorderColors[monster.rarity]} ${
           isDefeated
             ? 'opacity-50 cursor-not-allowed'
+            : isInvulnerable
+            ? 'border-cyan-400 shadow-cyan-500/50 shadow-2xl animate-pulse cursor-not-allowed'
             : 'hover:scale-105 active:scale-95 hover:border-white/60'
         } ${isAttacking ? 'animate-pulse border-red-500 shadow-red-500/50 shadow-2xl' : ''}`}
       >
@@ -81,8 +85,11 @@ export default function MonsterCard({
           <div className={`text-9xl mb-4 transition-transform ${isAttacking ? 'scale-110' : ''}`}>
             {monster.imageUrl}
           </div>
-          {!isDefeated && (
+          {!isDefeated && !isInvulnerable && (
             <p className="text-white text-xl font-bold">Click to Attack!</p>
+          )}
+          {isInvulnerable && (
+            <p className="text-cyan-300 text-xl font-bold">🛡️ INVULNERABLE!</p>
           )}
           {isDefeated && (
             <p className="text-white text-xl font-bold">DEFEATED!</p>

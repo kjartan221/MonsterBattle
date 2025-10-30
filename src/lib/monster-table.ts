@@ -73,7 +73,24 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     baseClicksRange: [45, 50], // 150 HP for Tier 2 (scaled from T1 base)
     baseAttackDamage: 4, // 4 HP/sec, regenerates, summons sprites
     biomes: ['forest'],
-    isBoss: true // Boss: No buffs except Tier 5
+    isBoss: true, // Boss: No buffs except Tier 5
+    bossPhases: [
+      {
+        phaseNumber: 2,
+        hpThreshold: 50, // Phase 2 triggers at 50% HP
+        invulnerabilityDuration: 2000, // 2 seconds of invulnerability
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 15, // Heals 15 HP (10% of max HP at T1)
+            cooldown: 0, // Instant during phase transition
+            visualEffect: 'green',
+            message: '🌿 The Treant Guardian draws strength from the forest!'
+          }
+        ],
+        message: '🌳 The Treant Guardian enters a defensive stance!'
+      }
+    ]
   },
 
   // ===== DESERT BIOME =====

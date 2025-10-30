@@ -70,7 +70,7 @@ This is a demo application where:
 - ✅ Toast notifications (react-hot-toast)
 - ✅ Inventory system (userInventory collection stores collected items)
 - ✅ Inventory page with treasure chest UI
-- 🚧 Implementing Phase 1 of docs/GAME_DESIGN_PROPOSAL.md (RPG transformation)
+- 🚧 Implementing Phase 2 of docs/GAME_DESIGN_PROPOSAL.md (RPG transformation)
 
 **IMPORTANT: Phased Implementation Rule**
 When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
@@ -78,13 +78,12 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 - Wait for user review and testing before proceeding
 - This ensures code quality and allows for adjustments
 - Reference: See Phase 1, Phase 2, Phase 3 sections in docs/GAME_DESIGN_PROPOSAL.md
-- ⏳ NFT minting to blockchain (placeholder for future BSV integration)
 
 ---
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-29 (Phase 2.1: Monster Buffs & Boss Special Attacks)
+**Last Updated**: 2025-10-30 (Documentation cleanup and review)
 
 **Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
@@ -176,7 +175,6 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
     - PlayerStatsDisplay moved into MonsterBattleSection for direct access to debuff state
   - Documentation: Complete system documentation (docs/DEBUFF_SYSTEM_IMPLEMENTATION.md - 493 lines)
 
-### ✅ Previously Completed
 - **Phase 1.2: Monster Attack Loop** (docs/GAME_DESIGN_PROPOSAL.md:1076-1082)
   - Backend: Monster attack damage defined in monster-table.ts (2-12 DPS)
   - Frontend: setInterval loop to damage player every second (BattlePage.tsx:63-79)
@@ -540,14 +538,21 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 ```typescript
 {
   _id: ObjectId,
-  name: string,          // e.g. "Dragon", "Goblin"
-  imageUrl: string,      // Emoji icon (e.g. "🐉")
+  name: string,          // e.g. "Forest Wolf", "Sand Djinn"
+  imageUrl: string,      // Emoji icon (e.g. "🐺", "🧞")
   clicksRequired: number,
+  attackDamage: number,
   rarity: 'common' | 'rare' | 'epic' | 'legendary',
+  biome: 'forest' | 'desert' | 'ocean' | 'volcano' | 'castle',
+  tier: 1 | 2 | 3 | 4 | 5,
+  isBoss: boolean,       // True for boss monsters
+  buffs: MonsterBuff[], // Shield/Fast buffs (optional)
+  specialAttacks: SpecialAttack[], // Boss special attacks (optional)
+  dotEffect: DebuffEffect, // Poison/Burn/Bleed effects (optional)
   createdAt: Date
 }
 ```
-**Indexes**: `rarity`, `createdAt`
+**Indexes**: `rarity`, `biome`, `tier`, `createdAt`
 
 #### NFT Loot Collection
 ```typescript
@@ -626,14 +631,15 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 #### 1. Start Battle (`POST /api/start-battle`)
 - Checks for existing active session with `isDefeated: false` and no `completedAt`
 - If active session found: resumes with existing monster
-- If no active session: creates new monster with random stats based on rarity
+- If no active session: creates new monster from selected biome/tier with random stats based on rarity
 - Creates new battle session
 - Returns: `{ session, monster, isNewSession }`
 
 **Monster Generation**:
-- 8 monster types: Goblin, Orc, Zombie, Troll, Ghost, Dragon, Vampire, Demon
+- Monsters are biome-specific (Forest, Desert, Ocean, Volcano, Castle)
 - Rarity distribution: Common (60%), Rare (25%), Epic (12%), Legendary (3%)
-- Click requirements scale with rarity (5-10 for common, 40-50 for legendary)
+- Stats scale with tier multiplier (1x, 2x, 4x, 8x, 15x)
+- Bosses marked with `isBoss: true` for special mechanics
 
 #### 2. Click Tracking (`POST /api/update-clicks`)
 - **Auto-saves every 5 clicks** from frontend
@@ -739,13 +745,6 @@ JWT_SECRET=your-secret-key-here  # Used for signing JWTs
 - NFTs are minted in background via `/api/mint-nft` route
 - UI shows "Minting..." status until `mintTransactionId` is added
 
-#### 5. Background NFT Minting (`POST /api/mint-nft`)
-- Called by background job/queue system (not by users)
-- Processes NFTLoot documents without `mintTransactionId`
-- Mints to BSV blockchain (TODO: implement BSV SDK integration)
-- Updates `mintTransactionId` field once transaction is confirmed
-- GET endpoint lists all pending mints for monitoring
-
 ---
 
 ### Loot System
@@ -767,14 +766,12 @@ The loot system uses a **template + instance** architecture:
 **File**: `src/lib/loot-table.ts`
 
 **Loot Pools**:
-1. **COMMON_LOOT** (9 items): Shared by all monsters, 70% drop rate
-2. **RARE_LOOT** (7 items): Shared by all monsters, 30% drop rate
-3. **Monster-Specific Loot**: Unique items per monster type
-   - Goblin/Orc: 4 items
-   - Zombie: 3 items
-   - Troll/Ghost: 8 items
-   - Dragon/Vampire: 10 items (includes legendary drops)
-   - Demon: 10 items (all legendary)
+1. **COMMON_LOOT**: Shared by all monsters, common rarity items
+2. **RARE_LOOT**: Shared by all monsters, rare rarity items
+3. **Monster-Specific Loot**: Unique items per monster (varies by biome)
+   - Each monster has 3-10 unique drops including materials, equipment, and consumables
+   - Boss monsters drop legendary spell scrolls
+   - Loot tables organized by biome (forest, desert, ocean, volcano, castle)
 
 **Loot Distribution** (for 5 items):
 - **1-3 monster-specific items** (70% chance of 1, 25% chance of 2, 5% chance of 3)

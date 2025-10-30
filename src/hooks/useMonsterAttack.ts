@@ -9,6 +9,7 @@ interface UseMonsterAttackProps {
   session: BattleSessionFrontend | null;
   battleStarted: boolean;
   isSubmitting: boolean;
+  isInvulnerable?: boolean;
   playerStats: PlayerStats | null;
   takeDamage: (amount: number) => Promise<void>;
   equipmentStats: TotalEquipmentStats;
@@ -18,12 +19,14 @@ interface UseMonsterAttackProps {
 /**
  * Handles monster attack interval and visual feedback
  * Isolates attack state to prevent BattlePage re-renders
+ * Pauses attacks during boss invulnerability phases
  */
 export function useMonsterAttack({
   monster,
   session,
   battleStarted,
   isSubmitting,
+  isInvulnerable = false,
   playerStats,
   takeDamage,
   equipmentStats,
@@ -37,9 +40,10 @@ export function useMonsterAttack({
     // - Session already marked as defeated
     // - Currently submitting battle completion
     // - Battle hasn't started yet
+    // - Boss is invulnerable (phase transition)
     // Note: playerStats is checked for existence but NOT in dependency array
     // to prevent re-creating interval on every HP change
-    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted) return;
+    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted || isInvulnerable) return;
 
     // Safety check for monster.attackDamage
     if (typeof monster.attackDamage !== 'number' || isNaN(monster.attackDamage)) {
@@ -79,7 +83,7 @@ export function useMonsterAttack({
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, isSubmitting, takeDamage, battleStarted, equipmentStats, applyDebuff]);
+  }, [monster, session, isSubmitting, takeDamage, battleStarted, isInvulnerable, equipmentStats, applyDebuff]);
   // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
   // when HP changes from takeDamage calls
 
