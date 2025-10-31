@@ -38,6 +38,10 @@ export default function BattlePage() {
     slotIndex: 0,
   });
 
+  // Mobile menu toggles
+  const [showBiomeMap, setShowBiomeMap] = useState(false);
+  const [showEquipment, setShowEquipment] = useState(false);
+
   // Debuff system (managed at page level, passed to child components)
   const { activeDebuffs, applyDebuff, clearDebuffs } = useDebuffs({
     maxHP: playerStats?.maxHealth || 100,
@@ -127,39 +131,95 @@ export default function BattlePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
-      {/* Player Stats - Top Left */}
+      {/* Player Stats - Top Left (Always visible on desktop, top on mobile) */}
       <PlayerStatsDisplay activeDebuffs={activeDebuffs} />
 
-      {/* Biome Map Widget - Top Left (below player stats) */}
+      {/* Biome Map Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
-        <BiomeMapWidget
-          unlockedZones={playerStats.unlockedZones}
-          onSelectBiomeTier={setBiomeTier}
-          disabled={gameState.canAttackMonster()}
-        />
+        <>
+          {/* Backdrop overlay for mobile */}
+          {showBiomeMap && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/60 z-40"
+              onClick={() => setShowBiomeMap(false)}
+            />
+          )}
+          {/* Widget container */}
+          <div className={`hidden md:block ${showBiomeMap ? '!block !fixed !inset-4 !z-50 md:!static md:!z-auto' : ''}`}>
+            <BiomeMapWidget
+              unlockedZones={playerStats.unlockedZones}
+              onSelectBiomeTier={(biome, tier) => {
+                setBiomeTier(biome, tier);
+                setShowBiomeMap(false); // Auto-close on selection
+              }}
+              disabled={gameState.canAttackMonster()}
+            />
+          </div>
+        </>
       )}
 
-      {/* Equipment Widget - Left side under BiomeMapWidget */}
+      {/* Equipment Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
-        <EquipmentWidget
-          onSlotClick={handleEquipmentSlotClick}
-          disabled={false}
-        />
+        <>
+          {/* Backdrop overlay for mobile */}
+          {showEquipment && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/60 z-40"
+              onClick={() => setShowEquipment(false)}
+            />
+          )}
+          {/* Widget container */}
+          <div className={`hidden md:block ${showEquipment ? '!block !fixed !inset-4 !z-50 md:!static md:!z-auto' : ''}`}>
+            <EquipmentWidget
+              onSlotClick={(slot) => {
+                handleEquipmentSlotClick(slot);
+                setShowEquipment(false); // Auto-close on selection
+              }}
+              disabled={false}
+            />
+          </div>
+        </>
       )}
 
-      {/* Navigation Buttons - Top Right */}
+      {/* Mobile Toggle Buttons - Left Middle (only visible on mobile) */}
+      <div className="md:hidden fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
+        <button
+          onClick={() => setShowBiomeMap(!showBiomeMap)}
+          className={`w-14 h-14 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-2xl ${
+            showBiomeMap
+              ? 'bg-blue-600 hover:bg-blue-700'
+              : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
+          }`}
+          title="Toggle World Map"
+        >
+          🗺️
+        </button>
+        <button
+          onClick={() => setShowEquipment(!showEquipment)}
+          className={`w-14 h-14 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-2xl ${
+            showEquipment
+              ? 'bg-purple-600 hover:bg-purple-700'
+              : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
+          }`}
+          title="Toggle Equipment"
+        >
+          ⚔️
+        </button>
+      </div>
+
+      {/* Navigation Buttons - Top Right (responsive sizing) */}
       <div className="absolute top-4 right-4 flex gap-2">
         <button
           onClick={() => router.push('/inventory')}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
+          className="px-3 py-2 md:px-4 text-sm md:text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
         >
-          📦 Inventory
+          📦 <span className="hidden sm:inline">Inventory</span>
         </button>
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
+          className="px-3 py-2 md:px-4 text-sm md:text-base bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
         >
-          Logout
+          <span className="hidden sm:inline">Logout</span><span className="sm:hidden">🚪</span>
         </button>
       </div>
 

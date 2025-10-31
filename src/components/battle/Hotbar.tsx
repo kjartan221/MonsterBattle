@@ -171,8 +171,8 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="bg-gray-900/95 border-2 border-gray-700 rounded-lg p-3 shadow-2xl">
-        <div className="flex gap-3">
+      <div className="bg-gray-900/95 border-2 border-gray-700 rounded-lg p-3 md:p-4 shadow-2xl">
+        <div className="flex gap-3 md:gap-4">
           {/* Spell Slot (Q) */}
           <button
             onClick={() => {
@@ -184,7 +184,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
             }}
             disabled={!canInteract && (!spellSlot.spellId || spellCooldownRemaining > 0)}
             className={`
-              relative w-16 h-16 rounded-lg border-2 transition-all
+              relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all
               ${spellSlot.spellId
                 ? 'border-purple-500 bg-purple-900/30 hover:bg-purple-800/40 active:scale-95'
                 : canInteract
@@ -194,20 +194,20 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
             `}
           >
             {/* Keybind indicator */}
-            <div className="absolute -top-2 -left-2 w-5 h-5 bg-purple-600 rounded text-white text-xs font-bold flex items-center justify-center">
+            <div className="absolute -top-2 -left-2 w-5 h-5 md:w-6 md:h-6 bg-purple-600 rounded text-white text-xs md:text-sm font-bold flex items-center justify-center">
               Q
             </div>
 
             {/* Spell icon or empty state */}
             {spellSlot.spellId ? (
               <>
-                <div className="text-2xl">{spellSlot.icon}</div>
-                <div className="text-[8px] text-gray-300 mt-0.5 leading-tight">
+                <div className="text-2xl md:text-3xl">{spellSlot.icon}</div>
+                <div className="text-[8px] md:text-[10px] text-gray-300 mt-0.5 leading-tight">
                   {spellSlot.name}
                 </div>
               </>
             ) : (
-              <div className="text-gray-500 text-xs">
+              <div className="text-gray-500 text-xs md:text-sm">
                 Empty
               </div>
             )}
@@ -216,7 +216,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
             {spellCooldownRemaining > 0 && (
               <>
                 <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
+                  <span className="text-white font-bold text-sm md:text-base">
                     {Math.ceil(spellCooldownRemaining)}s
                   </span>
                 </div>
@@ -254,7 +254,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
               }}
               disabled={!canInteract && (!slot.itemId || slot.quantity === 0 || consumableCooldownRemaining[index] > 0)}
               className={`
-                relative w-16 h-16 rounded-lg border-2 transition-all
+                relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all
                 ${slot.itemId && slot.quantity > 0
                   ? 'border-blue-500 bg-blue-900/30 hover:bg-blue-800/40 active:scale-95'
                   : canInteract
@@ -264,24 +264,24 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
               `}
             >
               {/* Keybind indicator */}
-              <div className="absolute -top-2 -left-2 w-5 h-5 bg-blue-600 rounded text-white text-xs font-bold flex items-center justify-center">
+              <div className="absolute -top-2 -left-2 w-5 h-5 md:w-6 md:h-6 bg-blue-600 rounded text-white text-xs md:text-sm font-bold flex items-center justify-center">
                 {index + 1}
               </div>
 
               {/* Item icon or empty state */}
               {slot.itemId ? (
                 <>
-                  <div className="text-2xl">{slot.icon}</div>
-                  <div className="text-[8px] text-gray-300 mt-0.5 leading-tight">
+                  <div className="text-2xl md:text-3xl">{slot.icon}</div>
+                  <div className="text-[8px] md:text-[10px] text-gray-300 mt-0.5 leading-tight">
                     {slot.name}
                   </div>
                   {/* Quantity badge */}
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-900 border border-blue-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center">
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-gray-900 border border-blue-500 rounded-full text-white text-[10px] md:text-xs font-bold flex items-center justify-center">
                     {slot.quantity}
                   </div>
                 </>
               ) : (
-                <div className="text-gray-500 text-xs">
+                <div className="text-gray-500 text-xs md:text-sm">
                   Empty
                 </div>
               )}
@@ -290,7 +290,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
               {consumableCooldownRemaining[index] > 0 && (
                 <>
                   <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">
+                    <span className="text-white font-bold text-sm md:text-base">
                       {Math.ceil(consumableCooldownRemaining[index])}s
                     </span>
                   </div>
@@ -315,7 +315,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
         </div>
 
         {/* Helper text */}
-        <div className="text-center text-gray-400 text-[10px] mt-2">
+        <div className="text-center text-gray-400 text-[10px] md:text-xs mt-2">
           {canInteract ? 'Click to equip items' : 'Press Q or 1-3 to use'}
         </div>
       </div>

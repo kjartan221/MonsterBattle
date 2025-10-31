@@ -752,9 +752,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         </div>
       )}
 
-      {/* Monster + Summons Battle Area */}
-      <div className="flex items-center justify-center gap-8 w-full">
-        {/* Left Summon */}
+      {/* Monster + Summons Battle Area - Responsive Layout */}
+      <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-8 w-full flex-wrap md:flex-nowrap">
+        {/* Left Summon - Hidden placeholder on mobile when empty */}
         <div className="flex-shrink-0">
           {getLeftSummon() ? (
             <SummonCard
@@ -763,11 +763,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
               onAttack={() => handleSummonClick(getLeftSummon()!.id)}
             />
           ) : (
-            <div className="w-40 h-40" /> // Placeholder for alignment
+            <div className="hidden md:block w-40 h-40" /> // Placeholder only on desktop
           )}
         </div>
 
-        {/* Monster Battle Arena */}
+        {/* Monster Battle Arena - Center piece, always visible */}
         <div className="flex-shrink-0">
           <MonsterBattleArena
             monster={gameState.monster}
@@ -779,7 +779,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           />
         </div>
 
-        {/* Right Summon */}
+        {/* Right Summon - Hidden placeholder on mobile when empty */}
         <div className="flex-shrink-0">
           {getRightSummon() ? (
             <SummonCard
@@ -788,7 +788,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
               onAttack={() => handleSummonClick(getRightSummon()!.id)}
             />
           ) : (
-            <div className="w-40 h-40" /> // Placeholder for alignment
+            <div className="hidden md:block w-40 h-40" /> // Placeholder only on desktop
           )}
         </div>
       </div>
@@ -885,14 +885,14 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       {/* Victory: Rest phase */}
       {isDefeated && gameState.gameState === 'BATTLE_VICTORY' && (
-        <div className="mt-4 p-6 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg border-2 border-green-400">
-          <p className="text-green-400 text-xl font-bold text-center mb-2">
+        <div className="mt-3 sm:mt-4 p-4 sm:p-6 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg border border-green-400 sm:border-2">
+          <p className="text-green-400 text-base sm:text-xl font-bold text-center mb-1.5 sm:mb-2">
             🎉 Victory Complete! 🎉
           </p>
-          <p className="text-white text-center mb-3">
+          <p className="text-white text-sm sm:text-base text-center mb-2 sm:mb-3">
             Loot claimed! Take your time to prepare for the next battle.
           </p>
-          <div className="text-center text-sm text-gray-300 space-y-1">
+          <div className="text-center text-xs sm:text-sm text-gray-300 space-y-0.5 sm:space-y-1">
             <p>• Check your equipment and stats</p>
             <p>• Review your inventory</p>
             <p>• Ready for the next challenge? →</p>
@@ -909,15 +909,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         </div>
       )}
 
-      {/* Next Monster Button - Fixed position on right side */}
+      {/* Next Monster Button - Fixed position right middle */}
       {gameState.canShowNextMonsterButton() && (
         <button
           onClick={() => handleNextMonster()}
-          className="fixed right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 px-6 py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-4 border-green-400 cursor-pointer"
+          className="fixed right-4 top-1/2 -translate-y-1/2 md:right-8 flex flex-col items-center gap-1 sm:gap-2 px-4 py-4 sm:px-6 sm:py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-2 sm:border-4 border-green-400 cursor-pointer z-40"
         >
-          <span className="text-lg">Next</span>
-          <span className="text-lg">Monster</span>
-          <span className="text-4xl">→</span>
+          <span className="text-sm sm:text-lg">Next</span>
+          <span className="text-sm sm:text-lg">Monster</span>
+          <span className="text-2xl sm:text-4xl">→</span>
         </button>
       )}
 

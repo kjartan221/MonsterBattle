@@ -7,8 +7,14 @@ import type { MonsterFrontend } from '@/lib/types';
 // CONFIGURABLE CONSTANTS (Easy to change for future iterations)
 // ============================================================
 const GRID_SIZE = 5; // 5x5 grid (25 positions) - easy to change to 3, 4, 6, etc.
-const ARENA_WIDTH = 500; // px
-const ARENA_HEIGHT = 400; // px
+
+// Responsive arena sizes (base dimensions, will be scaled via CSS)
+const ARENA_SIZES = {
+  mobile: { width: 280, height: 224 },   // Mobile: 280x224px (16:12.8 ratio)
+  tablet: { width: 400, height: 320 },   // Tablet: 400x320px (5:4 ratio)
+  desktop: { width: 500, height: 400 }   // Desktop: 500x400px (5:4 ratio)
+};
+
 const MONSTER_ICON_SIZE = 80; // px - size of the emoji icon
 const HITBOX_RADIUS = 60; // px - radius from center for hit detection (independent of grid spacing)
 
@@ -90,8 +96,10 @@ export default function MonsterBattleArena({
   const arenaRef = useRef<HTMLDivElement>(null);
   const moveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Generate grid positions once
-  const gridPositions = useRef(generateGridPositions(GRID_SIZE, ARENA_WIDTH, ARENA_HEIGHT)).current;
+  // Generate grid positions once (use desktop size as base for calculations)
+  const gridPositions = useRef(
+    generateGridPositions(GRID_SIZE, ARENA_SIZES.desktop.width, ARENA_SIZES.desktop.height)
+  ).current;
 
   // Monster position state (starts at center)
   const centerIndex = Math.floor(gridPositions.length / 2);
@@ -192,7 +200,12 @@ export default function MonsterBattleArena({
     <div
       ref={arenaRef}
       onClick={handleArenaClick}
-      className={`relative bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl border-4 ${rarityBorderColors[monster.rarity]} overflow-hidden transition-all duration-150 select-none ${
+      className={`relative bg-gradient-to-br ${rarityColors[monster.rarity]} rounded-2xl shadow-2xl border-4 ${rarityBorderColors[monster.rarity]} overflow-hidden transition-all duration-150 select-none
+        w-[280px] h-[224px]
+        sm:w-[340px] sm:h-[272px]
+        md:w-[400px] md:h-[320px]
+        lg:w-[500px] lg:h-[400px]
+        ${
         isDefeated
           ? 'opacity-50 cursor-not-allowed'
           : isInvulnerable
@@ -200,8 +213,6 @@ export default function MonsterBattleArena({
           : 'hover:border-white/60'
       } ${isAttacking ? 'animate-pulse border-red-500 shadow-red-500/50 shadow-2xl' : ''}`}
       style={{
-        width: `${ARENA_WIDTH}px`,
-        height: `${ARENA_HEIGHT}px`,
         userSelect: 'none',
         WebkitUserSelect: 'none',
         msUserSelect: 'none'
@@ -228,8 +239,8 @@ export default function MonsterBattleArena({
           onClick={onAttack}
           className="absolute rounded-full cursor-pointer z-10"
           style={{
-            left: `${monsterPosition.x - HITBOX_RADIUS}px`,
-            top: `${monsterPosition.y - HITBOX_RADIUS}px`,
+            left: `calc(${(monsterPosition.x / ARENA_SIZES.desktop.width) * 100}% - ${HITBOX_RADIUS}px)`,
+            top: `calc(${(monsterPosition.y / ARENA_SIZES.desktop.height) * 100}% - ${HITBOX_RADIUS}px)`,
             width: `${HITBOX_RADIUS * 2}px`,
             height: `${HITBOX_RADIUS * 2}px`
           }}
@@ -244,15 +255,15 @@ export default function MonsterBattleArena({
             isAnimating ? 'opacity-50' : 'opacity-100'
           } ${isAttacking ? 'scale-110' : ''}`}
           style={{
-            left: `${monsterPosition.x - MONSTER_ICON_SIZE / 2}px`,
-            top: `${monsterPosition.y - MONSTER_ICON_SIZE / 2}px`,
+            left: `calc(${(monsterPosition.x / ARENA_SIZES.desktop.width) * 100}% - ${MONSTER_ICON_SIZE / 2}px)`,
+            top: `calc(${(monsterPosition.y / ARENA_SIZES.desktop.height) * 100}% - ${MONSTER_ICON_SIZE / 2}px)`,
             width: `${MONSTER_ICON_SIZE}px`,
             height: `${MONSTER_ICON_SIZE}px`,
             transform: `scale(${isAttacking ? 1.1 : 1})`,
             transition: 'transform 0.15s'
           }}
         >
-          <div className="text-8xl leading-none flex items-center justify-center select-none">
+          <div className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-none flex items-center justify-center select-none">
             {monster.imageUrl}
           </div>
         </div>
@@ -278,12 +289,12 @@ export default function MonsterBattleArena({
           key={badge.id}
           className="absolute pointer-events-none animate-crit-float z-50"
           style={{
-            left: `${badge.x}px`,
-            top: `${badge.y}px`,
+            left: `calc(${(badge.x / ARENA_SIZES.desktop.width) * 100}%)`,
+            top: `calc(${(badge.y / ARENA_SIZES.desktop.height) * 100}%)`,
             transform: 'translate(-50%, -50%)'
           }}
         >
-          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white font-bold text-sm px-3 py-1 rounded-full shadow-xl border-2 border-yellow-300">
+          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white font-bold text-xs sm:text-sm px-2 py-1 sm:px-3 rounded-full shadow-xl border-2 border-yellow-300">
             💥 CRIT!
           </div>
         </div>

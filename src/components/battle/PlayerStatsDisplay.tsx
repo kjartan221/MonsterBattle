@@ -60,32 +60,32 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
   const xpProgress = xpForNextLevel > 0 ? (experience / xpForNextLevel) * 100 : 0;
 
   return (
-    <div className="absolute top-[100px] sm:top-[110px] left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
-      <div className="text-white text-base mb-3 flex justify-between items-center">
+    <div className="absolute top-16 sm:top-[110px] left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-3 sm:p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
+      <div className="text-white text-sm sm:text-base mb-2 sm:mb-3 flex justify-between items-center">
         <div>
-          <span className="font-bold text-lg">Level {level}</span>
-          <span className="ml-3 text-gray-300 text-base">{coins} 💰</span>
+          <span className="font-bold text-base sm:text-lg">Level {level}</span>
+          <span className="ml-2 sm:ml-3 text-gray-300 text-sm sm:text-base">{coins} 💰</span>
         </div>
-        <div className={`text-sm font-bold ${streakColor}`} title="Win Streak">
+        <div className={`text-xs sm:text-sm font-bold ${streakColor}`} title="Win Streak">
           {streakIcon} {streak}
         </div>
       </div>
 
       {/* HP Bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-white text-sm mb-1">
+      <div className="mb-1.5 sm:mb-2">
+        <div className="flex justify-between text-white text-xs sm:text-sm mb-1">
           <span>HP</span>
           <span className="font-bold">
             {currentHealth} / {maxHealth}
           </span>
         </div>
-        <div className="w-full bg-black/40 rounded-full h-5 overflow-hidden border border-red-900/50">
+        <div className="w-full bg-black/40 rounded-full h-4 sm:h-5 overflow-hidden border border-red-900/50">
           <div
             className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 flex items-center justify-center"
             style={{ width: `${Math.max(0, Math.min(100, healthPercentage))}%` }}
           >
             {healthPercentage > 20 && (
-              <span className="text-white text-xs font-bold">
+              <span className="text-white text-[10px] sm:text-xs font-bold">
                 {Math.round(healthPercentage)}%
               </span>
             )}
@@ -94,14 +94,14 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
       </div>
 
       {/* XP Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-white text-xs mb-1">
+      <div className="mb-2 sm:mb-3">
+        <div className="flex justify-between text-white text-[10px] sm:text-xs mb-1">
           <span>XP</span>
           <span className="font-bold">
             {experience} / {xpForNextLevel}
           </span>
         </div>
-        <div className="w-full bg-black/40 rounded-full h-3 overflow-hidden border border-blue-900/50">
+        <div className="w-full bg-black/40 rounded-full h-2.5 sm:h-3 overflow-hidden border border-blue-900/50">
           <div
             className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300"
             style={{ width: `${Math.max(0, Math.min(100, xpProgress))}%` }}
@@ -111,21 +111,21 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
 
       {/* Active Debuffs */}
       {activeDebuffs.length > 0 && (
-        <div className="mb-3 pt-2 border-t border-white/10">
-          <div className="text-white/60 text-xs mb-1">Active Debuffs:</div>
+        <div className="mb-2 sm:mb-3 pt-1.5 sm:pt-2 border-t border-white/10">
+          <div className="text-white/60 text-[10px] sm:text-xs mb-1">Active Debuffs:</div>
           <DebuffIndicators debuffs={activeDebuffs} size="small" showDuration={true} />
         </div>
       )}
 
       {/* Stats (Total = Base + Equipment) */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
         <div className="text-white/80">
           <span className="text-white/60">⚔️ Damage:</span>{' '}
           <span className="text-white font-semibold">
             {totalDamage}
           </span>
           {(Number(equipmentStats.damageBonus) || 0) > 0 && (
-            <span className="text-green-400 text-[10px] ml-1">
+            <span className="text-green-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
               (+{Number(equipmentStats.damageBonus) || 0})
             </span>
           )}
@@ -136,7 +136,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
             {totalCritChance}%
           </span>
           {(Number(equipmentStats.critChance) || 0) > 0 && (
-            <span className="text-yellow-400 text-[10px] ml-1">
+            <span className="text-yellow-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
               (+{Number(equipmentStats.critChance) || 0}%)
             </span>
           )}
