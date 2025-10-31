@@ -6,7 +6,7 @@ import { CraftingRecipe, getAllRecipes } from '@/lib/recipe-table';
 import { getLootItemById, LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import CraftingItemDetailsModal from './CraftingItemDetailsModal';
-import StatRangeIndicator from './StatRangeIndicator';
+import CraftedItemModal from './CraftedItemModal';
 import { getStatRollQuality } from '@/utils/statRollUtils';
 
 type Category = 'all' | 'weapon' | 'armor' | 'consumable' | 'artifact';
@@ -24,23 +24,16 @@ export default function CraftingPage() {
   const [loading, setLoading] = useState(true);
   const [crafting, setCrafting] = useState<string | null>(null); // recipeId being crafted
   const [selectedItem, setSelectedItem] = useState<LootItem | null>(null); // Item details modal
-  const [lastCraftedStatRoll, setLastCraftedStatRoll] = useState<{ recipeId: string; statRoll?: number } | null>(null);
+  const [craftedItemModal, setCraftedItemModal] = useState<{
+    item: LootItem;
+    statRoll: number;
+    rolledStats?: any;
+  } | null>(null);
 
   // Fetch all data once on mount
   useEffect(() => {
     loadCraftingData();
   }, []);
-
-  // Clear stat roll indicator after 10 seconds
-  useEffect(() => {
-    if (lastCraftedStatRoll) {
-      const timer = setTimeout(() => {
-        setLastCraftedStatRoll(null);
-      }, 10000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [lastCraftedStatRoll]);
 
   const loadCraftingData = async () => {
     try {
@@ -122,20 +115,13 @@ export default function CraftingPage() {
       if (response.ok && data.success) {
         const outputItem = getLootItemById(recipe.output.lootTableId);
 
-        // Save stat roll for display
-        if (data.statRoll !== undefined) {
-          setLastCraftedStatRoll({ recipeId: recipe.recipeId, statRoll: data.statRoll });
-
-          // Get quality tier for toast message
-          const quality = getStatRollQuality(data.statRoll);
-
-          toast.success(
-            `Crafted ${recipe.output.quantity}x ${outputItem?.name || 'item'}! ${quality.emoji} ${quality.label} (${quality.percentage >= 0 ? '+' : ''}${quality.percentage}%)`,
-            {
-              icon: '🔨',
-              duration: 5000
-            }
-          );
+        // Show modal for crafted items with stat rolls
+        if (data.statRoll !== undefined && outputItem) {
+          setCraftedItemModal({
+            item: outputItem,
+            statRoll: data.statRoll,
+            rolledStats: data.rolledStats
+          });
         } else {
           // No stat roll (consumable/material)
           toast.success(`Crafted ${recipe.output.quantity}x ${outputItem?.name || 'item'}!`, {
@@ -329,13 +315,6 @@ export default function CraftingPage() {
                           </button>
                         </div>
                         <div className="text-xs text-gray-300">{recipe.description}</div>
-
-                        {/* Show stat roll indicator if this recipe was just crafted */}
-                        {lastCraftedStatRoll?.recipeId === recipe.recipeId && lastCraftedStatRoll.statRoll !== undefined && (
-                          <div className="mt-2">
-                            <StatRangeIndicator statRoll={lastCraftedStatRoll.statRoll} />
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -401,6 +380,16 @@ export default function CraftingPage() {
         <CraftingItemDetailsModal
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
+        />
+      )}
+
+      {/* Crafted Item Modal */}
+      {craftedItemModal && (
+        <CraftedItemModal
+          item={craftedItemModal.item}
+          statRoll={craftedItemModal.statRoll}
+          rolledStats={craftedItemModal.rolledStats}
+          onClose={() => setCraftedItemModal(null)}
         />
       )}
     </div>

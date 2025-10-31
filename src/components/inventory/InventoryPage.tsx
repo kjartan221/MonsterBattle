@@ -32,21 +32,27 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
 
-  // Stack items by name + tier
+  // Stack items by name + tier (exclude crafted items from stacking)
   const stackItems = (items: InventoryItem[]): StackedInventoryItem[] => {
     const stacks = new Map<string, InventoryItem[]>();
+    const craftedItems: InventoryItem[] = [];
 
-    // Group items by name + tier
+    // Separate crafted items and group non-crafted items by name + tier
     items.forEach(item => {
-      const key = `${item.name}_${item.tier}`;
-      if (!stacks.has(key)) {
-        stacks.set(key, []);
+      // Crafted items are not stacked (each has unique stat roll)
+      if (item.crafted) {
+        craftedItems.push(item);
+      } else {
+        const key = `${item.name}_${item.tier}`;
+        if (!stacks.has(key)) {
+          stacks.set(key, []);
+        }
+        stacks.get(key)!.push(item);
       }
-      stacks.get(key)!.push(item);
     });
 
-    // Convert to StackedInventoryItem array
-    return Array.from(stacks.values()).map(itemGroup => {
+    // Convert stacked items to StackedInventoryItem array
+    const stackedItems = Array.from(stacks.values()).map(itemGroup => {
       const firstItem = itemGroup[0];
       return {
         ...firstItem,
@@ -54,6 +60,16 @@ export default function InventoryPage() {
         items: itemGroup
       } as StackedInventoryItem;
     });
+
+    // Add crafted items as individual entries (count: 1)
+    const craftedStackedItems = craftedItems.map(item => ({
+      ...item,
+      count: 1,
+      items: [item]
+    } as StackedInventoryItem));
+
+    // Combine and return all items
+    return [...stackedItems, ...craftedStackedItems];
   };
 
   const stackedInventory = stackItems(inventory);
@@ -213,24 +229,12 @@ export default function InventoryPage() {
                       {item.rarity}
                     </div>
 
-                    {/* Stat Roll indicator (for crafted items only) */}
-                    {item.crafted && item.statRoll !== undefined && (
-                      <div className="mt-2 flex justify-center">
+                    {/* Stat Roll indicator (for crafted items only) - fixed height container */}
+                    <div className="mt-2 flex justify-center h-8">
+                      {item.crafted && item.statRoll !== undefined && (
                         <StatRangeIndicator statRoll={item.statRoll} />
-                      </div>
-                    )}
-
-                    {/* Tier badge (bottom left corner) */}
-                    <div className={getTierBadgeClassName()}>
-                      {tierToRoman(item.tier)}
+                      )}
                     </div>
-
-                    {/* Count badge (bottom right corner) */}
-                    {item.count > 1 && (
-                      <div className="absolute bottom-2 right-2 bg-gray-900 border-2 border-white text-white text-sm font-bold px-2 py-1 rounded-full shadow-lg">
-                        x{item.count}
-                      </div>
-                    )}
 
                     {/* Minting status badge */}
                     {!item.isMinted && (
@@ -247,6 +251,18 @@ export default function InventoryPage() {
                     {/* Hover effect overlay */}
                     <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   </button>
+
+                  {/* Tier badge (bottom left corner) - positioned relative to wrapper */}
+                  <div className="absolute bottom-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40 pointer-events-none">
+                    {tierToRoman(item.tier)}
+                  </div>
+
+                  {/* Count badge (bottom right corner) - positioned relative to wrapper */}
+                  {item.count > 1 && (
+                    <div className="absolute bottom-2 right-2 bg-gray-900 border-2 border-white text-white text-sm font-bold px-2 py-1 rounded-full shadow-lg pointer-events-none">
+                      x{item.count}
+                    </div>
+                  )}
                 </div>
                 );
               })}

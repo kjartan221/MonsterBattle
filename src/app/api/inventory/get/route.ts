@@ -51,11 +51,14 @@ export async function GET(request: NextRequest) {
         type: lootTemplate.type,
         tier: inventoryItem.tier, // Which tier this item dropped from (1-5)
         acquiredAt: inventoryItem.acquiredAt,
-        sessionId: inventoryItem.fromSessionId.toString(),
+        sessionId: inventoryItem.fromSessionId?.toString(),
         inventoryId: inventoryItem._id?.toString(),
         nftLootId: inventoryItem.nftLootId?.toString(), // Will be undefined if not minted yet
         borderGradient: inventoryItem.borderGradient, // User-specific gradient colors
-        isMinted: !!inventoryItem.nftLootId // True if NFT has been created
+        isMinted: !!inventoryItem.nftLootId, // True if NFT has been created
+        crafted: inventoryItem.crafted, // True if item was crafted
+        statRoll: inventoryItem.statRoll, // Stat roll multiplier (0.8 to 1.2) for crafted items
+        equipmentStats: lootTemplate.equipmentStats // Include equipment stats for display
       };
     }).filter(item => item !== null); // Filter out any items not found
 

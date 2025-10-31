@@ -56,8 +56,18 @@ export interface UserInventory {
   tier: Tier;              // Which tier this item dropped from (1-5)
   borderGradient: { color1: string; color2: string }; // User-specific gradient (stored here, not in NFT until minted)
   acquiredAt: Date;
-  fromMonsterId: ObjectId; // Reference to Monster._id
-  fromSessionId: ObjectId; // Reference to BattleSession._id
+  fromMonsterId?: ObjectId; // Reference to Monster._id (undefined for crafted items)
+  fromSessionId?: ObjectId; // Reference to BattleSession._id (undefined for crafted items)
+  crafted?: boolean;        // True if item was crafted
+  statRoll?: number;        // Stat roll multiplier (0.8 to 1.2) for crafted items
+  rolledStats?: {           // Final stats after applying stat roll
+    damageBonus?: number;
+    critChance?: number;
+    hpReduction?: number;
+    maxHpBonus?: number;
+    attackSpeed?: number;
+    coinBonus?: number;
+  };
 }
 
 // Player Stats document (RPG progression)

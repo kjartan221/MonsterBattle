@@ -136,19 +136,19 @@ export async function POST(request: NextRequest) {
               ? Math.round(outputLootItem.equipmentStats.damageBonus * statRoll)
               : undefined,
             critChance: outputLootItem.equipmentStats.critChance !== undefined
-              ? Math.round(outputLootItem.equipmentStats.critChance * statRoll * 10) / 10 // 1 decimal
+              ? Math.round(outputLootItem.equipmentStats.critChance * statRoll)
               : undefined,
             hpReduction: outputLootItem.equipmentStats.hpReduction !== undefined
-              ? Math.round(outputLootItem.equipmentStats.hpReduction * statRoll * 10) / 10
+              ? Math.round(outputLootItem.equipmentStats.hpReduction * statRoll)
               : undefined,
             maxHpBonus: outputLootItem.equipmentStats.maxHpBonus !== undefined
               ? Math.round(outputLootItem.equipmentStats.maxHpBonus * statRoll)
               : undefined,
             attackSpeed: outputLootItem.equipmentStats.attackSpeed !== undefined
-              ? Math.round(outputLootItem.equipmentStats.attackSpeed * statRoll * 10) / 10
+              ? Math.round(outputLootItem.equipmentStats.attackSpeed * statRoll)
               : undefined,
             coinBonus: outputLootItem.equipmentStats.coinBonus !== undefined
-              ? Math.round(outputLootItem.equipmentStats.coinBonus * statRoll * 10) / 10
+              ? Math.round(outputLootItem.equipmentStats.coinBonus * statRoll)
               : undefined
           };
         }

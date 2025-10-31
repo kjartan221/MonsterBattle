@@ -228,8 +228,8 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
               </button>
             </div>
 
-            {/* Tier badge (bottom left corner) */}
-            <div className={getTierBadgeClassName()}>
+            {/* Tier badge (top right corner) */}
+            <div className="absolute top-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40">
               {tierToRoman(currentlyEquipped.tier)}
             </div>
           </div>
@@ -305,8 +305,8 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                       </div>
                     )}
 
-                    {/* Tier badge (bottom left corner) */}
-                    <div className={getTierBadgeClassName()}>
+                    {/* Tier badge (top right corner) */}
+                    <div className="absolute top-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40">
                       {tierToRoman(item.tier)}
                     </div>
                   </button>

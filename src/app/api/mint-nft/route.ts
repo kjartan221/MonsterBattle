@@ -123,8 +123,10 @@ export async function POST(request: NextRequest) {
       attributes: {
         borderGradient: inventoryItem.borderGradient, // User's unique gradient
         // Add more fancy attributes here since we're making fewer NFTs
-        acquiredFrom: inventoryItem.fromMonsterId.toString(),
-        acquiredAt: inventoryItem.acquiredAt
+        acquiredFrom: inventoryItem.fromMonsterId?.toString() || 'crafted',
+        acquiredAt: inventoryItem.acquiredAt,
+        crafted: inventoryItem.crafted || false,
+        statRoll: inventoryItem.statRoll
       },
       createdAt: new Date(),
       // mintTransactionId will be added when blockchain minting completes

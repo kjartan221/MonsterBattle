@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
+import { tierToRoman } from '@/utils/tierUtils';
+import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 
 interface InventoryDetailsModalProps {
   item: LootItem & {
@@ -14,6 +16,9 @@ interface InventoryDetailsModalProps {
     borderGradient?: { color1: string; color2: string }; // User-specific gradient
     count?: number; // Number of items in stack (if stacked)
     items?: any[]; // All individual items in the stack (if stacked)
+    tier: number; // Item tier (1-5)
+    crafted?: boolean; // Whether item was crafted
+    statRoll?: number; // Stat roll for crafted items
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
@@ -130,6 +135,36 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
             <span className="text-gray-400 text-sm font-medium">Type</span>
             <span className="text-white font-medium">{typeLabels[item.type]}</span>
           </div>
+
+          {/* Tier */}
+          <div className="flex justify-between items-center pb-3 border-b border-gray-700">
+            <span className="text-gray-400 text-sm font-medium">Tier</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold">{tierToRoman(item.tier || 1)}</span>
+              <span className="text-gray-500 text-xs">({item.tier || 1})</span>
+            </div>
+          </div>
+
+          {/* Crafted Status & Stat Roll */}
+          {item.crafted && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Crafted Item</span>
+              <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-400 text-lg">🔨</span>
+                  <span className="text-purple-300 font-medium text-sm">Player Crafted</span>
+                </div>
+                {item.statRoll && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-400">
+                      Stat Quality:
+                    </div>
+                    <StatRangeIndicator statRoll={item.statRoll} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div className="pb-3 border-b border-gray-700">
