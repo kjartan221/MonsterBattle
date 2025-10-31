@@ -132,6 +132,12 @@ export default function InventoryPage() {
           </div>
           <div className="flex gap-4">
             <button
+              onClick={() => router.push('/crafting')}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              🔨 Crafting
+            </button>
+            <button
               onClick={() => router.push('/battle')}
               className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >

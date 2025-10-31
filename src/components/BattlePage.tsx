@@ -82,21 +82,10 @@ export default function BattlePage() {
     const itemName = consumableItem.name.toLowerCase();
     const description = consumableItem.description.toLowerCase();
 
-    // Health restoration
-    if (itemName.includes('potion') || itemName.includes('elixir') || description.includes('restore')) {
-      let healAmount = 30; // Default
-
-      if (itemName.includes('grand') || itemName.includes('elixir')) {
-        healAmount = 50;
-      } else if (itemName.includes('forest')) {
-        healAmount = 30;
-      } else if (itemName.includes('health') || itemName.includes('stale bread')) {
-        healAmount = 20;
-      }
-
-      // Use player heal function from context
-      healHealth(healAmount);
-      toast.success(`Restored ${healAmount} HP!`, { icon: '💚', duration: 2000 });
+    // Health restoration (use explicit healing field)
+    if (consumableItem.healing && consumableItem.healing > 0) {
+      healHealth(consumableItem.healing);
+      toast.success(`Restored ${consumableItem.healing} HP!`, { icon: '💚', duration: 2000 });
     }
 
     // Debuff removal
