@@ -40,8 +40,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const gameState = useGameState();
 
   // Local battle progress state
-  const [clicks, setClicks] = useState(0);
-  const [lastSavedClicks, setLastSavedClicks] = useState(0);
+  const [totalDamage, setTotalDamage] = useState(0);
+  const [clickCount, setClickCount] = useState(0);
+  const [lastSavedClickCount, setLastSavedClickCount] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
   const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
     goldLost: 0,
@@ -100,9 +101,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (attack.healing) {
       console.log(`💚 Boss Healed! ${attack.type} restored ${attack.healing} HP (handled by useBossPhases)`);
       // Healing is handled internally by useBossPhases hook
-      // Also reduce total clicks for backend tracking
+      // Also reduce total damage for tracking
       const healAmount = Math.ceil(attack.healing);
-      setClicks(prev => Math.max(0, prev - healAmount));
+      setTotalDamage(prev => Math.max(0, prev - healAmount));
     }
     if (attack.type === 'summon' && attack.summons && gameState.monster) {
       console.log(`✨ Boss summoned ${attack.summons.count} ${attack.summons.creature.name}(s)!`);
@@ -122,7 +123,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     onPhaseAttack: handleSpecialAttack,
     onBattleComplete: () => {
       console.log(`[MonsterBattleSection] onBattleComplete triggered`);
-      // Will handle in useEffect below to access latest clicks value
+      // Will handle in useEffect below to access latest damage/click values
     }
   });
 
@@ -143,17 +144,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Calculate defeat status for UI
   const isDefeated = isBoss
     ? (currentPhaseHP === 0 && phasesRemaining === 1 && maxPhaseHP > 0) // Only defeated if initialized
-    : (gameState.monster ? clicks >= gameState.monster.clicksRequired : false);
+    : (gameState.monster ? totalDamage >= gameState.monster.clicksRequired : false);
   const remainingHP = currentPhaseHP;
   const maxHP = maxPhaseHP;
 
   // Handle boss defeat (when all phases completed)
   useEffect(() => {
     if (currentPhaseHP === 0 && phasesRemaining === 1 && maxPhaseHP > 0 && gameState.monster?.isBoss && gameState.canAttackMonster() && gameState.gameState === 'BATTLE_IN_PROGRESS') {
-      console.log(`[MonsterBattleSection] useEffect detected boss defeat, calling submitBattleCompletion with ${clicks} clicks`);
-      submitBattleCompletion(clicks);
+      console.log(`[MonsterBattleSection] useEffect detected boss defeat, calling submitBattleCompletion with ${clickCount} clicks, ${totalDamage} damage`);
+      submitBattleCompletion(clickCount, totalDamage);
     }
-  }, [currentPhaseHP, phasesRemaining, maxPhaseHP, gameState.monster, gameState.canAttackMonster, clicks, gameState.gameState]);
+  }, [currentPhaseHP, phasesRemaining, maxPhaseHP, gameState.monster, gameState.canAttackMonster, clickCount, totalDamage, gameState.gameState]);
 
   const { lastAttack } = useSpecialAttacks({
     monster: gameState.monster,
@@ -229,21 +230,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (!gameState.canAttackMonster() || !gameState.session || gameState.session.isDefeated) return;
 
     const interval = setInterval(() => {
-      if (clicks > lastSavedClicks) {
+      if (clickCount > lastSavedClickCount) {
         saveClicksToBackend();
       }
     }, 10000); // Save every 10 seconds
 
     return () => clearInterval(interval);
-  }, [clicks, lastSavedClicks, gameState.gameState, gameState.session]);
+  }, [clickCount, lastSavedClickCount, gameState.gameState, gameState.session]);
 
   // Save clicks when reaching thresholds
   useEffect(() => {
     if (!gameState.canAttackMonster()) return;
-    if (clicks > 0 && clicks % 5 === 0 && clicks > lastSavedClicks) {
+    if (clickCount > 0 && clickCount % 5 === 0 && clickCount > lastSavedClickCount) {
       saveClicksToBackend();
     }
-  }, [clicks, lastSavedClicks, gameState.gameState]);
+  }, [clickCount, lastSavedClickCount, gameState.gameState]);
 
   // Check for player death
   useEffect(() => {
@@ -299,7 +300,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   };
 
   const saveClicksToBackend = async () => {
-    if (!gameState.session || clicks <= lastSavedClicks) return;
+    if (!gameState.session || clickCount <= lastSavedClickCount) return;
 
     try {
       await fetch('/api/update-clicks', {
@@ -309,11 +310,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         },
         body: JSON.stringify({
           sessionId: gameState.session._id,
-          clickCount: clicks,
+          clickCount: clickCount,
         }),
       });
 
-      setLastSavedClicks(clicks);
+      setLastSavedClickCount(clickCount);
     } catch (err) {
       console.error('Error saving clicks:', err);
     }
@@ -343,9 +344,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const data = await response.json();
 
       // Reset clicks for new sessions, restore for resumed sessions
-      const initialClicks = data.isNewSession ? 0 : data.session.clickCount;
-      setClicks(initialClicks);
-      setLastSavedClicks(initialClicks);
+      const initialClickCount = data.isNewSession ? 0 : data.session.clickCount;
+      setClickCount(initialClickCount);
+      setLastSavedClickCount(initialClickCount);
+      
+      // Calculate initial totalDamage based on clicks (for resumed sessions)
+      // Estimate: (baseDamage + equipmentBonus) per click, with crit chance factor
+      const baseDmg = (playerStats?.baseDamage || 1) + equipmentStats.damageBonus;
+      const critMultiplier = 1 + (equipmentStats.critChance / 100); // Average damage increase from crits
+      const estimatedDamagePerClick = Math.floor(baseDmg * critMultiplier);
+      const initialTotalDamage = data.isNewSession ? 0 : initialClickCount * estimatedDamagePerClick;
+      setTotalDamage(initialTotalDamage);
 
       // Sync biome/tier selection
       if (data.monster) {
@@ -381,7 +390,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   };
 
-  const submitBattleCompletion = async (finalClicks: number) => {
+  const submitBattleCompletion = async (finalClickCount: number, finalTotalDamage: number) => {
     // Validation checks
     if (!gameState.monster || !gameState.session || !gameState.session.startedAt) return;
     if (gameState.gameState === 'BATTLE_COMPLETING') return;
@@ -394,7 +403,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: gameState.session._id,
-          clickCount: finalClicks,
+          clickCount: finalClickCount,
+          totalDamage: finalTotalDamage,
           usedItems: []
         }),
       });
@@ -415,8 +425,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           show: true,
           message: data.message || 'Suspicious click rate detected!'
         });
-        setClicks(0);
-        setLastSavedClicks(0);
+        setClickCount(0);
+        setLastSavedClickCount(0);
+        setTotalDamage(0);
         gameState.setBattleInProgress();
         return;
       }
@@ -467,8 +478,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handleClick = () => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
 
+    // Use player's base damage instead of defaulting to 1
+    const baseDamage = playerStats?.baseDamage || 1;
     let { damage, isCrit } = calculateClickDamage(
-      1,
+      baseDamage,
       equipmentStats.damageBonus,
       equipmentStats.critChance
     );
@@ -493,17 +506,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       console.log(`[handleClick] Boss detected, calling damagePhase(${damage})`);
       damagePhase(damage);
 
-      // Track total clicks for backend (still needed for session)
-      setClicks(prev => prev + damage);
+      // Track total damage and actual click count
+      setTotalDamage(prev => prev + damage);
+      setClickCount(prev => prev + 1);
     } else {
       // Non-boss: use regular click tracking
-      const newClicks = clicks + damage;
-      setClicks(newClicks);
+      const newTotalDamage = totalDamage + damage;
+      const newClickCount = clickCount + 1;
+      setTotalDamage(newTotalDamage);
+      setClickCount(newClickCount);
       damagePhase(damage); // Also use hook for consistency
 
-      // Check victory condition
-      if (gameState.monster && newClicks >= gameState.monster.clicksRequired) {
-        submitBattleCompletion(newClicks);
+      // Check victory condition - pass current values to avoid stale state
+      if (gameState.monster && newTotalDamage >= gameState.monster.clicksRequired) {
+        submitBattleCompletion(newClickCount, newTotalDamage);
       }
     }
   };
@@ -511,8 +527,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handleSummonClick = (summonId: string) => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
 
+    // Use player's base damage instead of defaulting to 1
+    const baseDamage = playerStats?.baseDamage || 1;
     let { damage, isCrit } = calculateClickDamage(
-      1,
+      baseDamage,
       equipmentStats.damageBonus,
       equipmentStats.critChance
     );
@@ -615,8 +633,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     clearDebuffs();
-    setClicks(0);
-    setLastSavedClicks(0);
+    setClickCount(0);
+    setLastSavedClickCount(0);
+    setTotalDamage(0);
     setShieldHP(0);
     setEscapeTimer(null);
 
@@ -848,7 +867,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       {/* Click Counter */}
       <div className="px-8 py-3 bg-black/30 rounded-lg border border-white/20">
         <p className="text-white text-lg">
-          Attacks: <span className="font-bold text-yellow-400">{clicks}</span> / {gameState.monster.clicksRequired}
+          Damage: <span className="font-bold text-yellow-400">{totalDamage}</span> / {gameState.monster.clicksRequired}
         </p>
       </div>
 

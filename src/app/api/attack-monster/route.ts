@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount, usedItems } = body;
+    const { sessionId, clickCount, totalDamage, usedItems } = body;
 
     // Validate input
-    if (!sessionId || typeof clickCount !== 'number') {
+    if (!sessionId || typeof clickCount !== 'number' || typeof totalDamage !== 'number') {
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -206,21 +206,21 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Validate that clicks are sufficient to defeat monster
-    // NOTE: For bosses with healing/phases, clicks may be less than clicksRequired
+    // Validate that damage is sufficient to defeat monster
+    // NOTE: For bosses with healing/phases, damage may vary from clicksRequired
     // The frontend validates boss defeat via phase system before calling this API
     const isBossMonster = monster.isBoss === true;
 
-    if (!isBossMonster && clickCount < monster.clicksRequired) {
+    if (!isBossMonster && totalDamage < monster.clicksRequired) {
       return NextResponse.json(
-        { error: 'Insufficient clicks to defeat monster' },
+        { error: 'Insufficient damage to defeat monster' },
         { status: 400 }
       );
     }
 
-    // For bosses, log the click discrepancy for debugging
-    if (isBossMonster && clickCount < monster.clicksRequired) {
-      console.log(`ℹ️ Boss defeated with fewer clicks than required: ${clickCount}/${monster.clicksRequired} (likely due to healing)`);
+    // For bosses, log the damage discrepancy for debugging
+    if (isBossMonster && totalDamage < monster.clicksRequired) {
+      console.log(`ℹ️ Boss defeated with ${totalDamage}/${monster.clicksRequired} damage (phases may affect this)`);
     }
 
     // Generate random loot drops (5 items) with streak multiplier
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     const lootOptions = getRandomLoot(monster.name, 5, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
-    console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks in ${timeInSeconds.toFixed(2)}s`);
+    console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks (${totalDamage} damage) in ${timeInSeconds.toFixed(2)}s`);
     console.log(`🎁 Loot generated (${winStreak} streak, ${streakMultiplier}x): ${lootOptions.map(l => `${l.name} (${l.rarity})`).join(', ')}`);
 
     // Mark session as completed and save loot options (user hasn't selected yet)
