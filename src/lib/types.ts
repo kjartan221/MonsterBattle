@@ -44,11 +44,14 @@ export interface NFTLoot {
   createdAt: Date;
 }
 
+export type ItemType = 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
+
 // User Inventory document
 export interface UserInventory {
   _id?: ObjectId;
   userId: string;          // Reference to User.userId
   lootTableId: string;     // Reference to loot-table.ts lootId (e.g. "dragon_scale")
+  itemType: ItemType;
   nftLootId?: ObjectId;    // Reference to NFTLoot._id (null until user mints it)
   tier: Tier;              // Which tier this item dropped from (1-5)
   borderGradient: { color1: string; color2: string }; // User-specific gradient (stored here, not in NFT until minted)
@@ -72,7 +75,7 @@ export interface PlayerStats {
   equippedArmor?: ObjectId;
   equippedAccessory1?: ObjectId;
   equippedAccessory2?: ObjectId;
-  equippedConsumables: ObjectId[]; // Array of 5
+  equippedConsumables?: [ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty']; // Array of 3 ('empty' for empty slots)
 
   // Battle stats
   baseDamage: number;
@@ -115,6 +118,10 @@ export interface BattleSession {
   actualBattleStartedAt?: Date; // When user clicked "Start Battle" button (for HP verification)
   completedAt?: Date;
 }
+
+// ========== Consumable System ==========
+// Note: Consumable data is retrieved directly from loot-table.ts using getLootItemById()
+// Effects are determined by item name/description in MonsterBattleSection.tsx
 
 // ========== Monster Buff System ==========
 

@@ -143,6 +143,7 @@ export async function POST(request: NextRequest) {
     const inventoryResult = await userInventoryCollection.insertOne({
       userId,
       lootTableId: lootItem.lootId, // Reference to loot-table template
+      itemType: lootItem.type,
       nftLootId: undefined, // Will be set when user mints the NFT
       tier: session.tier, // Track which tier this item dropped from
       borderGradient: { color1, color2 }, // Store gradient here

@@ -29,6 +29,15 @@ export async function GET(request: NextRequest) {
     // Try to find existing stats
     let playerStats = await playerStatsCollection.findOne({ userId });
 
+    // Migrate legacy data: ensure equippedConsumables is always ['empty', 'empty', 'empty'] format
+    if (playerStats && (!playerStats.equippedConsumables || !Array.isArray(playerStats.equippedConsumables) || playerStats.equippedConsumables.length !== 3)) {
+      await playerStatsCollection.updateOne(
+        { userId },
+        { $set: { equippedConsumables: ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'] } }
+      );
+      playerStats.equippedConsumables = ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
+    }
+
     // If no stats exist, create default stats
     if (!playerStats) {
       const defaultStats = {
@@ -44,7 +53,7 @@ export async function GET(request: NextRequest) {
         equippedArmor: undefined,
         equippedAccessory1: undefined,
         equippedAccessory2: undefined,
-        equippedConsumables: [],
+        equippedConsumables: ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'],
 
         // Battle stats
         baseDamage: 1,
@@ -93,7 +102,9 @@ export async function GET(request: NextRequest) {
       equippedArmor: playerStats.equippedArmor?.toString(),
       equippedAccessory1: playerStats.equippedAccessory1?.toString(),
       equippedAccessory2: playerStats.equippedAccessory2?.toString(),
-      equippedConsumables: playerStats.equippedConsumables?.map(id => id.toString()) || [],
+      equippedConsumables: (playerStats.equippedConsumables && playerStats.equippedConsumables.length === 3)
+        ? playerStats.equippedConsumables.map(id => id === 'empty' ? 'empty' : id.toString())
+        : ['empty', 'empty', 'empty'],
     };
 
     return NextResponse.json({

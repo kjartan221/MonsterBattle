@@ -16,6 +16,7 @@ export interface LootItem {
   type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
   equipmentStats?: EquipmentStats; // Optional stats for equippable items
   spellData?: SpellData; // Optional spell data for spell scrolls
+  cooldown?: number; // Optional cooldown for consumables
 }
 
 export interface SpellData {
@@ -31,11 +32,11 @@ export interface SpellData {
 // Common Loot (shared across all monsters)
 const COMMON_LOOT: LootItem[] = [
   { lootId: 'common_coin', name: 'Gold Coin', icon: '🪙', description: 'A simple gold coin', rarity: 'common', type: 'material' },
-  { lootId: 'common_potion', name: 'Health Potion', icon: '🧪', description: 'Restores a small amount of health', rarity: 'common', type: 'consumable' },
+  { lootId: 'common_potion', name: 'Health Potion', icon: '🧪', description: 'Restores a small amount of health', rarity: 'common', type: 'consumable', cooldown: 5 },
   { lootId: 'common_bone', name: 'Monster Bone', icon: '🦴', description: 'A basic crafting material', rarity: 'common', type: 'material' },
   { lootId: 'common_leather', name: 'Leather Scraps', icon: '🧵', description: 'Worn leather pieces', rarity: 'common', type: 'material' },
   { lootId: 'common_dagger', name: 'Rusty Dagger', icon: '🗡️', description: 'A worn but functional blade', rarity: 'common', type: 'weapon', equipmentStats: { damageBonus: 1 } },
-  { lootId: 'common_bread', name: 'Stale Bread', icon: '🍞', description: 'Hard but edible', rarity: 'common', type: 'consumable' },
+  { lootId: 'common_bread', name: 'Stale Bread', icon: '🍞', description: 'Hard but edible', rarity: 'common', type: 'consumable', cooldown: 5 },
   { lootId: 'common_cloth', name: 'Torn Cloth', icon: '🧶', description: 'Shabby fabric material', rarity: 'common', type: 'material' },
   { lootId: 'common_wood', name: 'Wooden Plank', icon: '🪵', description: 'Rough lumber for crafting', rarity: 'common', type: 'material' },
   { lootId: 'common_stone', name: 'Stone Fragment', icon: '🪨', description: 'A piece of rock', rarity: 'common', type: 'material' },
@@ -44,7 +45,7 @@ const COMMON_LOOT: LootItem[] = [
 // Rare Loot (shared across all monsters, but less common than COMMON_LOOT)
 const RARE_LOOT: LootItem[] = [
   { lootId: 'rare_gem', name: 'Precious Gem', icon: '💎', description: 'A valuable gemstone', rarity: 'rare', type: 'material' },
-  { lootId: 'rare_elixir', name: 'Grand Elixir', icon: '⚗️', description: 'A powerful restorative potion', rarity: 'rare', type: 'consumable' },
+  { lootId: 'rare_elixir', name: 'Grand Elixir', icon: '⚗️', description: 'A powerful restorative potion', rarity: 'rare', type: 'consumable', cooldown: 10 },
   { lootId: 'rare_steel', name: 'Steel Ingot', icon: '🔩', description: 'High-quality metal', rarity: 'rare', type: 'material' },
   { lootId: 'rare_amulet', name: 'Mystic Amulet', icon: '📿', description: 'Enhances magical abilities', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 10 } },
   { lootId: 'rare_key', name: 'Ancient Key', icon: '🗝️', description: 'Opens mysterious locks', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 15 } },
@@ -75,7 +76,7 @@ const TROLL_GHOST_SPECIFIC: LootItem[] = [
   { lootId: 'silver_sword', name: 'Silver Sword', icon: '⚔️', description: 'Effective against the undead', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 5 } },
   { lootId: 'spirit_crystal', name: 'Spirit Crystal', icon: '💎', description: 'Contains trapped souls', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 10 } },
   { lootId: 'enchanted_ring', name: 'Enchanted Ring', icon: '💍', description: 'Hums with magical energy', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 25, critChance: 3 } },
-  { lootId: 'mana_potion', name: 'Mana Potion', icon: '⚗️', description: 'Restores magical power', rarity: 'rare', type: 'consumable' },
+  { lootId: 'mana_potion', name: 'Mana Potion', icon: '⚗️', description: 'Restores magical power', rarity: 'rare', type: 'consumable', cooldown: 8 },
   { lootId: 'spectral_cloak', name: 'Spectral Cloak', icon: '🧥', description: 'Grants temporary invisibility', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 15 } },
   { lootId: 'troll_hide', name: 'Troll Hide', icon: '🛡️', description: 'Tough and durable leather', rarity: 'rare', type: 'material' },
 ];
@@ -90,7 +91,7 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   { lootId: 'blood_chalice', name: 'Blood Chalice', icon: '🏆', description: 'An ancient vampiric relic', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 25, coinBonus: 30 } },
   { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 30 } },
   { lootId: 'wing_fragment', name: 'Dragon Wing Fragment', icon: '🪽', description: 'Enables short flight', rarity: 'legendary', type: 'material' },
-  { lootId: 'elixir_immortality', name: 'Elixir of Immortality', icon: '🧬', description: 'Grants extended life', rarity: 'legendary', type: 'consumable' },
+  { lootId: 'elixir_immortality', name: 'Elixir of Immortality', icon: '🧬', description: 'Grants extended life', rarity: 'legendary', type: 'consumable', cooldown: 20 },
   { lootId: 'crimson_crown', name: 'Crimson Crown', icon: '👑', description: 'Symbol of vampiric royalty', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 15, coinBonus: 50 } },
 ];
 
@@ -127,7 +128,7 @@ const WILD_BOAR_SPECIFIC: LootItem[] = [
   { lootId: 'boar_tusk', name: 'Boar Tusk', icon: '🦷', description: 'Curved ivory horn', rarity: 'rare', type: 'material' },
   { lootId: 'heavy_armor', name: 'Heavy Leather Armor', icon: '🛡️', description: 'Reinforced protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 10 } },
   { lootId: 'charging_boots', name: 'Charging Boots', icon: '👢', description: 'Enables quick strikes', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 5 } },
-  { lootId: 'health_potion_forest', name: 'Forest Potion', icon: '🧪', description: 'Restore 30 HP', rarity: 'rare', type: 'consumable' },
+  { lootId: 'health_potion_forest', name: 'Forest Potion', icon: '🧪', description: 'Restore 30 HP', rarity: 'rare', type: 'consumable', cooldown: 7 },
 ];
 
 // Forest Sprite Specific Loot (Forest Tier 1, Rare Monster)
@@ -136,7 +137,7 @@ const FOREST_SPRITE_SPECIFIC: LootItem[] = [
   { lootId: 'fairy_wing', name: 'Fairy Wing', icon: '🧚', description: 'Translucent and delicate', rarity: 'rare', type: 'material' },
   { lootId: 'nature_staff', name: 'Nature Staff', icon: '🪄', description: 'Channel nature\'s power', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 5 } },
   { lootId: 'sprite_ring', name: 'Sprite Ring', icon: '💍', description: 'Enhances agility', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 8 } },
-  { lootId: 'mana_elixir', name: 'Mana Elixir', icon: '⚗️', description: 'Restore 20 HP + remove 1 debuff', rarity: 'rare', type: 'consumable' },
+  { lootId: 'mana_elixir', name: 'Mana Elixir', icon: '⚗️', description: 'Restore 20 HP + remove 1 debuff', rarity: 'rare', type: 'consumable', cooldown: 10 },
 ];
 
 // Treant Guardian Specific Loot (Forest Tier 2, Epic Boss)
@@ -163,7 +164,7 @@ const DESERT_VIPER_SPECIFIC: LootItem[] = [
   { lootId: 'snake_skin', name: 'Snake Skin', icon: '🐍', description: 'Shed scales', rarity: 'common', type: 'material' },
   { lootId: 'viper_fang', name: 'Viper Fang', icon: '🦷', description: 'Drips with venom', rarity: 'rare', type: 'material' },
   { lootId: 'speed_boots', name: 'Sandstorm Boots', icon: '👟', description: 'Swift as the desert wind', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 8 } },
-  { lootId: 'antidote', name: 'Antidote Vial', icon: '🧪', description: 'Remove poison/burn effects', rarity: 'common', type: 'consumable' },
+  { lootId: 'antidote', name: 'Antidote Vial', icon: '🧪', description: 'Remove poison/burn effects', rarity: 'common', type: 'consumable', cooldown: 6 },
 ];
 
 // Fire Elemental Specific Loot (Desert Tier 1, Rare Monster)
@@ -172,7 +173,7 @@ const FIRE_ELEMENTAL_SPECIFIC: LootItem[] = [
   { lootId: 'ember_core', name: 'Ember Core', icon: '⚫', description: 'Heart of a fire spirit', rarity: 'rare', type: 'material' },
   { lootId: 'flame_sword_desert', name: 'Flame Sword', icon: '🗡️', description: 'Blade wreathed in fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
   { lootId: 'fire_resist_charm', name: 'Flame Ward Amulet', icon: '📿', description: 'Protects from fire', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 5 } },
-  { lootId: 'fire_potion', name: 'Fire Resistance Potion', icon: '🧪', description: 'Immune to burn for 30s', rarity: 'rare', type: 'consumable' },
+  { lootId: 'fire_potion', name: 'Fire Resistance Potion', icon: '🧪', description: 'Immune to burn for 30s', rarity: 'rare', type: 'consumable', cooldown: 12 },
 ];
 
 // Sand Djinn Specific Loot (Desert Tier 1, Epic Mini-Boss)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SpellSlot {
   spellId: string | null;
@@ -15,14 +15,19 @@ interface ConsumableSlot {
   name: string;
   icon: string;
   quantity: number;
+  cooldown: number;
+  lastUsed: number | null;
 }
 
 interface HotbarProps {
   onSpellCast?: () => void;
   onConsumableUse?: (slot: number) => void;
+  consumableSlots?: ConsumableSlot[]; // External slots from hook
+  onSlotClick?: (slotType: 'spell' | 'consumable', slotIndex: number) => void;
+  canInteract?: boolean; // True during rest phase, false during battle
 }
 
-export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
+export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: externalSlots, onSlotClick, canInteract = false }: HotbarProps) {
   // Spell slot (Q key)
   const [spellSlot, setSpellSlot] = useState<SpellSlot>({
     spellId: null,
@@ -32,15 +37,29 @@ export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
     lastUsed: null
   });
 
-  // Consumable slots (1, 2, 3 keys)
-  const [consumableSlots, setConsumableSlots] = useState<ConsumableSlot[]>([
-    { itemId: null, name: '', icon: '', quantity: 0 },
-    { itemId: null, name: '', icon: '', quantity: 0 },
-    { itemId: null, name: '', icon: '', quantity: 0 }
-  ]);
+  // Consumable slots (1, 2, 3 keys) - use external or fallback to internal
+  const consumableSlots = externalSlots || [
+    { itemId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null },
+    { itemId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null },
+    { itemId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null }
+  ];
 
-  // Calculate remaining cooldown for spell
+  // Calculate remaining cooldown for spell and consumables
   const [spellCooldownRemaining, setSpellCooldownRemaining] = useState(0);
+  const [consumableCooldownRemaining, setConsumableCooldownRemaining] = useState([0, 0, 0]);
+
+  // Refs to access current values in event listener without recreating it
+  const consumableCooldownRef = useRef(consumableCooldownRemaining);
+  const canInteractRef = useRef(canInteract);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    consumableCooldownRef.current = consumableCooldownRemaining;
+  }, [consumableCooldownRemaining]);
+  
+  useEffect(() => {
+    canInteractRef.current = canInteract;
+  }, [canInteract]);
 
   useEffect(() => {
     if (!spellSlot.lastUsed || !spellSlot.cooldown) return;
@@ -69,20 +88,49 @@ export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
 
   // Handle consumable use
   const handleConsumableUse = (slotIndex: number) => {
+    if (consumableCooldownRemaining[slotIndex] > 0) return;
     const slot = consumableSlots[slotIndex];
     if (!slot.itemId || slot.quantity === 0) return;
 
-    // Decrease quantity
-    setConsumableSlots(prev => {
-      const updated = [...prev];
-      updated[slotIndex] = { ...updated[slotIndex], quantity: updated[slotIndex].quantity - 1 };
-      return updated;
-    });
-
+    // Call external handler (which manages state and sets lastUsed)
     onConsumableUse?.(slotIndex);
   };
 
+  // Single interval timer that checks all consumable cooldowns
+  // This prevents memory leaks and orphaned intervals
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setConsumableCooldownRemaining((prev) => {
+        const updated = [...prev];
+        let hasChanges = false;
+
+        // Check each slot and calculate remaining cooldown
+        consumableSlots.forEach((slot, i) => {
+          if (slot.lastUsed && slot.cooldown > 0) {
+            const elapsed = (Date.now() - slot.lastUsed) / 1000;
+            const remaining = Math.max(0, slot.cooldown - elapsed);
+            
+            if (updated[i] !== remaining) {
+              updated[i] = remaining;
+              hasChanges = true;
+            }
+          } else if (updated[i] !== 0) {
+            // No cooldown active, ensure it's 0
+            updated[i] = 0;
+            hasChanges = true;
+          }
+        });
+
+        // Only update state if something changed (avoid unnecessary renders)
+        return hasChanges ? updated : prev;
+      });
+    }, 100); // Check every 100ms for smooth countdown
+
+    return () => clearInterval(interval);
+  }, [consumableSlots]); // Recreate only when slots prop changes
+
   // Keyboard shortcuts
+  // Using refs to avoid recreating listener on every state change
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Prevent shortcuts if typing in input field
@@ -90,35 +138,59 @@ export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
         return;
       }
 
+      // Don't allow keyboard shortcuts during canInteract mode (rest phase)
+      // User should click to equip items instead
+      if (canInteractRef.current) {
+        return;
+      }
+
+      // Access current cooldown values via ref (not stale closure)
+      const currentConsumableCooldowns = consumableCooldownRef.current;
+
       if (e.key === 'q' || e.key === 'Q') {
         handleSpellCast();
       } else if (e.key === '1') {
-        handleConsumableUse(0);
+        // Only trigger if not on cooldown
+        if (currentConsumableCooldowns[0] === 0) {
+          handleConsumableUse(0);
+        }
       } else if (e.key === '2') {
-        handleConsumableUse(1);
+        if (currentConsumableCooldowns[1] === 0) {
+          handleConsumableUse(1);
+        }
       } else if (e.key === '3') {
-        handleConsumableUse(2);
+        if (currentConsumableCooldowns[2] === 0) {
+          handleConsumableUse(2);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [spellSlot, consumableSlots, spellCooldownRemaining]);
+  }, []); // Empty deps - listener never recreates, uses refs for current values
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-10">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
       <div className="bg-gray-900/95 border-2 border-gray-700 rounded-lg p-3 shadow-2xl">
         <div className="flex gap-3">
           {/* Spell Slot (Q) */}
           <button
-            onClick={handleSpellCast}
-            disabled={!spellSlot.spellId || spellCooldownRemaining > 0}
+            onClick={() => {
+              if (canInteract) {
+                onSlotClick?.('spell', 0);
+              } else {
+                handleSpellCast();
+              }
+            }}
+            disabled={!canInteract && (!spellSlot.spellId || spellCooldownRemaining > 0)}
             className={`
               relative w-16 h-16 rounded-lg border-2 transition-all
               ${spellSlot.spellId
                 ? 'border-purple-500 bg-purple-900/30 hover:bg-purple-800/40 active:scale-95'
-                : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
-              ${spellCooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}
+                : canInteract
+                  ? 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40 cursor-pointer'
+                  : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
+              ${!canInteract && spellCooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}
             `}
           >
             {/* Keybind indicator */}
@@ -173,13 +245,22 @@ export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
           {consumableSlots.map((slot, index) => (
             <button
               key={index}
-              onClick={() => handleConsumableUse(index)}
-              disabled={!slot.itemId || slot.quantity === 0}
+              onClick={() => {
+                if (canInteract) {
+                  onSlotClick?.('consumable', index);
+                } else {
+                  handleConsumableUse(index);
+                }
+              }}
+              disabled={!canInteract && (!slot.itemId || slot.quantity === 0 || consumableCooldownRemaining[index] > 0)}
               className={`
                 relative w-16 h-16 rounded-lg border-2 transition-all
                 ${slot.itemId && slot.quantity > 0
                   ? 'border-blue-500 bg-blue-900/30 hover:bg-blue-800/40 active:scale-95'
-                  : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
+                  : canInteract
+                    ? 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40 cursor-pointer'
+                    : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
+                ${!canInteract && consumableCooldownRemaining[index] > 0 ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
               {/* Keybind indicator */}
@@ -204,13 +285,38 @@ export default function Hotbar({ onSpellCast, onConsumableUse }: HotbarProps) {
                   Empty
                 </div>
               )}
+
+              {/* Cooldown overlay */}
+              {consumableCooldownRemaining[index] > 0 && (
+                <>
+                  <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">
+                      {Math.ceil(consumableCooldownRemaining[index])}s
+                    </span>
+                  </div>
+                  {/* Cooldown circle animation */}
+                  <svg className="absolute inset-0 w-full h-full -rotate-90">
+                    <circle
+                      cx="50%"
+                      cy="50%"
+                      r="28"
+                      fill="none"
+                      stroke="blue"
+                      strokeWidth="2"
+                      strokeDasharray={`${2 * Math.PI * 28}`}
+                      strokeDashoffset={`${2 * Math.PI * 28 * (consumableCooldownRemaining[index] / slot.cooldown)}`}
+                      className="transition-all duration-100"
+                    />
+                  </svg>
+                </>
+              )}
             </button>
           ))}
         </div>
 
         {/* Helper text */}
         <div className="text-center text-gray-400 text-[10px] mt-2">
-          Press Q or 1-3 to use
+          {canInteract ? 'Click to equip items' : 'Press Q or 1-3 to use'}
         </div>
       </div>
     </div>

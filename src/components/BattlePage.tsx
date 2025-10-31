@@ -7,23 +7,36 @@ import { useGameState } from '@/contexts/GameStateContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useState } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
+import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
 import EquipmentSelectionModal from '@/components/battle/EquipmentSelectionModal';
 import MonsterBattleSection from '@/components/battle/MonsterBattleSection';
 import Hotbar from '@/components/battle/Hotbar';
+import HotbarSelectionModal from '@/components/battle/HotbarSelectionModal';
 import toast from 'react-hot-toast';
 
 export default function BattlePage() {
   const router = useRouter();
-  const { playerStats, loading: statsLoading, takeDamage } = usePlayer();
+  const { playerStats, loading: statsLoading, takeDamage, healHealth } = usePlayer();
   const gameState = useGameState();
   const { setBiomeTier } = useBiome();
   const [equipmentModal, setEquipmentModal] = useState<{
     show: boolean;
     slot: EquipmentSlot | null;
   }>({ show: false, slot: null });
+
+  // Hotbar modal state
+  const [hotbarModal, setHotbarModal] = useState<{
+    isOpen: boolean;
+    slotType: 'spell' | 'consumable';
+    slotIndex: number;
+  }>({
+    isOpen: false,
+    slotType: 'consumable',
+    slotIndex: 0,
+  });
 
   // Debuff system (managed at page level, passed to child components)
   const { activeDebuffs, applyDebuff, clearDebuffs } = useDebuffs({
@@ -32,12 +45,71 @@ export default function BattlePage() {
     isActive: gameState.canAttackMonster()
   });
 
+  // Consumable system (managed at page level)
+  const { consumableSlots, useConsumable, equipConsumable, unequipConsumable } = usePlayerConsumable();
+
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
   };
 
   const closeEquipmentModal = () => {
     setEquipmentModal({ show: false, slot: null });
+  };
+
+  // Hotbar handlers
+  const handleHotbarSlotClick = (slotType: 'spell' | 'consumable', slotIndex: number) => {
+    setHotbarModal({ isOpen: true, slotType, slotIndex });
+  };
+
+  const handleCloseHotbarModal = () => {
+    setHotbarModal({ isOpen: false, slotType: 'consumable', slotIndex: 0 });
+  };
+
+  const handleConsumableUse = async (slotIndex: number) => {
+    // Get consumable details before using (since it will decrement)
+    const slot = consumableSlots[slotIndex];
+    if (!slot.itemId) return;
+
+    const { getLootItemById } = await import('@/lib/loot-table');
+    const consumableItem = getLootItemById(slot.itemId);
+    if (!consumableItem) return;
+
+    // Use the consumable (API call + decrement quantity)
+    const success = await useConsumable(slotIndex);
+    if (!success) return;
+
+    // Apply consumable effects based on item
+    const itemName = consumableItem.name.toLowerCase();
+    const description = consumableItem.description.toLowerCase();
+
+    // Health restoration
+    if (itemName.includes('potion') || itemName.includes('elixir') || description.includes('restore')) {
+      let healAmount = 30; // Default
+
+      if (itemName.includes('grand') || itemName.includes('elixir')) {
+        healAmount = 50;
+      } else if (itemName.includes('forest')) {
+        healAmount = 30;
+      } else if (itemName.includes('health') || itemName.includes('stale bread')) {
+        healAmount = 20;
+      }
+
+      // Use player heal function from context
+      healHealth(healAmount);
+      toast.success(`Restored ${healAmount} HP!`, { icon: '💚', duration: 2000 });
+    }
+
+    // Debuff removal
+    if (itemName.includes('antidote') || itemName.includes('mana') || description.includes('remove')) {
+      clearDebuffs();
+      toast.success('Debuffs removed!', { icon: '✨', duration: 2000 });
+    }
+
+    // Fire resistance (burn immunity) - would need additional state tracking
+    if (itemName.includes('fire resistance')) {
+      toast.success('Immune to burn for 30s!', { icon: '🔥', duration: 3000 });
+      // TODO: Implement burn immunity state
+    }
   };
 
   const handleLogout = async () => {
@@ -103,22 +175,29 @@ export default function BattlePage() {
         </button>
       </div>
 
-      {/* Monster Battle Section - Center (only this re-renders when getting new monster) */}
+      {/* Monster Battle Section - Center */}
       <MonsterBattleSection
         applyDebuff={applyDebuff}
         clearDebuffs={clearDebuffs}
       />
 
-      {/* Hotbar - Bottom Center */}
+      {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}
       <Hotbar
-        onSpellCast={() => {
-          console.log('Spell cast!');
-          toast.success('Spell cast!');
-        }}
-        onConsumableUse={(slot) => {
-          console.log(`Consumable used from slot ${slot}`);
-          toast.success(`Used consumable from slot ${slot + 1}`);
-        }}
+        consumableSlots={consumableSlots}
+        onConsumableUse={handleConsumableUse}
+        onSlotClick={handleHotbarSlotClick}
+        canInteract={!gameState.canAttackMonster()} // Can click to equip during rest phase
+      />
+
+      {/* Hotbar Selection Modal */}
+      <HotbarSelectionModal
+        isOpen={hotbarModal.isOpen}
+        onClose={handleCloseHotbarModal}
+        slotType={hotbarModal.slotType}
+        slotIndex={hotbarModal.slotIndex}
+        consumableSlots={consumableSlots}
+        equipConsumable={equipConsumable}
+        unequipConsumable={unequipConsumable}
       />
 
       {/* Equipment Selection Modal */}

@@ -126,7 +126,10 @@ async function connectToMongo() {
   }
 
   // Type assertion: collections will be initialized after the check above
+  // Also get client for transaction support
+  const client = await clientPromise;
   return {
+    client,
     db: db!,
     usersCollection: usersCollection!,
     monstersCollection: monstersCollection!,
