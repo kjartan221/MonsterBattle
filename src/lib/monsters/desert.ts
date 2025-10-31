@@ -16,6 +16,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     baseClicksRange: [28, 32], // 70 HP ÷ 2.5 damage = 28 clicks
     baseAttackDamage: 3, // 3 HP/sec + poison
     biomes: ['desert'],
+    moveInterval: 1500, // Medium speed - standard desert creature
     dotEffect: {
       type: 'poison',
       damageType: 'percentage',
@@ -31,7 +32,8 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks (time limit: 25s)
     baseAttackDamage: 4, // 4 HP/sec, fast (escapes after 25s)
-    biomes: ['desert']
+    biomes: ['desert'],
+    moveInterval: 700 // Very fast - elite speed, hard to hit
   },
 
   // Desert Tier 1 - Rare Monster
@@ -42,6 +44,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     baseClicksRange: [35, 40], // 100 HP ÷ 3 damage = 33 clicks
     baseAttackDamage: 3, // 3 HP/sec + burn
     biomes: ['desert'],
+    moveInterval: 1500, // Medium speed - floating elemental
     dotEffect: {
       type: 'burn',
       damageType: 'percentage',
@@ -60,6 +63,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     baseClicksRange: [40, 45], // 120 HP + 40 HP shield = 160 total ÷ 3.5 damage
     baseAttackDamage: 4, // 4 HP/sec, shield mechanic, sandstorm blind
     biomes: ['desert'],
+    moveInterval: 2000, // Slow - mini-boss, easier to target
     isBoss: true, // Mini-Boss: No buffs except Tier 5
     specialAttacks: [
       {

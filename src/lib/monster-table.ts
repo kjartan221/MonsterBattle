@@ -15,6 +15,7 @@ export interface MonsterTemplate {
   baseClicksRange: [number, number]; // BASE clicks required (will be scaled by tier)
   baseAttackDamage: number; // BASE damage per second (will be scaled by tier)
   biomes: BiomeId[]; // Which biomes this monster can appear in
+  moveInterval: number; // Time in milliseconds between position changes (700-3000ms)
   dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
   isBoss?: boolean; // True for boss monsters (no buffs except Tier 5, enables phase system)
 

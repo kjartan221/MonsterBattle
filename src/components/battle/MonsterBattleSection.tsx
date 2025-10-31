@@ -21,7 +21,7 @@ import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
-import MonsterCard from '@/components/battle/MonsterCard';
+import MonsterBattleArena from '@/components/battle/MonsterBattleArena';
 import SummonCard from '@/components/battle/SummonCard';
 import BuffIndicators from '@/components/battle/BuffIndicators';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
@@ -767,9 +767,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           )}
         </div>
 
-        {/* Monster Click Area */}
+        {/* Monster Battle Arena */}
         <div className="flex-shrink-0">
-          <MonsterCard
+          <MonsterBattleArena
             monster={gameState.monster}
             isAttacking={isAttacking}
             isDefeated={isDefeated}

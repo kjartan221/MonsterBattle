@@ -18,7 +18,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [5, 10],
     baseAttackDamage: 2,
-    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'] // Can appear anywhere, scales with biome tier
+    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
+    moveInterval: 1500 // Medium speed - standard enemy
   },
   {
     name: 'Zombie',
@@ -26,7 +27,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [6, 11],
     baseAttackDamage: 2,
-    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'] // Can appear anywhere, scales with biome tier
+    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
+    moveInterval: 2000 // Slow - shambling undead
   },
   {
     name: 'Troll',
@@ -34,7 +36,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     rarity: 'rare',
     baseClicksRange: [15, 20],
     baseAttackDamage: 5,
-    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'] // Can appear anywhere, scales with biome tier
+    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
+    moveInterval: 2000 // Slow - large, heavy brute
   },
   {
     name: 'Orc',
@@ -42,7 +45,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [8, 12],
     baseAttackDamage: 3,
-    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'] // Can appear anywhere, scales with biome tier
+    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
+    moveInterval: 1500 // Medium speed - warrior type
   },
   {
     name: 'Ghost',
@@ -50,6 +54,7 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     rarity: 'rare',
     baseClicksRange: [12, 18],
     baseAttackDamage: 4,
-    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'] // Can appear anywhere, scales with biome tier
+    biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
+    moveInterval: 1000 // Fast - ethereal, hard to pin down
   }
 ];

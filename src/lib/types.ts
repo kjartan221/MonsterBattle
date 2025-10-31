@@ -22,6 +22,7 @@ export interface Monster {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   biome: BiomeId; // Which biome this monster belongs to
   tier: Tier; // Which tier this monster instance is at
+  moveInterval: number; // Time in milliseconds between position changes (700-3000ms)
   isBoss?: boolean; // True for boss monsters (enables phase system)
   dotEffect?: DebuffEffect; // Optional DoT effect on attack
   buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
@@ -235,6 +236,7 @@ export interface MonsterFrontend {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   biome: BiomeId;
   tier: Tier;
+  moveInterval: number;           // Time in milliseconds between position changes (700-3000ms)
   createdAt: Date | string;
   isBoss?: boolean;               // True for boss monsters
   dotEffect?: DebuffEffect;       // Optional DoT effect on attack

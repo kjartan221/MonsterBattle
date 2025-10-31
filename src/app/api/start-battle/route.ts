@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
       rarity: monsterTemplate.rarity,
       biome,
       tier,
+      moveInterval: monsterTemplate.moveInterval, // Monster movement speed (700-3000ms)
       isBoss: monsterTemplate.isBoss, // Mark boss monsters (enables phase system)
       dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
       buffs, // Add monster buffs (none for bosses except Tier 5)

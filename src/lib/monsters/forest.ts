@@ -15,7 +15,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks
     baseAttackDamage: 2, // 2 HP/sec
-    biomes: ['forest']
+    biomes: ['forest'],
+    moveInterval: 1500 // Medium speed - standard predator
   },
   {
     name: 'Bandit Raccoon',
@@ -23,7 +24,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     rarity: 'common',
     baseClicksRange: [23, 28], // 55 HP ÷ 2 damage = 27.5 clicks
     baseAttackDamage: 2, // 2 HP/sec, fast enemy (10% dodge)
-    biomes: ['forest']
+    biomes: ['forest'],
+    moveInterval: 1000 // Fast - agile, dodgy enemy
   },
 
   // Forest Tier 1 - Rare Monsters
@@ -34,6 +36,7 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     baseClicksRange: [35, 40], // 90 HP ÷ 2.5 damage = 36 clicks
     baseAttackDamage: 3, // 3 HP/sec, armored (high HP), charge attack
     biomes: ['forest'],
+    moveInterval: 2000, // Slow - heavy, armored tank
     dotEffect: {
       type: 'bleed',
       damageType: 'percentage',
@@ -49,7 +52,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     rarity: 'rare',
     baseClicksRange: [30, 35], // 70 HP ÷ 2.5 damage = 28 clicks (but 20% dodge)
     baseAttackDamage: 2, // 2 HP/sec, flying (20% dodge), heals at 50% HP
-    biomes: ['forest']
+    biomes: ['forest'],
+    moveInterval: 1000 // Fast - flying, agile creature
   },
 
   // Forest Tier 2 - Epic Boss
@@ -60,6 +64,7 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     baseClicksRange: [45, 50], // Base 48 HP → 96 HP at T2 (2x multiplier)
     baseAttackDamage: 4, // 4 HP/sec
     biomes: ['forest'],
+    moveInterval: 2500, // Very slow - large boss, easier to hit
     isBoss: true,
     bossPhases: [
       {

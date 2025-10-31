@@ -13,7 +13,8 @@ export const FUTURE_MONSTERS: MonsterTemplate[] = [
     rarity: 'epic',
     baseClicksRange: [25, 35],
     baseAttackDamage: 8,
-    biomes: ['volcano'] // Future biome
+    biomes: ['volcano'], // Future biome
+    moveInterval: 2500 // Very slow - large flying boss, easier to hit
   },
   {
     name: 'Vampire',
@@ -21,7 +22,8 @@ export const FUTURE_MONSTERS: MonsterTemplate[] = [
     rarity: 'epic',
     baseClicksRange: [20, 30],
     baseAttackDamage: 7,
-    biomes: ['castle'] // Future biome
+    biomes: ['castle'], // Future biome
+    moveInterval: 1000 // Fast - supernatural speed
   },
   {
     name: 'Demon',
@@ -29,6 +31,7 @@ export const FUTURE_MONSTERS: MonsterTemplate[] = [
     rarity: 'legendary',
     baseClicksRange: [40, 50],
     baseAttackDamage: 12,
-    biomes: ['volcano'] // Future biome
+    biomes: ['volcano'], // Future biome
+    moveInterval: 1500 // Medium speed - powerful but trackable
   }
 ];
