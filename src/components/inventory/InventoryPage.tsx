@@ -6,6 +6,7 @@ import { LootItem } from '@/lib/loot-table';
 import InventoryDetailsModal from './InventoryDetailsModal';
 import toast from 'react-hot-toast';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 
 interface InventoryItem extends LootItem {
   tier: number; // Which tier this item dropped from (1-5)
@@ -16,6 +17,8 @@ interface InventoryItem extends LootItem {
   mintTransactionId?: string;
   isMinted: boolean; // Whether the item has been minted as an NFT
   borderGradient?: { color1: string; color2: string }; // User-specific gradient
+  crafted?: boolean; // Whether the item was crafted
+  statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
 }
 
 interface StackedInventoryItem extends InventoryItem {
@@ -141,7 +144,7 @@ export default function InventoryPage() {
               onClick={() => router.push('/battle')}
               className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >
-              Back to Battle
+              ⚔️ Battle
             </button>
             <button
               onClick={handleLogout}
@@ -209,6 +212,13 @@ export default function InventoryPage() {
                     <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
                       {item.rarity}
                     </div>
+
+                    {/* Stat Roll indicator (for crafted items only) */}
+                    {item.crafted && item.statRoll !== undefined && (
+                      <div className="mt-2 flex justify-center">
+                        <StatRangeIndicator statRoll={item.statRoll} />
+                      </div>
+                    )}
 
                     {/* Tier badge (bottom left corner) */}
                     <div className={getTierBadgeClassName()}>

@@ -11,6 +11,8 @@ export interface EquippedItem {
   tier: number; // Which tier this item is (1-5)
   slot: EquipmentSlot;
   lootItem: LootItem; // Full item data from loot-table
+  crafted?: boolean; // Whether the item was crafted
+  statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
 }
 
 interface EquipmentContextType {
@@ -55,7 +57,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootTableId: data.equippedWeapon.lootTableId,
             tier: data.equippedWeapon.tier,
             slot: 'weapon',
-            lootItem
+            lootItem,
+            crafted: data.equippedWeapon.crafted,
+            statRoll: data.equippedWeapon.statRoll
           });
         }
       } else {
@@ -70,7 +74,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootTableId: data.equippedArmor.lootTableId,
             tier: data.equippedArmor.tier,
             slot: 'armor',
-            lootItem
+            lootItem,
+            crafted: data.equippedArmor.crafted,
+            statRoll: data.equippedArmor.statRoll
           });
         }
       } else {
@@ -85,7 +91,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootTableId: data.equippedAccessory1.lootTableId,
             tier: data.equippedAccessory1.tier,
             slot: 'accessory1',
-            lootItem
+            lootItem,
+            crafted: data.equippedAccessory1.crafted,
+            statRoll: data.equippedAccessory1.statRoll
           });
         }
       } else {
@@ -100,7 +108,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootTableId: data.equippedAccessory2.lootTableId,
             tier: data.equippedAccessory2.tier,
             slot: 'accessory2',
-            lootItem
+            lootItem,
+            crafted: data.equippedAccessory2.crafted,
+            statRoll: data.equippedAccessory2.statRoll
           });
         }
       } else {

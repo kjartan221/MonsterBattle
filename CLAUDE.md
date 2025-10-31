@@ -83,11 +83,39 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-30 (Phase 2.4: HP System Architecture Refactor + Boss Phase Polish)
+**Last Updated**: 2025-10-31 (Crafting Stat Roll System)
 
 **Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
 
 ### ✅ Recently Completed (This Session)
+
+#### **Crafting Stat Roll System**
+- **Backend Stat Roll Implementation** (src/app/api/crafting/craft/route.ts):
+  - Generate random stat roll (0.8 to 1.2 multiplier) for equipment and artifacts
+  - Only applies to weapons, armor, and artifacts (not consumables or materials)
+  - Applies stat roll to all equipment stats: damageBonus, critChance, hpReduction, maxHpBonus, attackSpeed, coinBonus
+  - Adds `crafted: true`, `statRoll: number`, and `rolledStats: object` to UserInventory documents
+  - Returns stat roll and final stats in API response
+- **Frontend Stat Roll Display** (src/components/crafting/CraftingPage.tsx):
+  - Receives stat roll data from API response
+  - Shows quality tier in toast notification (Masterwork, Superior, Standard, Inferior, Poor)
+  - Displays StatRangeIndicator component on crafted item card for 10 seconds
+  - Longer toast duration (5s) for items with stat rolls
+- **StatRangeIndicator Component** (src/components/crafting/StatRangeIndicator.tsx):
+  - Visual component showing stat roll percentage (-20% to +20%)
+  - Color-coded quality tiers:
+    - ⭐ Masterwork (+15% to +20%) - Amber
+    - ✨ Superior (+5% to +15%) - Green
+    - ⚖️ Standard (-5% to +5%) - Gray
+    - 📉 Inferior (-15% to -5%) - Orange
+    - 💔 Poor (-20% to -15%) - Red
+  - Badge-style display with border and background
+- **UserInventory Schema Updates**:
+  - `crafted?: boolean` - indicates item was crafted
+  - `statRoll?: number` - the 0.8-1.2 multiplier applied to stats
+  - `rolledStats?: object` - the final stats after applying the roll
+
+### ✅ Previously Completed
 
 #### **Phase 2.4: HP System Architecture Refactor**
 - **Hook Separation** (Proper separation of concerns):

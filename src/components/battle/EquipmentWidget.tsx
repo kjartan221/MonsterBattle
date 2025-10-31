@@ -3,6 +3,7 @@
 import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
 import { useState } from 'react';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 
 interface EquipmentWidgetProps {
   onSlotClick: (slot: EquipmentSlot) => void;
@@ -21,7 +22,9 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           name: equippedWeapon?.lootItem.name || 'Empty',
           isEmpty: !equippedWeapon,
           rarity: equippedWeapon?.lootItem.rarity,
-          tier: equippedWeapon?.tier
+          tier: equippedWeapon?.tier,
+          crafted: equippedWeapon?.crafted,
+          statRoll: equippedWeapon?.statRoll
         };
       case 'armor':
         return {
@@ -30,7 +33,9 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           name: equippedArmor?.lootItem.name || 'Empty',
           isEmpty: !equippedArmor,
           rarity: equippedArmor?.lootItem.rarity,
-          tier: equippedArmor?.tier
+          tier: equippedArmor?.tier,
+          crafted: equippedArmor?.crafted,
+          statRoll: equippedArmor?.statRoll
         };
       case 'accessory1':
         return {
@@ -39,7 +44,9 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           name: equippedAccessory1?.lootItem.name || 'Empty',
           isEmpty: !equippedAccessory1,
           rarity: equippedAccessory1?.lootItem.rarity,
-          tier: equippedAccessory1?.tier
+          tier: equippedAccessory1?.tier,
+          crafted: equippedAccessory1?.crafted,
+          statRoll: equippedAccessory1?.statRoll
         };
       case 'accessory2':
         return {
@@ -48,7 +55,9 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           name: equippedAccessory2?.lootItem.name || 'Empty',
           isEmpty: !equippedAccessory2,
           rarity: equippedAccessory2?.lootItem.rarity,
-          tier: equippedAccessory2?.tier
+          tier: equippedAccessory2?.tier,
+          crafted: equippedAccessory2?.crafted,
+          statRoll: equippedAccessory2?.statRoll
         };
     }
   };
@@ -113,6 +122,12 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
                   <div className={`text-sm font-medium ${slotData.isEmpty ? 'text-gray-500' : 'text-gray-200'}`}>
                     {slotData.name}
                   </div>
+                  {/* Stat Roll indicator (for crafted items only) */}
+                  {slotData.crafted && slotData.statRoll !== undefined && (
+                    <div className="mt-1 scale-75 origin-left">
+                      <StatRangeIndicator statRoll={slotData.statRoll} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Change Icon */}

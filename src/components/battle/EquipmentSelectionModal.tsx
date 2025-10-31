@@ -6,6 +6,7 @@ import { getLootItemById, LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import { colorToRGBA } from '@/utils/publicKeyToColor';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 
 interface UserInventoryItem {
   _id: string;
@@ -13,6 +14,8 @@ interface UserInventoryItem {
   tier: number;
   borderGradient: { color1: string; color2: string };
   acquiredAt: string;
+  crafted?: boolean;
+  statRoll?: number;
 }
 
 interface EquipmentSelectionModalProps {
@@ -94,7 +97,9 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
         lootTableId: item.lootId,
         tier: item.tier,
         borderGradient: item.borderGradient,
-        acquiredAt: item.acquiredAt
+        acquiredAt: item.acquiredAt,
+        crafted: item.crafted,
+        statRoll: item.statRoll
       }));
 
       setItems(mappedItems);
@@ -206,6 +211,12 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                       ))}
                     </div>
                   )}
+                  {/* Stat Roll indicator (for crafted items only) */}
+                  {currentlyEquipped.crafted && currentlyEquipped.statRoll !== undefined && (
+                    <div className="mt-2">
+                      <StatRangeIndicator statRoll={currentlyEquipped.statRoll} />
+                    </div>
+                  )}
                 </div>
               </div>
               <button
@@ -277,6 +288,13 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                             <span className="text-green-400">+{value}{getStatUnit(key)}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Stat Roll indicator (for crafted items only) */}
+                    {item.crafted && item.statRoll !== undefined && (
+                      <div className="mt-2 pt-2 border-t border-gray-700">
+                        <StatRangeIndicator statRoll={item.statRoll} />
                       </div>
                     )}
 

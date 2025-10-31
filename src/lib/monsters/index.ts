@@ -7,5 +7,5 @@
 
 export { FOREST_MONSTERS } from './forest';
 export { DESERT_MONSTERS } from './desert';
-export { LEGACY_MONSTERS } from './legacy';
+export { COMMON_MONSTERS } from './common'; // Cross-biome monsters that scale with tier
 export { FUTURE_MONSTERS } from './future';

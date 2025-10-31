@@ -3,7 +3,7 @@ import type { DebuffEffect, SpecialAttack, BossPhase } from './types';
 import {
   FOREST_MONSTERS,
   DESERT_MONSTERS,
-  LEGACY_MONSTERS,
+  COMMON_MONSTERS,
   FUTURE_MONSTERS
 } from './monsters';
 
@@ -45,12 +45,12 @@ export interface MonsterTemplate {
 // Monster data is organized in separate files by biome:
 // - lib/monsters/forest.ts - Forest biome monsters
 // - lib/monsters/desert.ts - Desert biome monsters
-// - lib/monsters/legacy.ts - Legacy monsters (deprecated)
+// - lib/monsters/common.ts - Common monsters (cross-biome scaling)
 // - lib/monsters/future.ts - Future monsters (not yet implemented)
 export const MONSTER_TEMPLATES: MonsterTemplate[] = [
   ...FOREST_MONSTERS,
   ...DESERT_MONSTERS,
-  ...LEGACY_MONSTERS,
+  ...COMMON_MONSTERS,
   ...FUTURE_MONSTERS
 ];
 

@@ -151,10 +151,9 @@ export default function BattlePage() {
       <div className="absolute top-4 right-4 flex gap-2">
         <button
           onClick={() => router.push('/inventory')}
-          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
         >
-          <span>📦</span>
-          Inventory
+          📦 Inventory
         </button>
         <button
           onClick={handleLogout}

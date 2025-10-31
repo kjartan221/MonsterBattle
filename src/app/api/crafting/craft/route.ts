@@ -121,6 +121,38 @@ export async function POST(request: NextRequest) {
 
         const borderGradient = publicKeyToGradient(userId);
 
+        // Generate stat roll for crafted items (±20% variation)
+        // Only applies to equipment and artifacts, not consumables or materials
+        const shouldHaveStatRoll = outputLootItem.type === 'weapon' ||
+                                   outputLootItem.type === 'armor' ||
+                                   outputLootItem.type === 'artifact';
+        const statRoll = shouldHaveStatRoll ? 0.8 + Math.random() * 0.4 : undefined; // 0.8 to 1.2
+
+        // Apply stat roll to equipment stats if applicable
+        let rolledStats = undefined;
+        if (statRoll && outputLootItem.equipmentStats) {
+          rolledStats = {
+            damageBonus: outputLootItem.equipmentStats.damageBonus !== undefined
+              ? Math.round(outputLootItem.equipmentStats.damageBonus * statRoll)
+              : undefined,
+            critChance: outputLootItem.equipmentStats.critChance !== undefined
+              ? Math.round(outputLootItem.equipmentStats.critChance * statRoll * 10) / 10 // 1 decimal
+              : undefined,
+            hpReduction: outputLootItem.equipmentStats.hpReduction !== undefined
+              ? Math.round(outputLootItem.equipmentStats.hpReduction * statRoll * 10) / 10
+              : undefined,
+            maxHpBonus: outputLootItem.equipmentStats.maxHpBonus !== undefined
+              ? Math.round(outputLootItem.equipmentStats.maxHpBonus * statRoll)
+              : undefined,
+            attackSpeed: outputLootItem.equipmentStats.attackSpeed !== undefined
+              ? Math.round(outputLootItem.equipmentStats.attackSpeed * statRoll * 10) / 10
+              : undefined,
+            coinBonus: outputLootItem.equipmentStats.coinBonus !== undefined
+              ? Math.round(outputLootItem.equipmentStats.coinBonus * statRoll * 10) / 10
+              : undefined
+          };
+        }
+
         // Create the specified quantity of output items
         for (let i = 0; i < recipe.output.quantity; i++) {
           const inventoryDoc: any = {
@@ -129,7 +161,10 @@ export async function POST(request: NextRequest) {
             itemType: outputLootItem.type,
             tier,
             borderGradient,
-            acquiredAt: new Date()
+            acquiredAt: new Date(),
+            crafted: true,
+            statRoll: statRoll,
+            rolledStats: rolledStats
             // Note: fromMonsterId and fromSessionId are undefined for crafted items
           };
 
@@ -145,7 +180,9 @@ export async function POST(request: NextRequest) {
           output: {
             itemName: outputLootItem.name,
             quantity: recipe.output.quantity
-          }
+          },
+          statRoll: statRoll,
+          rolledStats: rolledStats
         };
       });
 
