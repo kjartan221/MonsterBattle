@@ -22,5 +22,5 @@ export function tierToRoman(tier: number): string {
  * Positioned at bottom-right of item icon, overlapping but not fully hiding
  */
 export function getTierBadgeClassName(): string {
-  return 'absolute bottom-1 left-8 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40';
+  return 'absolute bottom-1 left-8 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40 z-50';
 }

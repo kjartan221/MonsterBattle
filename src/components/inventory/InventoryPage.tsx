@@ -7,6 +7,8 @@ import InventoryDetailsModal from './InventoryDetailsModal';
 import toast from 'react-hot-toast';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
+import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
+import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
 
 interface InventoryItem extends LootItem {
   tier: number; // Which tier this item dropped from (1-5)
@@ -19,6 +21,7 @@ interface InventoryItem extends LootItem {
   borderGradient?: { color1: string; color2: string }; // User-specific gradient
   crafted?: boolean; // Whether the item was crafted
   statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
+  isEmpowered?: boolean; // Whether the item was dropped by a corrupted monster (+20% stats)
 }
 
 interface StackedInventoryItem extends InventoryItem {
@@ -32,18 +35,19 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
 
-  // Stack items by name + tier (exclude crafted items from stacking)
+  // Stack items by name + tier + empowered status (exclude crafted items from stacking)
   const stackItems = (items: InventoryItem[]): StackedInventoryItem[] => {
     const stacks = new Map<string, InventoryItem[]>();
     const craftedItems: InventoryItem[] = [];
 
-    // Separate crafted items and group non-crafted items by name + tier
+    // Separate crafted items and group non-crafted items by name + tier + empowered status
     items.forEach(item => {
       // Crafted items are not stacked (each has unique stat roll)
       if (item.crafted) {
         craftedItems.push(item);
       } else {
-        const key = `${item.name}_${item.tier}`;
+        // Include isEmpowered in key to separate corrupted items from regular items
+        const key = `${item.name}_${item.tier}_${item.isEmpowered || false}`;
         if (!stacks.has(key)) {
           stacks.set(key, []);
         }
@@ -214,18 +218,23 @@ export default function InventoryPage() {
                     onClick={() => setSelectedItem(item)}
                     className={`relative w-full bg-gradient-to-br ${getRarityColor(item.rarity)} rounded-lg ${!item.borderGradient ? 'border-4' : ''} p-4 hover:shadow-xl transition-all duration-200 cursor-pointer`}
                   >
+                    {/* Corruption overlay - applied directly to button */}
+                    {item.isEmpowered && (
+                      <CorruptionOverlay showLabel={false} />
+                    )}
+
                     {/* Item icon */}
-                    <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
+                    <div className="text-5xl mb-2 group-hover:scale-110 transition-transform relative z-10">
                       {item.icon}
                     </div>
 
                     {/* Item name */}
-                    <div className="text-white font-bold text-sm text-center mb-1 line-clamp-2 min-h-[2.5rem]">
+                    <div className="text-white font-bold text-sm text-center mb-1 line-clamp-2 min-h-[2.5rem] relative z-10">
                       {item.name}
                     </div>
 
                     {/* Rarity badge */}
-                    <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center`}>
+                    <div className={`text-xs uppercase font-bold ${getRarityTextColor(item.rarity)} text-center relative z-10`}>
                       {item.rarity}
                     </div>
 
@@ -236,14 +245,19 @@ export default function InventoryPage() {
                       )}
                     </div>
 
+                    {/* Empowered badge */}
+                    {item.isEmpowered && (
+                      <EmpoweredBadge size="small" position="top-left" />
+                    )}
+
                     {/* Minting status badge */}
                     {!item.isMinted && (
-                      <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
                         Not Minted
                       </div>
                     )}
                     {item.isMinted && !item.mintTransactionId && (
-                      <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                      <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse z-50">
                         Minting...
                       </div>
                     )}
@@ -253,13 +267,13 @@ export default function InventoryPage() {
                   </button>
 
                   {/* Tier badge (bottom left corner) - positioned relative to wrapper */}
-                  <div className="absolute bottom-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40 pointer-events-none">
+                  <div className="absolute bottom-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40 pointer-events-none z-50">
                     {tierToRoman(item.tier)}
                   </div>
 
                   {/* Count badge (bottom right corner) - positioned relative to wrapper */}
                   {item.count > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-gray-900 border-2 border-white text-white text-sm font-bold px-2 py-1 rounded-full shadow-lg pointer-events-none">
+                    <div className="absolute bottom-2 right-2 bg-gray-900 border-2 border-white text-white text-sm font-bold px-2 py-1 rounded-full shadow-lg pointer-events-none z-50">
                       x{item.count}
                     </div>
                   )}

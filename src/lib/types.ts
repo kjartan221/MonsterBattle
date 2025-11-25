@@ -24,6 +24,7 @@ export interface Monster {
   tier: Tier; // Which tier this monster instance is at
   moveInterval: number; // Time in milliseconds between position changes (700-3000ms)
   isBoss?: boolean; // True for boss monsters (enables phase system)
+  isCorrupted?: boolean; // True for corrupted monsters (+50% HP, +25% damage, drops empowered items)
   dotEffect?: DebuffEffect; // Optional DoT effect on attack
   buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
   specialAttacks?: SpecialAttack[]; // Boss special attacks (fireball, etc.)
@@ -69,6 +70,7 @@ export interface UserInventory {
     attackSpeed?: number;
     coinBonus?: number;
   };
+  isEmpowered?: boolean;    // True if dropped by a corrupted monster (+20% to all stats)
 }
 
 // Player Stats document (RPG progression)
@@ -239,6 +241,7 @@ export interface MonsterFrontend {
   moveInterval: number;           // Time in milliseconds between position changes (700-3000ms)
   createdAt: Date | string;
   isBoss?: boolean;               // True for boss monsters
+  isCorrupted?: boolean;          // True for corrupted monsters (+50% HP, +25% damage)
   dotEffect?: DebuffEffect;       // Optional DoT effect on attack
   buffs?: MonsterBuff[];          // Monster buffs (Shield, Fast, etc.)
   specialAttacks?: SpecialAttack[]; // Boss special attacks

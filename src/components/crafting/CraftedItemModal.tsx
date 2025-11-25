@@ -2,6 +2,8 @@
 
 import { LootItem } from '@/lib/loot-table';
 import StatRangeIndicator from './StatRangeIndicator';
+import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
+import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
 
 interface CraftedItemModalProps {
   item: LootItem;
@@ -14,10 +16,11 @@ interface CraftedItemModalProps {
     attackSpeed?: number;
     coinBonus?: number;
   };
+  isEmpowered?: boolean; // If crafted with all empowered materials
   onClose: () => void;
 }
 
-export default function CraftedItemModal({ item, statRoll, rolledStats, onClose }: CraftedItemModalProps) {
+export default function CraftedItemModal({ item, statRoll, rolledStats, isEmpowered = false, onClose }: CraftedItemModalProps) {
   const getRarityColor = (rarity: string) => {
     const colors = {
       common: 'text-gray-400',
@@ -38,25 +41,39 @@ export default function CraftedItemModal({ item, statRoll, rolledStats, onClose 
     return colors[rarity as keyof typeof colors] || colors.common;
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div
-        className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border-4 ${getRarityBorderColor(item.rarity)} p-6 max-w-md w-full shadow-2xl`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl cursor-pointer"
-        >
-          ×
-        </button>
+  const modalContent = (
+    <div
+      className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border-4 ${getRarityBorderColor(item.rarity)} p-6 max-w-md w-full shadow-2xl relative`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Corruption overlay - applied directly to modal */}
+      {isEmpowered && (
+        <CorruptionOverlay showLabel={false} />
+      )}
 
-        {/* Success Header */}
-        <div className="text-center mb-4">
-          <div className="text-4xl mb-2">🔨</div>
-          <h2 className="text-xl font-bold text-green-400">Item Crafted!</h2>
-        </div>
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl cursor-pointer z-50"
+      >
+        ×
+      </button>
+
+      {/* Empowered badge (if applicable) */}
+      {isEmpowered && (
+        <EmpoweredBadge size="large" position="top-left" />
+      )}
+
+      {/* Success Header */}
+      <div className="text-center mb-4">
+        <div className="text-4xl mb-2">🔨</div>
+        <h2 className="text-xl font-bold text-green-400">
+          {isEmpowered ? '⚡ EMPOWERED ITEM CRAFTED!' : 'Item Crafted!'}
+        </h2>
+        {isEmpowered && (
+          <p className="text-sm text-purple-400 mt-1">Crafted with all empowered materials!</p>
+        )}
+      </div>
 
         {/* Item Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -124,14 +141,19 @@ export default function CraftedItemModal({ item, statRoll, rolledStats, onClose 
           </div>
         )}
 
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-        >
-          Continue Crafting
-        </button>
-      </div>
+      {/* Close Button */}
+      <button
+        onClick={onClose}
+        className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+      >
+        Continue Crafting
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      {modalContent}
     </div>
   );
 }

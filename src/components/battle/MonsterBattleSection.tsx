@@ -26,6 +26,7 @@ import SummonCard from '@/components/battle/SummonCard';
 import BuffIndicators from '@/components/battle/BuffIndicators';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
+import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
@@ -675,6 +676,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         <LootSelectionModal
           lootOptions={gameState.lootOptions}
           tier={gameState.session?.tier || 1}
+          isCorrupted={gameState.monster?.isCorrupted}
           onLootSelect={handleLootSelection}
           onSkip={handleSkipLoot}
         />
@@ -769,14 +771,27 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
         {/* Monster Battle Arena - Center piece, always visible */}
         <div className="flex-shrink-0">
-          <MonsterBattleArena
-            monster={gameState.monster}
-            isAttacking={isAttacking}
-            isDefeated={isDefeated}
-            isInvulnerable={isInvulnerable}
-            onAttack={handleClick}
-            critTrigger={critTrigger}
-          />
+          {gameState.monster.isCorrupted ? (
+            <CorruptionOverlay showLabel={true} size="large">
+              <MonsterBattleArena
+                monster={gameState.monster}
+                isAttacking={isAttacking}
+                isDefeated={isDefeated}
+                isInvulnerable={isInvulnerable}
+                onAttack={handleClick}
+                critTrigger={critTrigger}
+              />
+            </CorruptionOverlay>
+          ) : (
+            <MonsterBattleArena
+              monster={gameState.monster}
+              isAttacking={isAttacking}
+              isDefeated={isDefeated}
+              isInvulnerable={isInvulnerable}
+              onAttack={handleClick}
+              critTrigger={critTrigger}
+            />
+          )}
         </div>
 
         {/* Right Summon - Hidden placeholder on mobile when empty */}

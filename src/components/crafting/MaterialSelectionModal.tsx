@@ -1,0 +1,304 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { CraftingRecipe, MaterialRequirement } from '@/lib/recipe-table';
+import { getLootItemById } from '@/lib/loot-table';
+import { TierBadge, EmpoweredBadge } from '@/components/badges';
+import toast from 'react-hot-toast';
+
+interface MaterialSelectionModalProps {
+  recipe: CraftingRecipe;
+  onClose: () => void;
+  onCraft: (selectedMaterialIds: string[]) => void;
+}
+
+interface InventoryMaterial {
+  _id: string;
+  lootTableId: string;
+  tier: 1 | 2 | 3 | 4 | 5;
+  isEmpowered?: boolean;
+  borderGradient: { color1: string; color2: string };
+}
+
+export default function MaterialSelectionModal({ recipe, onClose, onCraft }: MaterialSelectionModalProps) {
+  const [userMaterials, setUserMaterials] = useState<InventoryMaterial[]>([]);
+  const [selectedMaterials, setSelectedMaterials] = useState<Map<string, string[]>>(new Map()); // lootTableId -> array of _id
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserMaterials();
+  }, []);
+
+  const loadUserMaterials = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/inventory/get');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Filter only materials
+        const materials = data.inventory
+          .filter((item: any) => {
+            const lootItem = getLootItemById(item.lootId);
+            return lootItem && lootItem.type === 'material';
+          })
+          .map((item: any) => ({
+            _id: item._id,
+            lootTableId: item.lootId,
+            tier: item.tier || 1,
+            isEmpowered: item.isEmpowered,
+            borderGradient: item.borderGradient
+          }));
+
+        setUserMaterials(materials);
+      } else {
+        toast.error('Failed to load materials');
+      }
+    } catch (error) {
+      console.error('Error loading materials:', error);
+      toast.error('Failed to load materials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMaterialClick = (material: InventoryMaterial) => {
+    const requirement = recipe.requiredMaterials.find(r => r.lootTableId === material.lootTableId);
+    if (!requirement) return;
+
+    const currentSelected = selectedMaterials.get(material.lootTableId) || [];
+    const materialId = material._id;
+
+    // Check if already selected
+    if (currentSelected.includes(materialId)) {
+      // Deselect
+      const newSelected = currentSelected.filter(id => id !== materialId);
+      const newMap = new Map(selectedMaterials);
+      if (newSelected.length === 0) {
+        newMap.delete(material.lootTableId);
+      } else {
+        newMap.set(material.lootTableId, newSelected);
+      }
+      setSelectedMaterials(newMap);
+    } else {
+      // Select (if not at requirement limit)
+      if (currentSelected.length < requirement.quantity) {
+        const newSelected = [...currentSelected, materialId];
+        const newMap = new Map(selectedMaterials);
+        newMap.set(material.lootTableId, newSelected);
+        setSelectedMaterials(newMap);
+      } else {
+        toast.error(`Only need ${requirement.quantity} of this material`);
+      }
+    }
+  };
+
+  const isMaterialSelected = (materialId: string): boolean => {
+    for (const ids of selectedMaterials.values()) {
+      if (ids.includes(materialId)) return true;
+    }
+    return false;
+  };
+
+  const canCraft = (): boolean => {
+    for (const req of recipe.requiredMaterials) {
+      const selected = selectedMaterials.get(req.lootTableId) || [];
+      if (selected.length < req.quantity) return false;
+    }
+    return true;
+  };
+
+  const handleCraft = () => {
+    if (!canCraft()) return;
+
+    // Flatten all selected material IDs into a single array
+    const allSelectedIds: string[] = [];
+    for (const ids of selectedMaterials.values()) {
+      allSelectedIds.push(...ids);
+    }
+
+    onCraft(allSelectedIds);
+  };
+
+  const getRarityColor = (rarity: string) => {
+    const colors = {
+      common: 'from-gray-600 to-gray-700 border-gray-500',
+      rare: 'from-blue-600 to-blue-700 border-blue-500',
+      epic: 'from-purple-600 to-purple-700 border-purple-500',
+      legendary: 'from-amber-600 to-amber-700 border-amber-500'
+    };
+    return colors[rarity as keyof typeof colors] || colors.common;
+  };
+
+  const getRarityTextColor = (rarity: string) => {
+    const colors = {
+      common: 'text-gray-400',
+      rare: 'text-blue-400',
+      epic: 'text-purple-400',
+      legendary: 'text-amber-400'
+    };
+    return colors[rarity as keyof typeof colors] || colors.common;
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-4xl w-full border-4 border-gray-700">
+          <div className="text-center">
+            <div className="text-6xl mb-4 animate-bounce">📦</div>
+            <p className="text-gray-400 text-lg">Loading materials...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const outputItem = getLootItemById(recipe.output.lootTableId);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-6xl w-full border-4 border-purple-600 my-8 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              {recipe.icon} Select Materials to Craft
+            </h2>
+            <p className={`text-xl font-semibold ${getRarityTextColor(recipe.rarity)}`}>
+              {recipe.name}
+            </p>
+            <p className="text-gray-400 text-sm">{recipe.description}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-4xl leading-none cursor-pointer"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Requirements Section */}
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-white mb-3">Requirements</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {recipe.requiredMaterials.map(req => {
+              const material = getLootItemById(req.lootTableId);
+              const selected = selectedMaterials.get(req.lootTableId) || [];
+              const isComplete = selected.length >= req.quantity;
+
+              return (
+                <div
+                  key={req.lootTableId}
+                  className={`flex justify-between items-center px-4 py-3 rounded-lg border-2 ${
+                    isComplete
+                      ? 'bg-green-900/30 border-green-500'
+                      : 'bg-gray-900/50 border-gray-600'
+                  }`}
+                >
+                  <span className={`font-semibold ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>
+                    {material?.icon} {material?.name}
+                  </span>
+                  <span className={`text-lg font-bold ${isComplete ? 'text-green-400' : 'text-red-400'}`}>
+                    {selected.length} / {req.quantity}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Materials Inventory */}
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-white mb-3">Your Materials (Click to Select)</h3>
+
+          {recipe.requiredMaterials.map(req => {
+            const material = getLootItemById(req.lootTableId);
+            const availableMaterials = userMaterials.filter(m => m.lootTableId === req.lootTableId);
+
+            if (availableMaterials.length === 0) return null;
+
+            return (
+              <div key={req.lootTableId} className="mb-4">
+                <h4 className="text-lg font-semibold text-gray-300 mb-2">
+                  {material?.icon} {material?.name}
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {availableMaterials.map(mat => {
+                    const isSelected = isMaterialSelected(mat._id);
+                    const lootItem = getLootItemById(mat.lootTableId);
+
+                    return (
+                      <div
+                        key={mat._id}
+                        onClick={() => handleMaterialClick(mat)}
+                        className={`
+                          relative cursor-pointer transition-all
+                          bg-gradient-to-br ${lootItem ? getRarityColor(lootItem.rarity) : 'from-gray-700 to-gray-800'}
+                          rounded-xl border-4 p-4
+                          ${isSelected ? 'border-green-500 shadow-lg shadow-green-500/50 scale-105' : 'hover:scale-105'}
+                        `}
+                      >
+                        {/* Selected Checkmark */}
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">✓</span>
+                          </div>
+                        )}
+
+                        {/* Material Icon */}
+                        <div className="text-4xl text-center mb-2">{lootItem?.icon}</div>
+
+                        {/* Badges */}
+                        <div className="flex justify-between items-end">
+                          <TierBadge tier={mat.tier} />
+                          {mat.isEmpowered && <EmpoweredBadge />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Output Preview */}
+        <div className="mb-6 p-4 bg-gray-900/50 rounded-lg border-2 border-gray-600">
+          <h3 className="text-lg font-bold text-white mb-2">You Will Craft:</h3>
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">{outputItem?.icon}</span>
+            <div>
+              <p className={`text-xl font-bold ${outputItem ? getRarityTextColor(outputItem.rarity) : 'text-white'}`}>
+                {recipe.output.quantity}x {outputItem?.name}
+              </p>
+              <p className="text-sm text-gray-400">{outputItem?.description}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCraft}
+            disabled={!canCraft()}
+            className={`
+              flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-all
+              ${canCraft()
+                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg cursor-pointer'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              }
+            `}
+          >
+            {canCraft() ? '🔨 Craft Item' : '❌ Select Required Materials'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

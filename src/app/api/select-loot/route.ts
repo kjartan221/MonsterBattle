@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, userInventoryCollection } = await connectToMongo();
+    const { battleSessionsCollection, userInventoryCollection, monstersCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -134,6 +134,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ User ${userId} selected loot: ${lootId} from session ${sessionId}`);
 
+    // Check if monster was corrupted (for empowered items)
+    const monster = await monstersCollection.findOne({ _id: session.monsterId });
+    const isEmpowered = monster?.isCorrupted === true;
+
     // Generate unique gradient colors from user's public key (userId)
     // The userId IS the public key in BSV
     const { color1, color2 } = publicKeyToGradient(userId);
@@ -150,9 +154,10 @@ export async function POST(request: NextRequest) {
       acquiredAt: new Date(),
       fromMonsterId: session.monsterId,
       fromSessionId: sessionObjectId,
+      isEmpowered, // Mark item as empowered if dropped by corrupted monster (+20% stats)
     });
 
-    console.log(`📦 Added ${lootItem.name} to ${userId}'s inventory (not minted yet)`);
+    console.log(`📦 Added ${isEmpowered ? '⚡ EMPOWERED' : ''} ${lootItem.name} to ${userId}'s inventory (not minted yet)`);
 
     return NextResponse.json({
       success: true,

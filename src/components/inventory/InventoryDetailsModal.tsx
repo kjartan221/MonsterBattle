@@ -19,6 +19,7 @@ interface InventoryDetailsModalProps {
     tier: number; // Item tier (1-5)
     crafted?: boolean; // Whether item was crafted
     statRoll?: number; // Stat roll for crafted items
+    isEmpowered?: boolean; // Whether item was dropped by corrupted monster
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
@@ -144,6 +145,22 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
               <span className="text-gray-500 text-xs">({item.tier || 1})</span>
             </div>
           </div>
+
+          {/* Empowered Status */}
+          {item.isEmpowered && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Empowered Item</span>
+              <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-400 text-lg">⚡</span>
+                  <span className="text-purple-300 font-bold text-sm">Corrupted Monster Drop</span>
+                </div>
+                <div className="text-purple-200 text-xs leading-relaxed">
+                  This item was dropped by a corrupted monster and grants <span className="font-bold text-purple-300">+20% bonus stats</span> if it has equipment stats.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Crafted Status & Stat Roll */}
           {item.crafted && (

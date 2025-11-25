@@ -3,15 +3,18 @@
 import { useState } from 'react';
 import type { LootItem } from '@/lib/loot-table';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
+import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
 
 interface LootSelectionModalProps {
   lootOptions: LootItem[] | null;
   tier: number; // Which tier these items dropped from (1-5)
+  isCorrupted?: boolean; // Whether monster was corrupted (all items are empowered)
   onLootSelect: (loot: LootItem) => void;
   onSkip: () => void;
 }
 
-export default function LootSelectionModal({ lootOptions, tier, onLootSelect, onSkip }: LootSelectionModalProps) {
+export default function LootSelectionModal({ lootOptions, tier, isCorrupted = false, onLootSelect, onSkip }: LootSelectionModalProps) {
   const [selectedLoot, setSelectedLoot] = useState<LootItem | null>(null);
 
   if (!lootOptions || lootOptions.length === 0) return null;
@@ -57,10 +60,10 @@ export default function LootSelectionModal({ lootOptions, tier, onLootSelect, on
         <div className="text-center mb-4 sm:mb-8">
           <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">🎁</div>
           <h2 className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-1 sm:mb-2">
-            Victory Spoils!
+            {isCorrupted ? '⚡ EMPOWERED VICTORY SPOILS!' : 'Victory Spoils!'}
           </h2>
           <p className="text-white text-sm sm:text-lg">
-            Choose ONE item to claim as your reward
+            {isCorrupted ? 'You defeated a CORRUPTED monster! All items grant +20% stats!' : 'Choose ONE item to claim as your reward'}
           </p>
         </div>
 
@@ -81,17 +84,27 @@ export default function LootSelectionModal({ lootOptions, tier, onLootSelect, on
                     : 'hover:scale-105 hover:shadow-xl cursor-pointer active:scale-95'
                 }`}
               >
+                {/* Corruption overlay - applied directly to button */}
+                {isCorrupted && (
+                  <CorruptionOverlay showLabel={false} />
+                )}
+
                 {/* Tier badge (bottom left corner) */}
                 <div className={getTierBadgeClassName()}>
                   {tierToRoman(tier)}
                 </div>
 
-                <div className="text-center">
+                {/* Empowered badge (top right corner) - only show for corrupted monsters */}
+                {isCorrupted && (
+                  <EmpoweredBadge size="small" position="top-right" />
+                )}
+
+                <div className="text-center relative z-10">
                   <div className="text-4xl sm:text-6xl mb-2 sm:mb-3">{loot.icon}</div>
                   <h3 className="text-sm sm:text-xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
                     {loot.name}
                   </h3>
-                  <span className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full uppercase ${
+                  <span className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full uppercase z-10 relative ${
                     loot.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
                     loot.rarity === 'epic' ? 'bg-purple-500 text-white' :
                     loot.rarity === 'rare' ? 'bg-blue-500 text-white' :

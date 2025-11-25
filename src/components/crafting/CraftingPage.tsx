@@ -7,6 +7,7 @@ import { getLootItemById, LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import CraftingItemDetailsModal from './CraftingItemDetailsModal';
 import CraftedItemModal from './CraftedItemModal';
+import MaterialSelectionModal from './MaterialSelectionModal';
 import { getStatRollQuality } from '@/utils/statRollUtils';
 
 type Category = 'all' | 'weapon' | 'armor' | 'consumable' | 'artifact';
@@ -24,10 +25,12 @@ export default function CraftingPage() {
   const [loading, setLoading] = useState(true);
   const [crafting, setCrafting] = useState<string | null>(null); // recipeId being crafted
   const [selectedItem, setSelectedItem] = useState<LootItem | null>(null); // Item details modal
+  const [materialSelectionRecipe, setMaterialSelectionRecipe] = useState<CraftingRecipe | null>(null); // Recipe for material selection modal
   const [craftedItemModal, setCraftedItemModal] = useState<{
     item: LootItem;
     statRoll: number;
     rolledStats?: any;
+    isEmpowered?: boolean;
   } | null>(null);
 
   // Fetch all data once on mount
@@ -79,7 +82,7 @@ export default function CraftingPage() {
     return allRecipes.filter(recipe => recipe.category === selectedCategory);
   }, [selectedCategory]);
 
-  const handleCraft = async (recipe: CraftingRecipe) => {
+  const handleCraft = (recipe: CraftingRecipe) => {
     // Check level requirement
     if (recipe.unlocksAtLevel && playerLevel < recipe.unlocksAtLevel) {
       toast.error(`Requires level ${recipe.unlocksAtLevel}!`);
@@ -101,13 +104,27 @@ export default function CraftingPage() {
       return;
     }
 
-    // Craft the item
+    // Open material selection modal
+    setMaterialSelectionRecipe(recipe);
+  };
+
+  const handleCraftWithMaterials = async (selectedMaterialIds: string[]) => {
+    if (!materialSelectionRecipe) return;
+
+    const recipe = materialSelectionRecipe;
+
+    // Close modal and start crafting
+    setMaterialSelectionRecipe(null);
     setCrafting(recipe.recipeId);
+
     try {
       const response = await fetch('/api/crafting/craft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipeId: recipe.recipeId })
+        body: JSON.stringify({
+          recipeId: recipe.recipeId,
+          selectedMaterialIds
+        })
       });
 
       const data = await response.json();
@@ -120,13 +137,15 @@ export default function CraftingPage() {
           setCraftedItemModal({
             item: outputItem,
             statRoll: data.statRoll,
-            rolledStats: data.rolledStats
+            rolledStats: data.rolledStats,
+            isEmpowered: data.isEmpowered
           });
         } else {
           // No stat roll (consumable/material)
-          toast.success(`Crafted ${recipe.output.quantity}x ${outputItem?.name || 'item'}!`, {
-            icon: '🔨',
-            duration: 3000
+          const empoweredText = data.isEmpowered ? ' ⚡ EMPOWERED (+20%)' : '';
+          toast.success(`Crafted ${recipe.output.quantity}x ${outputItem?.name || 'item'}${empoweredText}!`, {
+            icon: data.isEmpowered ? '⚡' : '🔨',
+            duration: data.isEmpowered ? 5000 : 3000
           });
         }
 
@@ -389,7 +408,17 @@ export default function CraftingPage() {
           item={craftedItemModal.item}
           statRoll={craftedItemModal.statRoll}
           rolledStats={craftedItemModal.rolledStats}
+          isEmpowered={craftedItemModal.isEmpowered}
           onClose={() => setCraftedItemModal(null)}
+        />
+      )}
+
+      {/* Material Selection Modal */}
+      {materialSelectionRecipe && (
+        <MaterialSelectionModal
+          recipe={materialSelectionRecipe}
+          onClose={() => setMaterialSelectionRecipe(null)}
+          onCraft={handleCraftWithMaterials}
         />
       )}
     </div>

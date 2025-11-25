@@ -109,16 +109,24 @@ export async function POST(request: NextRequest) {
     // Generate buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
     const buffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false);
 
+    // Corruption system: 10% chance for any monster to spawn corrupted
+    const isCorrupted = Math.random() < 0.10;
+
+    // Apply corruption multipliers if corrupted
+    const finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
+    const finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
+
     const newMonster = {
       name: monsterTemplate.name,
       imageUrl: monsterTemplate.imageUrl,
-      clicksRequired,
-      attackDamage,
+      clicksRequired: finalClicksRequired,
+      attackDamage: finalAttackDamage,
       rarity: monsterTemplate.rarity,
       biome,
       tier,
       moveInterval: monsterTemplate.moveInterval, // Monster movement speed (700-3000ms)
       isBoss: monsterTemplate.isBoss, // Mark boss monsters (enables phase system)
+      isCorrupted, // Mark corrupted monsters (drops empowered items)
       dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
       buffs, // Add monster buffs (none for bosses except Tier 5)
       specialAttacks: monsterTemplate.specialAttacks, // Boss special attacks
