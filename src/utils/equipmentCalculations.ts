@@ -51,13 +51,24 @@ export function calculateTotalEquipmentStats(
 
     const scaledStats = scaleItemStats(statsToScale, itemTier);
 
-    // Sum the scaled stats
-    stats.damageBonus += scaledStats.damageBonus;
-    stats.critChance += scaledStats.critChance;
-    stats.hpReduction += scaledStats.hpReduction;
-    stats.maxHpBonus += scaledStats.maxHpBonus;
-    stats.attackSpeed += scaledStats.attackSpeed;
-    stats.coinBonus += scaledStats.coinBonus;
+    // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
+    // Always round UP for empowered stats to avoid float numbers
+    if (item.isEmpowered) {
+      stats.damageBonus += Math.ceil(scaledStats.damageBonus * 1.2);
+      stats.critChance += Math.ceil(scaledStats.critChance * 1.2);
+      stats.hpReduction += Math.ceil(scaledStats.hpReduction * 1.2);
+      stats.maxHpBonus += Math.ceil(scaledStats.maxHpBonus * 1.2);
+      stats.attackSpeed += Math.ceil(scaledStats.attackSpeed * 1.2);
+      stats.coinBonus += Math.ceil(scaledStats.coinBonus * 1.2);
+    } else {
+      // No empowered bonus, just sum the scaled stats
+      stats.damageBonus += scaledStats.damageBonus;
+      stats.critChance += scaledStats.critChance;
+      stats.hpReduction += scaledStats.hpReduction;
+      stats.maxHpBonus += scaledStats.maxHpBonus;
+      stats.attackSpeed += scaledStats.attackSpeed;
+      stats.coinBonus += scaledStats.coinBonus;
+    }
   }
 
   return stats;

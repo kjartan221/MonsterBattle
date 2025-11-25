@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch equipped items from inventory
     const equippedItems: {
-      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number };
-      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number };
-      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number };
-      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number };
+      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
+      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
+      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
+      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
     } = {};
 
     if (playerStats.equippedWeapon) {
@@ -45,7 +45,10 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedWeapon = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
+          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
+          isEmpowered: item.isEmpowered || false,
+          crafted: item.crafted,
+          statRoll: item.statRoll
         };
       }
     }
@@ -56,7 +59,10 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedArmor = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
+          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
+          isEmpowered: item.isEmpowered || false,
+          crafted: item.crafted,
+          statRoll: item.statRoll
         };
       }
     }
@@ -67,7 +73,10 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedAccessory1 = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
+          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
+          isEmpowered: item.isEmpowered || false,
+          crafted: item.crafted,
+          statRoll: item.statRoll
         };
       }
     }
@@ -78,7 +87,10 @@ export async function GET(request: NextRequest) {
         equippedItems.equippedAccessory2 = {
           inventoryId: item._id.toString(),
           lootTableId: item.lootTableId,
-          tier: item.tier || 1 // Default to tier 1 for legacy items without tier
+          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
+          isEmpowered: item.isEmpowered || false,
+          crafted: item.crafted,
+          statRoll: item.statRoll
         };
       }
     }

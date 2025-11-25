@@ -5,7 +5,9 @@ import type { MonsterTemplate } from '../monster-table';
  *
  * Tier 1 Common: Forest Wolf, Bandit Raccoon
  * Tier 1 Rare: Wild Boar, Forest Sprite
- * Tier 2 Epic Boss: Treant Guardian
+ * Tier 2+ Epic Boss: Treant Guardian
+ * Tier 1+ Epic Mini-Boss: Dire Wolf Alpha
+ * Tier 3+ Legendary Boss: Ancient Ent
  */
 export const FOREST_MONSTERS: MonsterTemplate[] = [
   // Forest Tier 1 - Common Monsters
@@ -66,7 +68,7 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     biomes: ['forest'],
     moveInterval: 2500, // Very slow - large boss, easier to hit
     isBoss: true,
-    minTier: 2, // Available from Tier 2 onwards
+    minTier: 1, // Available from Tier 1 onwards
     bossPhases: [
       {
         phaseNumber: 2,
@@ -96,6 +98,113 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
             message: '🌳 The Treant summons Forest Sprites to aid in battle!'
           }
         ]
+      }
+    ]
+  },
+
+  // Forest Tier 1+ - Epic Mini-Boss
+  {
+    name: 'Dire Wolf Alpha',
+    imageUrl: '🐺',
+    rarity: 'epic',
+    baseClicksRange: [42, 47], // 120 HP ÷ 2.5 damage = 48 clicks
+    baseAttackDamage: 5, // 5 HP/sec → 10 HP/sec at T2, 75 HP/sec at T5
+    biomes: ['forest'],
+    moveInterval: 800, // Very fast - alpha predator
+    isBoss: true,
+    minTier: 1, // Available from Tier 1 onwards
+    enrageTimer: 75, // Enrages after 75 seconds
+    enrageDamageMultiplier: 1.6, // +60% damage when enraged
+    specialAttacks: [
+      {
+        type: 'lightning',
+        damage: 12, // Pack howl - coordinated attack
+        cooldown: 8, // 8 seconds between attacks
+        minTier: 1,
+        visualEffect: 'white',
+        message: '🐺 The Dire Wolf Alpha calls the pack for a coordinated strike!'
+      },
+      {
+        type: 'meteor',
+        damage: 18, // Savage pounce
+        cooldown: 12, // 12 seconds between pounces
+        minTier: 2, // Unlocked at T2+
+        visualEffect: 'red',
+        message: '🐺 The Alpha pounces with savage fury!'
+      }
+    ]
+  },
+
+  // Forest Tier 3+ - Legendary Boss
+  {
+    name: 'Ancient Ent',
+    imageUrl: '🌲',
+    rarity: 'legendary',
+    baseClicksRange: [58, 63], // Base 60 HP → 240 HP at T3, 900 HP at T5
+    baseAttackDamage: 7, // 7 HP/sec → 28 HP/sec at T3, 105 HP/sec at T5
+    biomes: ['forest'],
+    moveInterval: 3200, // Extremely slow - ancient, massive tree
+    isBoss: true,
+    minTier: 3, // Available from Tier 3 onwards
+    enrageTimer: 90, // Enrages after 90 seconds
+    enrageDamageMultiplier: 1.8, // +80% damage when enraged
+    bossPhases: [
+      {
+        phaseNumber: 3,
+        hpThreshold: 66, // Phase 1: 100%→66%, Phase 2: 66%→33%, Phase 3: 33%→0%
+        invulnerabilityDuration: 2500,
+        specialAttacks: [
+          {
+            type: 'lightning',
+            damage: 15, // Root eruption
+            cooldown: 0,
+            visualEffect: 'green',
+            message: '🌲 The Ancient Ent\'s roots erupt from the ground!'
+          }
+        ]
+      },
+      {
+        phaseNumber: 2,
+        hpThreshold: 33,
+        invulnerabilityDuration: 3000,
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 20, // Ancient regeneration
+            cooldown: 0,
+            visualEffect: 'green',
+            message: '🌿 The Ancient Ent channels millennium of life force!'
+          },
+          {
+            type: 'summon',
+            cooldown: 0,
+            summons: {
+              count: 3,
+              creature: {
+                name: 'Treant Sapling',
+                hpPercent: 10, // 10% of boss max HP each
+                attackDamage: 3,
+                imageUrl: '🌳'
+              }
+            },
+            visualEffect: 'green',
+            message: '🌲 The Ancient Ent awakens its saplings!'
+          }
+        ]
+      }
+    ],
+    specialAttacks: [
+      {
+        type: 'meteor',
+        damage: 40, // Falling timber (increased from 25 - avoidable)
+        cooldown: 15, // 15 seconds
+        minTier: 3,
+        visualEffect: 'brown',
+        message: '🪵 The Ancient Ent hurls massive timber!',
+        interactive: true, // Spawns clickable falling timber
+        objectHpPercent: 30, // 30% of boss max HP (very tanky for legendary)
+        impactDelay: 9, // 9 seconds to destroy it
+        imageUrl: '🪵' // Timber/log icon
       }
     ]
   }

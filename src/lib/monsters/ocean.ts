@@ -5,8 +5,9 @@ import type { MonsterTemplate } from '../monster-table';
  *
  * Tier 1 Common: Coral Crab, Giant Jellyfish
  * Tier 1-2 Rare: Frost Shark, Electric Eel
- * Tier 3 Epic Mini-Boss: Sea Serpent
- * Tier 5 Legendary Boss: Leviathan
+ * Tier 1+ Epic Mini-Boss: Sea Serpent
+ * Tier 2+ Epic Mini-Boss: Kraken
+ * Tier 3+ Legendary Boss: Leviathan
  */
 export const OCEAN_MONSTERS: MonsterTemplate[] = [
   // Ocean Tier 1 - Common Monsters
@@ -79,7 +80,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     }
   },
 
-  // Ocean Tier 2+ - Epic Mini-Boss
+  // Ocean Tier 1+ - Epic Mini-Boss
   {
     name: 'Sea Serpent',
     imageUrl: '🐍',
@@ -89,7 +90,9 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     biomes: ['ocean'],
     moveInterval: 1800, // Medium-slow - large creature
     isBoss: true,
-    minTier: 1, // Available from Tier 2 onwards
+    minTier: 1, // Available from Tier 1 onwards
+    enrageTimer: 70, // Enrages after 70 seconds
+    enrageDamageMultiplier: 1.5, // +50% damage when enraged
     specialAttacks: [
       {
         type: 'lightning',
@@ -110,6 +113,59 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     ]
   },
 
+  // Ocean Tier 2+ - Epic Mini-Boss
+  {
+    name: 'Kraken',
+    imageUrl: '🐙',
+    rarity: 'epic',
+    baseClicksRange: [46, 51], // 145 HP ÷ 3 damage = 48 clicks
+    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    biomes: ['ocean'],
+    moveInterval: 2200, // Slow - massive tentacled beast
+    isBoss: true,
+    minTier: 2, // Available from Tier 2 onwards
+    enrageTimer: 85, // Enrages after 85 seconds
+    enrageDamageMultiplier: 1.7, // +70% damage when enraged (tentacle fury)
+    bossPhases: [
+      {
+        phaseNumber: 2,
+        hpThreshold: 50, // Phase 1: 100%→50%, Phase 2: 50%→0%
+        invulnerabilityDuration: 2000, // 2 seconds
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 18, // Deep sea regeneration
+            cooldown: 0,
+            visualEffect: 'blue',
+            message: '🐙 The Kraken regenerates with the power of the deep!'
+          }
+        ]
+      }
+    ],
+    specialAttacks: [
+      {
+        type: 'meteor',
+        damage: 35, // Tentacle slam (increased from 22 - avoidable)
+        cooldown: 9, // 9 seconds between slams
+        minTier: 2, // Basic attack from T2
+        visualEffect: 'blue',
+        message: '🐙 The Kraken slams down with massive tentacles!',
+        interactive: true, // Spawns clickable tentacle
+        objectHpPercent: 26, // 26% of boss max HP
+        impactDelay: 8, // 8 seconds to destroy it
+        imageUrl: '🦑' // Tentacle/squid icon
+      },
+      {
+        type: 'fireball',
+        damage: 16, // Ink cloud burst
+        cooldown: 11, // 11 seconds between ink clouds
+        minTier: 3, // Unlocked at T3+
+        visualEffect: 'purple',
+        message: '💨 The Kraken releases a toxic ink cloud!'
+      }
+    ]
+  },
+
   // Ocean Tier 3+ - Legendary Boss
   {
     name: 'Leviathan',
@@ -121,6 +177,8 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     moveInterval: 3000, // Very slow - colossal boss
     isBoss: true,
     minTier: 3, // Available from Tier 3 onwards
+    enrageTimer: 95, // Enrages after 95 seconds
+    enrageDamageMultiplier: 1.75, // +75% damage when enraged
     bossPhases: [
       {
         phaseNumber: 3,

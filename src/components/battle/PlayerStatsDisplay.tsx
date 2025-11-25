@@ -17,9 +17,19 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
 
   if (!playerStats) return null;
 
+  // Calculate total equipment bonuses first (needed for HP calculation)
+  const equipmentStats = calculateTotalEquipmentStats(
+    equippedWeapon,
+    equippedArmor,
+    equippedAccessory1,
+    equippedAccessory2
+  );
+
   // Defensive number coercion for all numeric values to prevent NaN
   const currentHealth = Number(playerStats.currentHealth) || 0;
-  const maxHealth = Number(playerStats.maxHealth) || 100;
+  const baseMaxHealth = Number(playerStats.maxHealth) || 100;
+  // Add equipment HP bonus to max health
+  const maxHealth = baseMaxHealth + (Number(equipmentStats.maxHpBonus) || 0);
   const healthPercentage = maxHealth > 0 ? (currentHealth / maxHealth) * 100 : 0;
 
   const streak = Number(playerStats.stats?.battlesWonStreak) || 0;
@@ -29,14 +39,6 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
   const level = Number(playerStats.level) || 1;
   const coins = Number(playerStats.coins) || 0;
   const experience = Number(playerStats.experience) || 0;
-
-  // Calculate total equipment bonuses
-  const equipmentStats = calculateTotalEquipmentStats(
-    equippedWeapon,
-    equippedArmor,
-    equippedAccessory1,
-    equippedAccessory2
-  );
 
   // Calculate total stats (base + equipment)
   // Ensure all values are valid numbers to prevent NaN

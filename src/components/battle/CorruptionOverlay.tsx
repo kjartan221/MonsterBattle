@@ -53,9 +53,9 @@ export default function CorruptionOverlay({
       >
         <defs>
           <linearGradient id="gradTop" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style={{ stopColor: '#9b59b6', stopOpacity: 1 }} />
-            <stop offset="50%" style={{ stopColor: '#8e44ad', stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: '#7d4a9e', stopOpacity: 1 }} />
+            <stop offset="0%" style={{ stopColor: '#752794ff', stopOpacity: 1 }} />
+            <stop offset="50%" style={{ stopColor: '#620f86ff', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#43066bff', stopOpacity: 1 }} />
           </linearGradient>
         </defs>
         <polygon
@@ -74,9 +74,9 @@ export default function CorruptionOverlay({
       >
         <defs>
           <linearGradient id="gradBottom" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style={{ stopColor: '#9b59b6', stopOpacity: 1 }} />
-            <stop offset="50%" style={{ stopColor: '#8e44ad', stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: '#7d4a9e', stopOpacity: 1 }} />
+            <stop offset="0%" style={{ stopColor: '#752794ff', stopOpacity: 1 }} />
+            <stop offset="50%" style={{ stopColor: '#620f86ff', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#43066bff', stopOpacity: 1 }} />
           </linearGradient>
         </defs>
         <polygon
@@ -95,9 +95,9 @@ export default function CorruptionOverlay({
       >
         <defs>
           <linearGradient id="gradLeft" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#9b59b6', stopOpacity: 1 }} />
-            <stop offset="50%" style={{ stopColor: '#8e44ad', stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: '#7d4a9e', stopOpacity: 1 }} />
+            <stop offset="0%" style={{ stopColor: '#752794ff', stopOpacity: 1 }} />
+            <stop offset="50%" style={{ stopColor: '#620f86ff', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#43066bff', stopOpacity: 1 }} />
           </linearGradient>
         </defs>
         <polygon
@@ -116,9 +116,9 @@ export default function CorruptionOverlay({
       >
         <defs>
           <linearGradient id="gradRight" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#9b59b6', stopOpacity: 1 }} />
-            <stop offset="50%" style={{ stopColor: '#8e44ad', stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: '#7d4a9e', stopOpacity: 1 }} />
+            <stop offset="0%" style={{ stopColor: '#752794ff', stopOpacity: 1 }} />
+            <stop offset="50%" style={{ stopColor: '#620f86ff', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#43066bff', stopOpacity: 1 }} />
           </linearGradient>
         </defs>
         <polygon

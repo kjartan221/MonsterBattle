@@ -175,6 +175,11 @@ export interface SpecialAttack {
     count: number;         // Number of creatures to summon (typically 1-2)
     creature: SummonDefinition;
   };
+  // Interactive attack configuration (spawns clickable object that must be destroyed)
+  interactive?: boolean;   // If true, spawns clickable object instead of instant damage
+  objectHpPercent?: number; // % of boss max HP for the interactive object (e.g., 20 = 20% of boss HP)
+  impactDelay?: number;    // Seconds before object impacts (if not destroyed)
+  imageUrl?: string;       // Emoji icon for interactive object (e.g., '☄️', '🌪️', '🗿')
 }
 
 // Active summoned creature in battle
@@ -186,6 +191,18 @@ export interface SummonedCreature {
   attackDamage: number;
   imageUrl: string;
   position: 'left' | 'right';
+}
+
+// Active interactive attack in battle (meteor, comet, etc.)
+export interface InteractiveAttack {
+  id: string;              // Unique ID for this attack instance
+  name: string;            // Attack name (e.g., "Meteor", "Death Comet")
+  currentHP: number;
+  maxHP: number;
+  damage: number;          // Damage dealt to player if not destroyed
+  impactTime: number;      // Timestamp when attack will impact (Date.now() + impactDelay)
+  visualEffect?: string;   // Color for visual effect
+  imageUrl: string;        // Emoji icon (e.g., "☄️", "💥")
 }
 
 export interface BossPhase {

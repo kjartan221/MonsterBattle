@@ -49,6 +49,14 @@ export interface MonsterTemplate {
   // - Execute once per transition (or based on cooldown if specified)
   // - Example: Treant heal + summon when entering Phase 2
   // - Handled in MonsterBattleSection phase transition logic
+
+  // ENRAGE MECHANIC (Boss-only):
+  // - Boss becomes enraged after X seconds of combat
+  // - Damage multiplier increases (e.g., 1.5 = +50% damage)
+  // - Visual indicator shows enraged state (red glow/particles)
+  // - Only applies to boss monsters (isBoss: true)
+  enrageTimer?: number; // Seconds until enrage (e.g., 60, 90, 120)
+  enrageDamageMultiplier?: number; // Damage multiplier when enraged (e.g., 1.5, 2.0)
 }
 
 // Monster Templates - BASE stats for each monster type (Tier 1)

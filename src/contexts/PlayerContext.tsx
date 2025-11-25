@@ -50,7 +50,7 @@ interface PlayerContextType {
   error: string | null;
   fetchPlayerStats: () => Promise<void>;
   updatePlayerStats: (updates: Partial<PlayerStats>) => Promise<void>;
-  resetHealth: () => Promise<void>;
+  resetHealth: (maxHpBonus?: number) => Promise<void>;
   takeDamage: (amount: number) => Promise<void>;
   healHealth: (amount: number) => Promise<void>;
   addCoins: (amount: number) => Promise<void>;
@@ -119,11 +119,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const resetHealth = async () => {
+  const resetHealth = async (maxHpBonus: number = 0) => {
     if (!playerStats) return;
 
+    // Calculate total max HP including equipment bonuses
+    const totalMaxHP = playerStats.maxHealth + maxHpBonus;
+
     await updatePlayerStats({
-      currentHealth: playerStats.maxHealth,
+      currentHealth: totalMaxHP,
     });
     toast.success('HP restored to full!');
   };

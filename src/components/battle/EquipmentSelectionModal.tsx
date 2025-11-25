@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import { colorToRGBA } from '@/utils/publicKeyToColor';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
+import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
+import { scaleItemStats } from '@/utils/itemTierScaling';
+import type { Tier } from '@/lib/biome-config';
 
 interface UserInventoryItem {
   _id: string;
@@ -16,6 +19,7 @@ interface UserInventoryItem {
   acquiredAt: string;
   crafted?: boolean;
   statRoll?: number;
+  isEmpowered?: boolean;
 }
 
 interface EquipmentSelectionModalProps {
@@ -99,7 +103,8 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
         borderGradient: item.borderGradient,
         acquiredAt: item.acquiredAt,
         crafted: item.crafted,
-        statRoll: item.statRoll
+        statRoll: item.statRoll,
+        isEmpowered: item.isEmpowered
       }));
 
       setItems(mappedItems);
@@ -253,13 +258,30 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
 
                 const isCurrentlyEquipped = currentlyEquipped?.inventoryId === item._id;
 
+                // Calculate empowered stats if applicable
+                let displayStats = lootItem.equipmentStats;
+                if (item.isEmpowered && lootItem.equipmentStats) {
+                  // Apply tier scaling first
+                  const baseStats = lootItem.equipmentStats as Record<string, number>;
+                  const scaledStats = scaleItemStats(baseStats, item.tier as Tier);
+                  // Apply empowered bonus (20%) with round up
+                  displayStats = Object.entries(scaledStats).reduce((acc, [key, value]) => {
+                    acc[key] = Math.ceil(value * 1.2);
+                    return acc;
+                  }, {} as Record<string, number>);
+                } else if (lootItem.equipmentStats) {
+                  // Just apply tier scaling
+                  const baseStats = lootItem.equipmentStats as Record<string, number>;
+                  displayStats = scaleItemStats(baseStats, item.tier as Tier);
+                }
+
                 return (
                   <button
                     key={item._id}
                     onClick={() => !isCurrentlyEquipped && handleEquip(item._id, item.lootTableId)}
                     disabled={isEquipping || isCurrentlyEquipped}
                     className={`
-                      relative p-4 rounded-lg border-2 transition-all text-left
+                      relative p-4 rounded-lg border-2 transition-all text-left overflow-hidden
                       ${isCurrentlyEquipped ? 'border-green-500 bg-green-900/30 cursor-default' : 'border-gray-700 hover:border-blue-500 hover:bg-gray-800/70 cursor-pointer'}
                       ${isEquipping ? 'opacity-50 cursor-not-allowed' : ''}
                       bg-gradient-to-br ${getRarityBgGradient(lootItem.rarity)}
@@ -268,8 +290,13 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                       boxShadow: `0 0 15px ${colorToRGBA(item.borderGradient.color1, 0.3)}, 0 0 25px ${colorToRGBA(item.borderGradient.color2, 0.2)}`
                     }}
                   >
+                    {/* Corruption overlay for empowered items */}
+                    {item.isEmpowered && (
+                      <CorruptionOverlay showLabel={false} size="small" />
+                    )}
+
                     {/* Item Icon and Name */}
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 relative z-20">
                       <span className="text-3xl">{lootItem.icon}</span>
                       <div className="flex-1">
                         <div className={`text-base font-semibold ${getRarityColor(lootItem.rarity)}`}>
@@ -280,33 +307,40 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                     </div>
 
                     {/* Equipment Stats */}
-                    {lootItem.equipmentStats && (
-                      <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
-                        {Object.entries(lootItem.equipmentStats).map(([key, value]) => (
+                    {displayStats && (
+                      <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700 relative z-20">
+                        {Object.entries(displayStats).map(([key, value]) => (
                           <div key={key} className="flex justify-between">
                             <span>{formatStatName(key)}:</span>
-                            <span className="text-green-400">+{value}{getStatUnit(key)}</span>
+                            <span className={item.isEmpowered ? 'text-purple-400' : 'text-green-400'}>
+                              +{value}{getStatUnit(key)}
+                            </span>
                           </div>
                         ))}
+                        {item.isEmpowered && (
+                          <div className="text-[10px] text-purple-400 mt-1 italic">
+                            ⚡ Empowered (+20%)
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Stat Roll indicator (for crafted items only) */}
                     {item.crafted && item.statRoll !== undefined && (
-                      <div className="mt-2 pt-2 border-t border-gray-700">
+                      <div className="mt-2 pt-2 border-t border-gray-700 relative z-20">
                         <StatRangeIndicator statRoll={item.statRoll} />
                       </div>
                     )}
 
                     {/* Currently Equipped Badge */}
                     {isCurrentlyEquipped && (
-                      <div className="text-xs text-green-400 font-semibold mt-2 pt-2 border-t border-green-700">
+                      <div className="text-xs text-green-400 font-semibold mt-2 pt-2 border-t border-green-700 relative z-20">
                         ✓ Currently Equipped
                       </div>
                     )}
 
                     {/* Tier badge (top right corner) */}
-                    <div className="absolute top-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40">
+                    <div className="absolute top-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/40 z-20">
                       {tierToRoman(item.tier)}
                     </div>
                   </button>

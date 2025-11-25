@@ -13,6 +13,7 @@ import { useGameState } from '@/contexts/GameStateContext';
 import { useMonsterAttack } from '@/hooks/useMonsterAttack';
 import { useSpecialAttacks } from '@/hooks/useSpecialAttacks';
 import { useSummonedCreatures } from '@/hooks/useSummonedCreatures';
+import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
 import type { DebuffEffect, SpecialAttack } from '@/lib/types';
@@ -23,6 +24,7 @@ import BattleStartScreen from '@/components/battle/BattleStartScreen';
 import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterBattleArena from '@/components/battle/MonsterBattleArena';
 import SummonCard from '@/components/battle/SummonCard';
+import InteractiveAttackCard from '@/components/battle/InteractiveAttackCard';
 import BuffIndicators from '@/components/battle/BuffIndicators';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
@@ -86,15 +88,59 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     battleStarted: gameState.canAttackMonster()
   });
 
-  // Callback for handling special attacks (damage, summon, heal)
+  // Interactive attacks management (must come before handleSpecialAttack)
+  const {
+    attacks: interactiveAttacks,
+    spawnAttack,
+    damageAttack,
+    clearAttacks: clearInteractiveAttacks
+  } = useInteractiveAttacks({
+    onImpact: (damage, visualEffect) => {
+      console.log(`💥 Interactive Attack Impacted! Dealt ${damage} damage`);
+      takeDamage(damage);
+      // Trigger visual feedback
+      setPhaseAttack({
+        type: 'meteor',
+        damage,
+        cooldown: 0,
+        visualEffect: visualEffect || 'red',
+        message: '💥 Attack impacted!'
+      });
+      setTimeout(() => setPhaseAttack(null), 3500);
+    }
+  });
+
+  // Callback for handling special attacks (damage, summon, heal, interactive)
   // Note: Healing is handled internally by useBossPhases hook
   const handleSpecialAttack = useCallback((attack: SpecialAttack) => {
     console.log(`[handleSpecialAttack] Called with attack:`, attack);
 
-    // Trigger visual feedback for phase attacks
-    setPhaseAttack(attack);
-    setTimeout(() => setPhaseAttack(null), 3500); // Clear after animation
+    // Trigger visual feedback for phase attacks (unless interactive)
+    if (!attack.interactive) {
+      setPhaseAttack(attack);
+      setTimeout(() => setPhaseAttack(null), 3500); // Clear after animation
+    }
 
+    // Check if this is an interactive attack
+    if (attack.interactive && attack.objectHpPercent && attack.impactDelay && gameState.monster) {
+      console.log(`🎯 Interactive Attack! Spawning ${attack.type}`);
+      const objectMaxHP = Math.ceil((attack.objectHpPercent / 100) * gameState.monster.clicksRequired);
+      const attackName = attack.message?.split(' ')[1] || attack.type.charAt(0).toUpperCase() + attack.type.slice(1);
+      // Use imageUrl from attack definition, fallback to type-based icon
+      const imageUrl = attack.imageUrl || (attack.type === 'meteor' ? '☄️' : attack.type === 'fireball' ? '🔥' : '💥');
+
+      spawnAttack(
+        attackName,
+        objectMaxHP,
+        attack.damage || 0,
+        attack.impactDelay,
+        attack.visualEffect,
+        imageUrl
+      );
+      return; // Don't deal instant damage
+    }
+
+    // Non-interactive damage
     if (attack.damage) {
       console.log(`💥 Special Attack Hit! ${attack.type} dealt ${attack.damage} damage`);
       takeDamage(attack.damage);
@@ -111,7 +157,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       console.log(`[handleSpecialAttack] Summon details:`, attack.summons);
       addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired);
     }
-  }, [takeDamage, addSummons, gameState.monster]);
+  }, [takeDamage, addSummons, spawnAttack, gameState.monster]);
 
   // Determine if this is a boss monster (before calling hooks)
   const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
@@ -257,8 +303,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handlePlayerDeath = async () => {
     if (!playerStats || !gameState.session) return;
 
-    // Clear all active debuffs
+    // Clear all active debuffs and interactive attacks
     clearDebuffs();
+    clearInteractiveAttacks();
 
     // Calculate gold loss (10% of current gold, rounded)
     const goldLost = Math.floor(playerStats.coins * 0.10);
@@ -296,7 +343,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   const handleDefeatContinue = async () => {
     setDefeatData({ goldLost: 0, streakLost: 0 });
-    await resetHealth();
+    await resetHealth(equipmentStats.maxHpBonus);
     await startBattle();
   };
 
@@ -551,6 +598,25 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   };
 
+  const handleInteractiveAttackClick = (attackId: string) => {
+    if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
+
+    // Use player's base damage instead of defaulting to 1
+    const baseDamage = playerStats?.baseDamage || 1;
+    let { damage, isCrit } = calculateClickDamage(
+      baseDamage,
+      equipmentStats.damageBonus,
+      equipmentStats.critChance
+    );
+
+    if (isCrit) {
+      setCritTrigger(prev => prev + 1);
+    }
+
+    // Damage the interactive attack
+    damageAttack(attackId, damage);
+  };
+
   const handleMonsterEscape = async () => {
     if (!gameState.session) return;
 
@@ -634,13 +700,14 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     clearDebuffs();
+    clearInteractiveAttacks();
     setClickCount(0);
     setLastSavedClickCount(0);
     setTotalDamage(0);
     setShieldHP(0);
     setEscapeTimer(null);
 
-    await resetHealth();
+    await resetHealth(equipmentStats.maxHpBonus);
     await fetchPlayerStats();
     await startBattle(overrideBiome, overrideTier, true);
   };
@@ -755,7 +822,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       )}
 
       {/* Monster + Summons Battle Area - Responsive Layout */}
-      <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-8 w-full flex-wrap md:flex-nowrap">
+      <div className="relative flex items-center justify-center gap-2 sm:gap-4 md:gap-8 w-full flex-wrap md:flex-nowrap">
+        {/* Interactive Attacks - Positioned absolutely at top of arena */}
+        {interactiveAttacks.map((attack) => (
+          <InteractiveAttackCard
+            key={attack.id}
+            attack={attack}
+            isDestroyed={attack.currentHP <= 0}
+            onAttack={() => handleInteractiveAttackClick(attack.id)}
+          />
+        ))}
+
         {/* Left Summon - Hidden placeholder on mobile when empty */}
         <div className="flex-shrink-0">
           {getLeftSummon() ? (

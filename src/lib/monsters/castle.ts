@@ -5,8 +5,9 @@ import type { MonsterTemplate } from '../monster-table';
  *
  * Tier 1 Common: Skeleton Warrior, Cursed Spirit
  * Tier 1-2 Rare: Vampire Lord, Death Knight
- * Tier 3 Epic Mini-Boss: Necromancer
- * Tier 5 Legendary Boss: Lich King
+ * Tier 1+ Epic Mini-Boss: Necromancer
+ * Tier 2+ Epic Mini-Boss: Wraith Lord
+ * Tier 3+ Legendary Boss: Lich King
  */
 export const CASTLE_MONSTERS: MonsterTemplate[] = [
   // Castle Tier 1 - Common Monsters
@@ -73,7 +74,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     }
   },
 
-  // Castle Tier 2+ - Epic Mini-Boss
+  // Castle Tier 1+ - Epic Mini-Boss
   {
     name: 'Necromancer',
     imageUrl: '🧙',
@@ -84,6 +85,39 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     moveInterval: 1900, // Medium-slow - caster movement
     isBoss: true,
     minTier: 1, // Available from Tier 1 onwards
+    enrageTimer: 75, // Enrages after 75 seconds
+    enrageDamageMultiplier: 1.6, // +60% damage when enraged
+    bossPhases: [
+      {
+        phaseNumber: 2,
+        hpThreshold: 50, // Phase 1: 100%→50%, Phase 2: 50%→0%
+        invulnerabilityDuration: 2000, // 2 seconds
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 15, // Life drain ritual
+            cooldown: 0,
+            visualEffect: 'purple',
+            message: '💀 The Necromancer drains life force to heal!'
+          },
+          {
+            type: 'summon',
+            cooldown: 0,
+            summons: {
+              count: 2,
+              creature: {
+                name: 'Skeleton Warrior',
+                hpPercent: 12, // 12% of boss max HP
+                attackDamage: 3,
+                imageUrl: '💀'
+              }
+            },
+            visualEffect: 'purple',
+            message: '💀 The Necromancer raises skeleton warriors!'
+          }
+        ]
+      }
+    ],
     specialAttacks: [
       {
         type: 'lightning',
@@ -95,13 +129,62 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
       },
       {
         type: 'meteor',
-        damage: 20, // Death curse explosion
+        damage: 32, // Death curse explosion (increased from 20 - avoidable)
         cooldown: 14, // 14 seconds between curses
         minTier: 2, // Unlocked at T2+
         visualEffect: 'purple',
-        message: '💀 The Necromancer unleashes a devastating death curse!'
+        message: '💀 The Necromancer unleashes a devastating death curse!',
+        interactive: true, // Spawns clickable cursed orb
+        objectHpPercent: 22, // 22% of boss max HP
+        impactDelay: 8, // 8 seconds to destroy it
+        imageUrl: '💀' // Cursed skull icon
       }
     ]
+  },
+
+  // Castle Tier 2+ - Epic Mini-Boss
+  {
+    name: 'Wraith Lord',
+    imageUrl: '👤',
+    rarity: 'epic',
+    baseClicksRange: [48, 53], // 145 HP ÷ 3 damage = 48 clicks
+    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    biomes: ['castle'],
+    moveInterval: 1400, // Fast - ethereal movement
+    isBoss: true,
+    minTier: 2, // Available from Tier 2 onwards
+    enrageTimer: 85, // Enrages after 85 seconds
+    enrageDamageMultiplier: 1.7, // +70% damage when enraged (spectral fury)
+    specialAttacks: [
+      {
+        type: 'lightning',
+        damage: 18, // Shadow bolt
+        cooldown: 9, // 9 seconds between bolts
+        minTier: 2, // Basic attack from T2
+        visualEffect: 'purple',
+        message: '👤 The Wraith Lord hurls a bolt of shadow energy!'
+      },
+      {
+        type: 'meteor',
+        damage: 35, // Life drain explosion (increased from 22 - avoidable)
+        cooldown: 12, // 12 seconds between drains
+        minTier: 3, // Unlocked at T3+
+        visualEffect: 'purple',
+        message: '💀 The Wraith Lord drains the life force of all nearby!',
+        interactive: true, // Spawns clickable death orb
+        objectHpPercent: 24, // 24% of boss max HP
+        impactDelay: 9, // 9 seconds to destroy it
+        imageUrl: '👤' // Wraith/spirit icon
+      }
+    ],
+    dotEffect: {
+      type: 'poison',
+      damageType: 'percentage',
+      damageAmount: 2, // 2% max HP per second (spectral curse)
+      tickInterval: 1000,
+      duration: 7000, // 7 seconds
+      applyChance: 65 // 65% chance to curse with spectral touch
+    }
   },
 
   // Castle Tier 3+ - Legendary Boss
@@ -115,6 +198,8 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     moveInterval: 3000, // Very slow - commanding presence
     isBoss: true,
     minTier: 3, // Available from Tier 3 onwards
+    enrageTimer: 105, // Enrages after 105 seconds
+    enrageDamageMultiplier: 2.0, // +100% damage when enraged (undead fury)
     bossPhases: [
       {
         phaseNumber: 4,

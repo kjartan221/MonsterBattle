@@ -5,6 +5,8 @@ import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
 import { getMonsterRewards, checkLevelUp } from '@/utils/playerProgression';
+import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
+import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { ObjectId } from 'mongodb';
 
 const MAX_CLICKS_PER_SECOND = 15;
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, monstersCollection, playerStatsCollection } = await connectToMongo();
+    const { battleSessionsCollection, monstersCollection, playerStatsCollection, userInventoryCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -104,6 +106,81 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Fetch equipped items to calculate equipment bonuses
+    const equippedWeaponDoc = playerStats.equippedWeapon
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedWeapon) })
+      : null;
+    const equippedArmorDoc = playerStats.equippedArmor
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedArmor) })
+      : null;
+    const equippedAccessory1Doc = playerStats.equippedAccessory1
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedAccessory1) })
+      : null;
+    const equippedAccessory2Doc = playerStats.equippedAccessory2
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedAccessory2) })
+      : null;
+
+    // Convert to EquippedItem format for calculateTotalEquipmentStats
+    const equippedWeapon: EquippedItem | null = equippedWeaponDoc
+      ? {
+          inventoryId: equippedWeaponDoc._id.toString(),
+          lootTableId: equippedWeaponDoc.lootTableId,
+          tier: equippedWeaponDoc.tier || 1,
+          slot: 'weapon',
+          lootItem: getLootItemById(equippedWeaponDoc.lootTableId)!,
+          crafted: equippedWeaponDoc.crafted,
+          statRoll: equippedWeaponDoc.statRoll,
+          isEmpowered: equippedWeaponDoc.isEmpowered
+        }
+      : null;
+
+    const equippedArmor: EquippedItem | null = equippedArmorDoc
+      ? {
+          inventoryId: equippedArmorDoc._id.toString(),
+          lootTableId: equippedArmorDoc.lootTableId,
+          tier: equippedArmorDoc.tier || 1,
+          slot: 'armor',
+          lootItem: getLootItemById(equippedArmorDoc.lootTableId)!,
+          crafted: equippedArmorDoc.crafted,
+          statRoll: equippedArmorDoc.statRoll,
+          isEmpowered: equippedArmorDoc.isEmpowered
+        }
+      : null;
+
+    const equippedAccessory1: EquippedItem | null = equippedAccessory1Doc
+      ? {
+          inventoryId: equippedAccessory1Doc._id.toString(),
+          lootTableId: equippedAccessory1Doc.lootTableId,
+          tier: equippedAccessory1Doc.tier || 1,
+          slot: 'accessory1',
+          lootItem: getLootItemById(equippedAccessory1Doc.lootTableId)!,
+          crafted: equippedAccessory1Doc.crafted,
+          statRoll: equippedAccessory1Doc.statRoll,
+          isEmpowered: equippedAccessory1Doc.isEmpowered
+        }
+      : null;
+
+    const equippedAccessory2: EquippedItem | null = equippedAccessory2Doc
+      ? {
+          inventoryId: equippedAccessory2Doc._id.toString(),
+          lootTableId: equippedAccessory2Doc.lootTableId,
+          tier: equippedAccessory2Doc.tier || 1,
+          slot: 'accessory2',
+          lootItem: getLootItemById(equippedAccessory2Doc.lootTableId)!,
+          crafted: equippedAccessory2Doc.crafted,
+          statRoll: equippedAccessory2Doc.statRoll,
+          isEmpowered: equippedAccessory2Doc.isEmpowered
+        }
+      : null;
+
+    // Calculate total equipment stats including maxHpBonus
+    const equipmentStats = calculateTotalEquipmentStats(
+      equippedWeapon,
+      equippedArmor,
+      equippedAccessory1,
+      equippedAccessory2
+    );
 
     // Calculate expected damage from monster
     const expectedDamage = Math.floor(timeInSeconds * monster.attackDamage);
@@ -291,6 +368,10 @@ export async function POST(request: NextRequest) {
       const remainingXP = xpForPreviousLevel; // Keep all XP for now, let checkLevelUp handle it
 
       // Update player stats with level up
+      // Calculate total max HP including equipment bonuses
+      const newMaxHealth = playerStats.maxHealth + levelUpResult.statIncreases.maxHealth;
+      const totalMaxHP = newMaxHealth + equipmentStats.maxHpBonus;
+
       await playerStatsCollection.updateOne(
         { userId },
         {
@@ -298,8 +379,8 @@ export async function POST(request: NextRequest) {
             level: levelUpResult.newLevel,
             experience: 0, // Reset XP for new level
             coins: newCoins,
-            maxHealth: playerStats.maxHealth + levelUpResult.statIncreases.maxHealth,
-            currentHealth: playerStats.maxHealth + levelUpResult.statIncreases.maxHealth, // Full heal on level up
+            maxHealth: newMaxHealth, // Store base max health (without equipment)
+            currentHealth: totalMaxHP, // Full heal including equipment bonuses
             baseDamage: playerStats.baseDamage + levelUpResult.statIncreases.baseDamage
           }
         }

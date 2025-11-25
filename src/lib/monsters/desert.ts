@@ -5,7 +5,9 @@ import type { MonsterTemplate } from '../monster-table';
  *
  * Tier 1 Common: Sand Scorpion, Desert Viper
  * Tier 1 Rare: Fire Elemental
- * Tier 1 Epic Mini-Boss: Sand Djinn
+ * Tier 1+ Epic Mini-Boss: Sand Djinn
+ * Tier 2+ Epic Mini-Boss: Sandstone Golem
+ * Tier 3+ Legendary Boss: Desert Phoenix
  */
 export const DESERT_MONSTERS: MonsterTemplate[] = [
   // Desert Tier 1 - Common Monsters
@@ -77,12 +79,161 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
       },
       {
         type: 'meteor',
-        damage: 20, // Sandstorm explosion
+        damage: 32, // Sandstorm explosion (increased from 20 - avoidable)
         cooldown: 10, // 10 seconds between sandstorms
         minTier: 2, // Unlocked at T2+
         visualEffect: 'orange',
-        message: '🌪️ The Sand Djinn conjures a devastating sandstorm!'
+        message: '🌪️ The Sand Djinn conjures a devastating sandstorm!',
+        interactive: true, // Spawns clickable sandstorm
+        objectHpPercent: 20, // 20% of boss max HP
+        impactDelay: 7, // 7 seconds to destroy it
+        imageUrl: '🌪️' // Sandstorm/tornado icon
       }
     ]
+  },
+
+  // Desert Tier 2+ - Epic Mini-Boss
+  {
+    name: 'Sandstone Golem',
+    imageUrl: '🗿',
+    rarity: 'epic',
+    baseClicksRange: [48, 53], // 140 HP ÷ 2.5 damage = 56 clicks
+    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    biomes: ['desert'],
+    moveInterval: 2800, // Very slow - massive stone construct
+    isBoss: true,
+    minTier: 2, // Available from Tier 2 onwards
+    enrageTimer: 80, // Enrages after 80 seconds
+    enrageDamageMultiplier: 1.7, // +70% damage when enraged
+    bossPhases: [
+      {
+        phaseNumber: 2,
+        hpThreshold: 50, // Phase 1: 100%→50%, Phase 2: 50%→0%
+        invulnerabilityDuration: 2000, // 2 seconds
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 20, // Stone recombination
+            cooldown: 0,
+            visualEffect: 'brown',
+            message: '🗿 The Sandstone Golem recombines its shattered pieces!'
+          }
+        ]
+      }
+    ],
+    specialAttacks: [
+      {
+        type: 'meteor',
+        damage: 32, // Stone fist smash (increased from 20 - avoidable)
+        cooldown: 10, // 10 seconds between smashes
+        minTier: 2,
+        visualEffect: 'brown',
+        message: '🗿 The Sandstone Golem slams its massive stone fist!',
+        interactive: true, // Spawns clickable stone fist
+        objectHpPercent: 24, // 24% of boss max HP
+        impactDelay: 8, // 8 seconds to destroy it
+        imageUrl: '🗿' // Stone/moai icon
+      },
+      {
+        type: 'lightning',
+        damage: 15, // Earthquake tremor
+        cooldown: 12, // 12 seconds between tremors
+        minTier: 3, // Unlocked at T3+
+        visualEffect: 'brown',
+        message: '💥 The Golem causes an earthquake tremor!'
+      }
+    ]
+  },
+
+  // Desert Tier 3+ - Legendary Boss
+  {
+    name: 'Desert Phoenix',
+    imageUrl: '🦅',
+    rarity: 'legendary',
+    baseClicksRange: [62, 67], // Base 65 HP → 260 HP at T3, 975 HP at T5
+    baseAttackDamage: 8, // 8 HP/sec → 32 HP/sec at T3, 120 HP/sec at T5
+    biomes: ['desert'],
+    moveInterval: 1200, // Fast - graceful bird, hard to hit
+    isBoss: true,
+    minTier: 3, // Available from Tier 3 onwards
+    enrageTimer: 100, // Enrages after 100 seconds
+    enrageDamageMultiplier: 2.0, // +100% damage when enraged (phoenix fury)
+    bossPhases: [
+      {
+        phaseNumber: 4,
+        hpThreshold: 75, // Phase 1: 100%→75%, Phase 2: 75%→50%, Phase 3: 50%→25%, Phase 4: 25%→0%
+        invulnerabilityDuration: 2500,
+        specialAttacks: [
+          {
+            type: 'fireball',
+            damage: 25, // Solar flare
+            cooldown: 0,
+            visualEffect: 'orange',
+            message: '☀️ The Desert Phoenix unleashes a solar flare!'
+          }
+        ]
+      },
+      {
+        phaseNumber: 3,
+        hpThreshold: 50,
+        invulnerabilityDuration: 3000,
+        specialAttacks: [
+          {
+            type: 'heal',
+            healing: 30, // Rebirth flames
+            cooldown: 0,
+            visualEffect: 'orange',
+            message: '🔥 The Phoenix ignites with rebirth flames!'
+          }
+        ]
+      },
+      {
+        phaseNumber: 2,
+        hpThreshold: 25, // Final desperate phase
+        invulnerabilityDuration: 3500,
+        specialAttacks: [
+          {
+            type: 'meteor',
+            damage: 35, // Inferno dive
+            cooldown: 0,
+            visualEffect: 'orange',
+            message: '🦅 The Desert Phoenix dives in an inferno of flames!'
+          },
+          {
+            type: 'heal',
+            healing: 40, // Final resurrection
+            cooldown: 0,
+            visualEffect: 'orange',
+            message: '✨ The Phoenix resurrects from its ashes!'
+          }
+        ]
+      }
+    ],
+    specialAttacks: [
+      {
+        type: 'fireball',
+        damage: 20, // Flame burst
+        cooldown: 8, // 8 seconds
+        minTier: 3,
+        visualEffect: 'orange',
+        message: '🔥 The Phoenix bursts with flames!'
+      },
+      {
+        type: 'lightning',
+        damage: 18, // Wing gust
+        cooldown: 10, // 10 seconds
+        minTier: 3,
+        visualEffect: 'yellow',
+        message: '💨 The Phoenix creates a scorching wing gust!'
+      }
+    ],
+    dotEffect: {
+      type: 'burn',
+      damageType: 'percentage',
+      damageAmount: 2.5, // 2.5% max HP per second
+      tickInterval: 1000,
+      duration: 8000, // 8 seconds
+      applyChance: 60 // 60% chance to burn with phoenix fire
+    }
   }
 ];

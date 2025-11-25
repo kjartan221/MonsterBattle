@@ -13,6 +13,7 @@ export interface EquippedItem {
   lootItem: LootItem; // Full item data from loot-table
   crafted?: boolean; // Whether the item was crafted
   statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
+  isEmpowered?: boolean; // Dropped from corrupted monster (+20% to all stats)
 }
 
 interface EquipmentContextType {
@@ -59,7 +60,8 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             slot: 'weapon',
             lootItem,
             crafted: data.equippedWeapon.crafted,
-            statRoll: data.equippedWeapon.statRoll
+            statRoll: data.equippedWeapon.statRoll,
+            isEmpowered: data.equippedWeapon.isEmpowered
           });
         }
       } else {
@@ -76,7 +78,8 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             slot: 'armor',
             lootItem,
             crafted: data.equippedArmor.crafted,
-            statRoll: data.equippedArmor.statRoll
+            statRoll: data.equippedArmor.statRoll,
+            isEmpowered: data.equippedArmor.isEmpowered
           });
         }
       } else {
@@ -93,7 +96,8 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             slot: 'accessory1',
             lootItem,
             crafted: data.equippedAccessory1.crafted,
-            statRoll: data.equippedAccessory1.statRoll
+            statRoll: data.equippedAccessory1.statRoll,
+            isEmpowered: data.equippedAccessory1.isEmpowered
           });
         }
       } else {
@@ -110,7 +114,8 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             slot: 'accessory2',
             lootItem,
             crafted: data.equippedAccessory2.crafted,
-            statRoll: data.equippedAccessory2.statRoll
+            statRoll: data.equippedAccessory2.statRoll,
+            isEmpowered: data.equippedAccessory2.isEmpowered
           });
         }
       } else {

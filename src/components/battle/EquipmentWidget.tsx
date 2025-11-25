@@ -24,7 +24,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           rarity: equippedWeapon?.lootItem.rarity,
           tier: equippedWeapon?.tier,
           crafted: equippedWeapon?.crafted,
-          statRoll: equippedWeapon?.statRoll
+          statRoll: equippedWeapon?.statRoll,
+          isEmpowered: equippedWeapon?.isEmpowered
         };
       case 'armor':
         return {
@@ -35,7 +36,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           rarity: equippedArmor?.lootItem.rarity,
           tier: equippedArmor?.tier,
           crafted: equippedArmor?.crafted,
-          statRoll: equippedArmor?.statRoll
+          statRoll: equippedArmor?.statRoll,
+          isEmpowered: equippedArmor?.isEmpowered
         };
       case 'accessory1':
         return {
@@ -46,7 +48,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           rarity: equippedAccessory1?.lootItem.rarity,
           tier: equippedAccessory1?.tier,
           crafted: equippedAccessory1?.crafted,
-          statRoll: equippedAccessory1?.statRoll
+          statRoll: equippedAccessory1?.statRoll,
+          isEmpowered: equippedAccessory1?.isEmpowered
         };
       case 'accessory2':
         return {
@@ -57,7 +60,8 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
           rarity: equippedAccessory2?.lootItem.rarity,
           tier: equippedAccessory2?.tier,
           crafted: equippedAccessory2?.crafted,
-          statRoll: equippedAccessory2?.statRoll
+          statRoll: equippedAccessory2?.statRoll,
+          isEmpowered: equippedAccessory2?.isEmpowered
         };
     }
   };
@@ -119,7 +123,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
                 {/* Slot Info */}
                 <div className="flex-1 text-left">
                   <div className="text-xs text-gray-400">{slotData.label}</div>
-                  <div className={`text-sm font-medium ${slotData.isEmpty ? 'text-gray-500' : 'text-gray-200'}`}>
+                  <div className={`text-sm font-medium ${slotData.isEmpty ? 'text-gray-500' : slotData.isEmpowered ? 'text-purple-400' : 'text-gray-200'}`}>
                     {slotData.name}
                   </div>
                   {/* Stat Roll indicator (for crafted items only) */}

@@ -106,6 +106,147 @@ const WEAPON_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'venom_dagger', quantity: 1, tier: 1 },
     rarity: 'rare',
     unlocksAtLevel: 4
+  },
+  // Phase 2.4 - Ocean Biome Weapons
+  {
+    recipeId: 'craft_frost_blade',
+    name: 'Frost Blade',
+    description: 'Freezes enemies on contact',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'shark_tooth', quantity: 4 },
+      { lootTableId: 'frozen_scale', quantity: 6 },
+      { lootTableId: 'rare_steel', quantity: 3 }
+    ],
+    output: { lootTableId: 'frost_blade', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_shock_dagger',
+    name: 'Shock Dagger',
+    description: 'Electrifies on contact',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'electric_organ', quantity: 3 },
+      { lootTableId: 'eel_skin', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 2 }
+    ],
+    output: { lootTableId: 'shock_dagger', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_storm_blade',
+    name: 'Storm Blade',
+    description: 'Channels lightning strikes',
+    icon: '⚔️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'serpent_scale', quantity: 8 },
+      { lootTableId: 'lightning_core', quantity: 4 },
+      { lootTableId: 'electric_organ', quantity: 6 },
+      { lootTableId: 'rare_steel', quantity: 8 }
+    ],
+    output: { lootTableId: 'storm_blade', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 9
+  },
+  // Phase 2.4 - Volcano Biome Weapons
+  {
+    recipeId: 'craft_magma_hammer',
+    name: 'Magma Hammer',
+    description: 'Crushes with fiery force',
+    icon: '🔨',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'golem_core', quantity: 2 },
+      { lootTableId: 'obsidian_shard', quantity: 6 },
+      { lootTableId: 'lava_stone', quantity: 8 }
+    ],
+    output: { lootTableId: 'magma_hammer', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_hellfire_dagger',
+    name: 'Hellfire Dagger',
+    description: 'Burns with cursed flames',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'demon_horn_shard', quantity: 4 },
+      { lootTableId: 'imp_claw', quantity: 5 },
+      { lootTableId: 'rare_steel', quantity: 3 }
+    ],
+    output: { lootTableId: 'hellfire_dagger', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_dragonfire_sword',
+    name: 'Dragonfire Sword',
+    description: 'Blazing with dragonfire',
+    icon: '⚔️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'drake_scale', quantity: 10 },
+      { lootTableId: 'drake_claw', quantity: 6 },
+      { lootTableId: 'golem_core', quantity: 3 },
+      { lootTableId: 'rare_steel', quantity: 8 }
+    ],
+    output: { lootTableId: 'dragonfire_sword', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 10
+  },
+  // Phase 2.4 - Castle Biome Weapons
+  {
+    recipeId: 'craft_blood_sword',
+    name: 'Blood Sword',
+    description: 'Thirsts for blood',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'vampire_fang', quantity: 6 },
+      { lootTableId: 'blood_vial', quantity: 4 },
+      { lootTableId: 'dark_steel', quantity: 5 }
+    ],
+    output: { lootTableId: 'blood_sword', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 6
+  },
+  {
+    recipeId: 'craft_necrotic_sword',
+    name: 'Necrotic Sword',
+    description: 'Drains life on hit',
+    icon: '⚔️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'dark_steel', quantity: 6 },
+      { lootTableId: 'cursed_blade_fragment', quantity: 3 },
+      { lootTableId: 'bone_shard', quantity: 10 }
+    ],
+    output: { lootTableId: 'necrotic_sword', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 6
+  },
+  {
+    recipeId: 'craft_staff_of_souls',
+    name: 'Staff of Souls',
+    description: 'Commands the dead',
+    icon: '🪄',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'necrotic_essence', quantity: 8 },
+      { lootTableId: 'dark_crystal', quantity: 5 },
+      { lootTableId: 'living_wood', quantity: 6 },
+      { lootTableId: 'vampire_fang', quantity: 4 }
+    ],
+    output: { lootTableId: 'staff_of_souls', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 11
   }
 ];
 
@@ -186,6 +327,144 @@ const ARMOR_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'guardian_armor', quantity: 1, tier: 2 },
     rarity: 'epic',
     unlocksAtLevel: 7
+  },
+  // Phase 2.4 - Ocean Biome Armor
+  {
+    recipeId: 'craft_shell_armor',
+    name: 'Shell Armor',
+    description: 'Reinforced with crab shell',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'crab_shell', quantity: 8 },
+      { lootTableId: 'coral_fragment', quantity: 6 },
+      { lootTableId: 'common_leather', quantity: 4 }
+    ],
+    output: { lootTableId: 'shell_armor', quantity: 1, tier: 1 },
+    rarity: 'common',
+    unlocksAtLevel: 4
+  },
+  {
+    recipeId: 'craft_ice_armor',
+    name: 'Frost Guard Armor',
+    description: 'Chills attackers',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'frozen_scale', quantity: 10 },
+      { lootTableId: 'shark_fin', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 6 }
+    ],
+    output: { lootTableId: 'ice_armor', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_tidal_armor',
+    name: 'Tidal Scale Armor',
+    description: 'Flows like water',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'serpent_scale', quantity: 12 },
+      { lootTableId: 'frozen_scale', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 10 }
+    ],
+    output: { lootTableId: 'tidal_armor', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 9
+  },
+  // Phase 2.4 - Volcano Biome Armor
+  {
+    recipeId: 'craft_flame_cloak',
+    name: 'Flame Cloak',
+    description: 'Resists fire',
+    icon: '🧥',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'molten_scale', quantity: 8 },
+      { lootTableId: 'bat_wing', quantity: 6 },
+      { lootTableId: 'ash_cloth', quantity: 10 }
+    ],
+    output: { lootTableId: 'flame_cloak', quantity: 1, tier: 1 },
+    rarity: 'common',
+    unlocksAtLevel: 4
+  },
+  {
+    recipeId: 'craft_obsidian_armor',
+    name: 'Obsidian Plate',
+    description: 'Volcanic glass armor',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'golem_core', quantity: 3 },
+      { lootTableId: 'obsidian_shard', quantity: 12 },
+      { lootTableId: 'lava_stone', quantity: 10 }
+    ],
+    output: { lootTableId: 'obsidian_armor', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_drake_armor',
+    name: 'Drake Scale Armor',
+    description: 'Forged from drake scales',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'drake_scale', quantity: 15 },
+      { lootTableId: 'golem_core', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 10 }
+    ],
+    output: { lootTableId: 'drake_armor', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 10
+  },
+  // Phase 2.4 - Castle Biome Armor
+  {
+    recipeId: 'craft_bone_armor',
+    name: 'Bone Armor',
+    description: 'Assembled from skeletons',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'bone_shard', quantity: 12 },
+      { lootTableId: 'warrior_skull', quantity: 3 },
+      { lootTableId: 'common_leather', quantity: 6 }
+    ],
+    output: { lootTableId: 'bone_armor', quantity: 1, tier: 1 },
+    rarity: 'common',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_death_armor',
+    name: 'Death Knight Armor',
+    description: 'Forged for the undead',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'dark_steel', quantity: 10 },
+      { lootTableId: 'cursed_blade_fragment', quantity: 4 },
+      { lootTableId: 'bone_shard', quantity: 15 }
+    ],
+    output: { lootTableId: 'death_armor', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 6
+  },
+  {
+    recipeId: 'craft_necro_robes',
+    name: 'Necromancer\'s Robes',
+    description: 'Radiates dark power',
+    icon: '🧥',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'necrotic_essence', quantity: 10 },
+      { lootTableId: 'cursed_cloth', quantity: 12 },
+      { lootTableId: 'dark_crystal', quantity: 4 }
+    ],
+    output: { lootTableId: 'necro_robes', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 11
   }
 ];
 
@@ -281,6 +560,53 @@ const CONSUMABLE_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'elixir_immortality', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 15
+  },
+  // Phase 2.4 - Ocean Biome Consumables
+  {
+    recipeId: 'craft_sea_potion',
+    name: 'Sea Potion',
+    description: 'Restores 25 HP',
+    icon: '🧪',
+    category: 'consumable',
+    requiredMaterials: [
+      { lootTableId: 'jellyfish_tentacle', quantity: 3 },
+      { lootTableId: 'bioluminescent_gel', quantity: 2 },
+      { lootTableId: 'common_bone', quantity: 1 }
+    ],
+    output: { lootTableId: 'sea_potion', quantity: 3 },
+    rarity: 'common',
+    unlocksAtLevel: 4
+  },
+  // Phase 2.4 - Volcano Biome Consumables
+  {
+    recipeId: 'craft_lava_potion',
+    name: 'Lava Potion',
+    description: 'Fire resistance, restores 30 HP',
+    icon: '🧪',
+    category: 'consumable',
+    requiredMaterials: [
+      { lootTableId: 'lava_stone', quantity: 4 },
+      { lootTableId: 'molten_scale', quantity: 3 },
+      { lootTableId: 'pixie_dust', quantity: 2 }
+    ],
+    output: { lootTableId: 'lava_potion', quantity: 2 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  // Phase 2.4 - Castle Biome Consumables
+  {
+    recipeId: 'craft_spirit_vial',
+    name: 'Spirit Vial',
+    description: 'Contains spectral energy, restores 20 HP',
+    icon: '🧪',
+    category: 'consumable',
+    requiredMaterials: [
+      { lootTableId: 'ectoplasm_vial', quantity: 3 },
+      { lootTableId: 'cursed_cloth', quantity: 2 }
+    ],
+    output: { lootTableId: 'spirit_vial', quantity: 3 },
+    rarity: 'common',
+    unlocksAtLevel: 5
   }
 ];
 
@@ -378,6 +704,101 @@ const ARTIFACT_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'blood_chalice', quantity: 1, tier: 2 },
     rarity: 'epic',
     unlocksAtLevel: 9
+  },
+  // Phase 2.4 - Ocean Biome Artifacts
+  {
+    recipeId: 'craft_storm_amulet',
+    name: 'Storm Amulet',
+    description: 'Crackles with energy',
+    icon: '📿',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'electric_organ', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 3 },
+      { lootTableId: 'rare_steel', quantity: 2 }
+    ],
+    output: { lootTableId: 'storm_amulet', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_ocean_crown',
+    name: 'Crown of the Deep',
+    description: 'Commands the seas',
+    icon: '👑',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'serpent_scale', quantity: 10 },
+      { lootTableId: 'lightning_core', quantity: 3 },
+      { lootTableId: 'rare_gem', quantity: 5 },
+      { lootTableId: 'coral_fragment', quantity: 12 }
+    ],
+    output: { lootTableId: 'ocean_crown', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 9
+  },
+  // Phase 2.4 - Volcano Biome Artifacts
+  {
+    recipeId: 'craft_inferno_ring',
+    name: 'Ring of Inferno',
+    description: 'Enhances fire attacks',
+    icon: '💍',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'demon_horn_shard', quantity: 5 },
+      { lootTableId: 'rare_gem', quantity: 2 },
+      { lootTableId: 'fire_essence', quantity: 4 }
+    ],
+    output: { lootTableId: 'inferno_ring', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 5
+  },
+  {
+    recipeId: 'craft_flame_pendant',
+    name: 'Flame Pendant',
+    description: 'Burns eternally',
+    icon: '📿',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'drake_claw', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 4 },
+      { lootTableId: 'golem_core', quantity: 2 }
+    ],
+    output: { lootTableId: 'flame_pendant', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 10
+  },
+  // Phase 2.4 - Castle Biome Artifacts
+  {
+    recipeId: 'craft_shadow_ring',
+    name: 'Shadow Ring',
+    description: 'Hides in darkness',
+    icon: '💍',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'dark_steel', quantity: 4 },
+      { lootTableId: 'rare_gem', quantity: 2 },
+      { lootTableId: 'cursed_cloth', quantity: 6 }
+    ],
+    output: { lootTableId: 'shadow_ring', quantity: 1, tier: 1 },
+    rarity: 'rare',
+    unlocksAtLevel: 6
+  },
+  {
+    recipeId: 'craft_phylactery',
+    name: 'Phylactery',
+    description: 'Stores a soul',
+    icon: '⚱️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'necrotic_essence', quantity: 8 },
+      { lootTableId: 'dark_crystal', quantity: 6 },
+      { lootTableId: 'vampire_fang', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 5 }
+    ],
+    output: { lootTableId: 'phylactery', quantity: 1, tier: 2 },
+    rarity: 'epic',
+    unlocksAtLevel: 11
   }
 ];
 
@@ -433,6 +854,60 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'vorpal_blade', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 18
+  },
+  // Phase 2.4 - Ocean Craft-Only Weapons
+  {
+    recipeId: 'craft_tidal_reaver',
+    name: 'Tidal Reaver',
+    description: 'Legendary trident of the sea',
+    icon: '🔱',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'leviathan_scale', quantity: 15 },
+      { lootTableId: 'ocean_heart', quantity: 2 },
+      { lootTableId: 'serpent_scale', quantity: 20 },
+      { lootTableId: 'lightning_core', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 25 }
+    ],
+    output: { lootTableId: 'tidal_reaver', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 16
+  },
+  // Phase 2.4 - Volcano Craft-Only Weapons
+  {
+    recipeId: 'craft_infernal_claymore',
+    name: 'Infernal Claymore',
+    description: 'Forged in volcanic fury',
+    icon: '⚔️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'ancient_dragon_scale', quantity: 20 },
+      { lootTableId: 'dragon_soul', quantity: 2 },
+      { lootTableId: 'drake_scale', quantity: 25 },
+      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'rare_steel', quantity: 30 }
+    ],
+    output: { lootTableId: 'infernal_claymore', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 17
+  },
+  // Phase 2.4 - Castle Craft-Only Weapons
+  {
+    recipeId: 'craft_reaper_scythe',
+    name: 'Reaper\'s Scythe',
+    description: 'Harvests souls of the living',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'lich_crown', quantity: 1 },
+      { lootTableId: 'void_essence', quantity: 10 },
+      { lootTableId: 'necrotic_essence', quantity: 15 },
+      { lootTableId: 'dark_crystal', quantity: 8 },
+      { lootTableId: 'dark_steel', quantity: 25 }
+    ],
+    output: { lootTableId: 'reaper_scythe', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 16
   }
 ];
 
@@ -483,6 +958,60 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'titans_armor', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 20
+  },
+  // Phase 2.4 - Ocean Craft-Only Armor
+  {
+    recipeId: 'craft_abyssal_plate',
+    name: 'Abyssal Plate',
+    description: 'Forged in the deepest trenches',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'leviathan_scale', quantity: 25 },
+      { lootTableId: 'ocean_heart', quantity: 1 },
+      { lootTableId: 'serpent_scale', quantity: 30 },
+      { lootTableId: 'frozen_scale', quantity: 20 },
+      { lootTableId: 'rare_steel', quantity: 30 }
+    ],
+    output: { lootTableId: 'abyssal_plate', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 18
+  },
+  // Phase 2.4 - Volcano Craft-Only Armor
+  {
+    recipeId: 'craft_dragonlord_armor',
+    name: 'Dragonlord Armor',
+    description: 'Ultimate volcanic protection',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'ancient_dragon_scale', quantity: 30 },
+      { lootTableId: 'dragon_soul', quantity: 1 },
+      { lootTableId: 'drake_scale', quantity: 35 },
+      { lootTableId: 'golem_core', quantity: 12 },
+      { lootTableId: 'rare_steel', quantity: 35 }
+    ],
+    output: { lootTableId: 'dragonlord_armor', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 19
+  },
+  // Phase 2.4 - Castle Craft-Only Armor
+  {
+    recipeId: 'craft_dreadlord_plate',
+    name: 'Dreadlord Plate',
+    description: 'Eternal undead protection',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'lich_crown', quantity: 1 },
+      { lootTableId: 'void_essence', quantity: 8 },
+      { lootTableId: 'necrotic_essence', quantity: 20 },
+      { lootTableId: 'dark_steel', quantity: 35 },
+      { lootTableId: 'bone_shard', quantity: 40 }
+    ],
+    output: { lootTableId: 'dreadlord_plate', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 18
   }
 ];
 
@@ -584,6 +1113,60 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'infinity_amulet', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 25
+  },
+  // Phase 2.4 - Ocean Craft-Only Artifacts
+  {
+    recipeId: 'craft_maelstrom_pendant',
+    name: 'Maelstrom Pendant',
+    description: 'Harnesses the fury of the ocean',
+    icon: '🌊',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'ocean_heart', quantity: 3 },
+      { lootTableId: 'tidal_orb', quantity: 1 },
+      { lootTableId: 'lightning_core', quantity: 10 },
+      { lootTableId: 'serpent_scale', quantity: 25 },
+      { lootTableId: 'rare_gem', quantity: 15 }
+    ],
+    output: { lootTableId: 'maelstrom_pendant', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 18
+  },
+  // Phase 2.4 - Volcano Craft-Only Artifacts
+  {
+    recipeId: 'craft_volcanic_heart',
+    name: 'Volcanic Heart',
+    description: 'Pulses with molten power',
+    icon: '🔥',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'dragon_soul', quantity: 3 },
+      { lootTableId: 'dragon_amulet', quantity: 1 },
+      { lootTableId: 'golem_core', quantity: 15 },
+      { lootTableId: 'drake_claw', quantity: 20 },
+      { lootTableId: 'rare_gem', quantity: 18 }
+    ],
+    output: { lootTableId: 'volcanic_heart', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 19
+  },
+  // Phase 2.4 - Castle Craft-Only Artifacts
+  {
+    recipeId: 'craft_crown_of_eternity',
+    name: 'Crown of Eternity',
+    description: 'Rules over life and death',
+    icon: '👑',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'lich_crown', quantity: 2 },
+      { lootTableId: 'death_orb', quantity: 1 },
+      { lootTableId: 'void_essence', quantity: 15 },
+      { lootTableId: 'dark_crystal', quantity: 12 },
+      { lootTableId: 'rare_gem', quantity: 20 }
+    ],
+    output: { lootTableId: 'crown_of_eternity', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
   }
 ];
 
