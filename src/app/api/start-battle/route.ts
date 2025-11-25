@@ -102,19 +102,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Create monster for this biome/tier
-    const monsterTemplate = getRandomMonsterTemplateForBiome(biome);
+    const monsterTemplate = getRandomMonsterTemplateForBiome(biome, tier);
     const clicksRequired = getRandomClicksRequired(monsterTemplate.baseClicksRange, tier);
     const attackDamage = getScaledAttackDamage(monsterTemplate.baseAttackDamage, tier);
 
-    // Generate buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
-    const buffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false);
+    // Generate random buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
+    const randomBuffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false);
+
+    // Apply initial buffs from template (these stack with random buffs)
+    const initialBuffs = monsterTemplate.initialBuffs || [];
+    const processedInitialBuffs = initialBuffs.map(buff => {
+      if (buff.type === 'shield') {
+        // Calculate shield HP as percentage of monster HP
+        const shieldHP = Math.floor(clicksRequired * (buff.value / 100));
+        return { type: buff.type, value: shieldHP };
+      }
+      return buff;
+    });
+
+    // Combine initial buffs and random buffs (they stack!)
+    const buffs = [...processedInitialBuffs, ...randomBuffs];
 
     // Corruption system: 10% chance for any monster to spawn corrupted
-    const isCorrupted = Math.random() < 0.10;
+    const isCorrupted = Math.random() < 0.11;
 
     // Apply corruption multipliers if corrupted
     const finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
     const finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
+
+    // Filter special attacks based on current tier
+    const filteredSpecialAttacks = monsterTemplate.specialAttacks?.filter(
+      attack => !attack.minTier || tier >= attack.minTier
+    );
 
     const newMonster = {
       name: monsterTemplate.name,
@@ -128,8 +147,8 @@ export async function POST(request: NextRequest) {
       isBoss: monsterTemplate.isBoss, // Mark boss monsters (enables phase system)
       isCorrupted, // Mark corrupted monsters (drops empowered items)
       dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
-      buffs, // Add monster buffs (none for bosses except Tier 5)
-      specialAttacks: monsterTemplate.specialAttacks, // Boss special attacks
+      buffs, // Add monster buffs (initial + random, they stack!)
+      specialAttacks: filteredSpecialAttacks, // Boss special attacks (filtered by tier)
       bossPhases: monsterTemplate.bossPhases, // Boss phase system
       createdAt: new Date()
     };

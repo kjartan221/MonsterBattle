@@ -168,6 +168,7 @@ export interface SpecialAttack {
   damage?: number;         // Damage to player (if applicable)
   healing?: number;        // Healing to monster (if applicable)
   cooldown: number;        // Seconds between attacks
+  minTier?: number;        // Minimum tier for this attack to be available (1-5)
   visualEffect?: string;   // Color for screen flash (e.g., 'orange', 'blue', 'purple')
   message?: string;        // Message to display to player
   summons?: {              // Summon configuration (for summon type)

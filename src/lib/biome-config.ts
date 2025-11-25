@@ -38,7 +38,7 @@ export const BIOMES: Record<BiomeId, BiomeConfig> = {
     icon: '🌲',
     description: 'Nature, wildlife, basic enemies',
     theme: 'A lush green forest filled with wild creatures',
-    maxTier: 2, // Forest goes up to Tier 2 in Phase 1.3
+    maxTier: 5, // Forest goes up to Tier 5 in Phase 2.4
     monsters: ['Goblin', 'Zombie', 'Troll'] // 3 monsters for forest
   },
   desert: {
@@ -47,18 +47,18 @@ export const BIOMES: Record<BiomeId, BiomeConfig> = {
     icon: '🏜️',
     description: 'Fire, sand, heat',
     theme: 'A barren wasteland of burning sands',
-    maxTier: 1, // Desert only Tier 1 in Phase 1.3
+    maxTier: 5, // Desert goes up to Tier 5 in Phase 2.4
     monsters: ['Orc', 'Ghost'] // 2 monsters for desert
   },
-  // Future biomes (locked in Phase 1.3)
+  // Phase 2.4: New biomes implemented
   ocean: {
     id: 'ocean',
     name: 'Sunken Ocean',
     icon: '🌊',
     description: 'Water, sea creatures, ice',
     theme: 'The depths of a mysterious ocean',
-    maxTier: 0, // Not implemented yet
-    monsters: []
+    maxTier: 5, // All tiers available
+    monsters: ['Coral Crab', 'Giant Jellyfish', 'Frost Shark', 'Electric Eel', 'Sea Serpent', 'Leviathan']
   },
   volcano: {
     id: 'volcano',
@@ -66,8 +66,8 @@ export const BIOMES: Record<BiomeId, BiomeConfig> = {
     icon: '🌋',
     description: 'Lava, demons, destruction',
     theme: 'A hellish landscape of fire and ash',
-    maxTier: 0, // Not implemented yet
-    monsters: []
+    maxTier: 5, // All tiers available
+    monsters: ['Lava Salamander', 'Fire Bat', 'Magma Golem', 'Inferno Imp', 'Fire Drake', 'Ancient Dragon']
   },
   castle: {
     id: 'castle',
@@ -75,8 +75,8 @@ export const BIOMES: Record<BiomeId, BiomeConfig> = {
     icon: '👑',
     description: 'Undead, dark magic, final challenges',
     theme: 'A cursed fortress shrouded in darkness',
-    maxTier: 0, // Not implemented yet
-    monsters: []
+    maxTier: 5, // All tiers available
+    monsters: ['Skeleton Warrior', 'Cursed Spirit', 'Vampire Lord', 'Death Knight', 'Necromancer', 'Lich King']
   }
 };
 
@@ -84,9 +84,9 @@ export const BIOMES: Record<BiomeId, BiomeConfig> = {
 export const BIOME_UNLOCK_ORDER: BiomeId[] = [
   'forest',  // Tier 1 - starting biome
   'desert',  // Tier 1 - unlocked after Forest T1
-  'ocean',   // Future
-  'volcano', // Future
-  'castle'   // Future
+  'ocean',   // Tier 1 - unlocked after Desert T1
+  'volcano', // Tier 1 - unlocked after Ocean T1
+  'castle'   // Tier 1 - unlocked after Volcano T1
 ];
 
 /**
@@ -123,7 +123,7 @@ export function isBiomeTierAvailable(biome: BiomeId, tier: Tier): boolean {
 
 /**
  * Get all currently available biome/tier combinations
- * For Phase 1.3: Forest T1-T2, Desert T1
+ * For Phase 2.4: Forest T1-T5, Desert T1-T5, Ocean T1-T5, Volcano T1-T5, Castle T1-T5
  */
 export function getAvailableBiomeTiers(): Array<{ biome: BiomeId; tier: Tier }> {
   const available: Array<{ biome: BiomeId; tier: Tier }> = [];

@@ -56,16 +56,17 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     moveInterval: 1000 // Fast - flying, agile creature
   },
 
-  // Forest Tier 2 - Epic Boss
+  // Forest Tier 2+ - Epic Boss
   {
     name: 'Treant Guardian',
     imageUrl: '🌳',
     rarity: 'epic',
-    baseClicksRange: [45, 50], // Base 48 HP → 96 HP at T2 (2x multiplier)
-    baseAttackDamage: 4, // 4 HP/sec
+    baseClicksRange: [45, 50], // Base 48 HP → 96 HP at T2, 192 HP at T3, 720 HP at T5
+    baseAttackDamage: 4, // 4 HP/sec → 8 HP/sec at T2, 60 HP/sec at T5
     biomes: ['forest'],
     moveInterval: 2500, // Very slow - large boss, easier to hit
     isBoss: true,
+    minTier: 2, // Available from Tier 2 onwards
     bossPhases: [
       {
         phaseNumber: 2,

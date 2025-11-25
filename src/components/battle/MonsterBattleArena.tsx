@@ -144,7 +144,8 @@ export default function MonsterBattleArena({
   useEffect(() => {
     if (critTrigger === 0) return;
 
-    const badgeId = Date.now();
+    // Use timestamp + random number to ensure uniqueness even for simultaneous crits
+    const badgeId = Date.now() + Math.random();
     const newBadge: CritBadge = {
       id: badgeId,
       x: monsterPosition.x + (Math.random() - 0.5) * 60, // Spawn near monster

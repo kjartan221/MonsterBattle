@@ -1,10 +1,12 @@
 import { BiomeId, Tier, applyTierScaling, BIOMES } from './biome-config';
-import type { DebuffEffect, SpecialAttack, BossPhase } from './types';
+import type { DebuffEffect, SpecialAttack, BossPhase, MonsterBuff } from './types';
 import {
   FOREST_MONSTERS,
   DESERT_MONSTERS,
-  COMMON_MONSTERS,
-  FUTURE_MONSTERS
+  OCEAN_MONSTERS,
+  VOLCANO_MONSTERS,
+  CASTLE_MONSTERS,
+  COMMON_MONSTERS
 } from './monsters';
 
 // Monster Definition Template (BASE stats, before tier scaling)
@@ -18,10 +20,20 @@ export interface MonsterTemplate {
   moveInterval: number; // Time in milliseconds between position changes (700-3000ms)
   dotEffect?: DebuffEffect; // Optional DoT effect applied on attack
   isBoss?: boolean; // True for boss monsters (no buffs except Tier 5, enables phase system)
+  minTier?: number; // Minimum tier this monster can spawn at (default: 1)
+  maxTier?: number; // Maximum tier this monster can spawn at (default: 5)
+
+  // INITIAL BUFFS:
+  // - Monster-specific buffs that ALWAYS spawn with the monster
+  // - Example: Coral Crab's hard shell (30% HP shield)
+  // - These DO NOT block random buffs - they stack!
+  // - A Coral Crab can have its shell shield AND a random shield buff (2 shields total)
+  initialBuffs?: MonsterBuff[];
 
   // SPECIAL ATTACKS (Monster-level):
   // - Repeating attacks based on cooldown throughout the entire battle
   // - Example: Sand Djinn fireball every 5 seconds
+  // - Can be tier-locked using minTier field
   // - Handled by useSpecialAttacks hook (cooldown-based, always active)
   specialAttacks?: SpecialAttack[];
 
@@ -46,13 +58,17 @@ export interface MonsterTemplate {
 // Monster data is organized in separate files by biome:
 // - lib/monsters/forest.ts - Forest biome monsters
 // - lib/monsters/desert.ts - Desert biome monsters
+// - lib/monsters/ocean.ts - Ocean biome monsters (Phase 2.4)
+// - lib/monsters/volcano.ts - Volcano biome monsters (Phase 2.4)
+// - lib/monsters/castle.ts - Castle biome monsters (Phase 2.4)
 // - lib/monsters/common.ts - Common monsters (cross-biome scaling)
-// - lib/monsters/future.ts - Future monsters (not yet implemented)
 export const MONSTER_TEMPLATES: MonsterTemplate[] = [
   ...FOREST_MONSTERS,
   ...DESERT_MONSTERS,
-  ...COMMON_MONSTERS,
-  ...FUTURE_MONSTERS
+  ...OCEAN_MONSTERS,
+  ...VOLCANO_MONSTERS,
+  ...CASTLE_MONSTERS,
+  ...COMMON_MONSTERS
 ];
 
 // Rarity weights for random selection
@@ -66,21 +82,56 @@ export const RARITY_WEIGHTS = {
 /**
  * Get monsters available in a specific biome
  */
-export function getMonstersForBiome(biome: BiomeId): MonsterTemplate[] {
-  return MONSTER_TEMPLATES.filter(m => m.biomes.includes(biome));
+export function getMonstersForBiome(biome: BiomeId, tier?: Tier): MonsterTemplate[] {
+  return MONSTER_TEMPLATES.filter(m => {
+    // Must be in the biome
+    if (!m.biomes.includes(biome)) return false;
+
+    // If tier is specified, check minTier and maxTier
+    if (tier !== undefined) {
+      const minTier = m.minTier || 1; // Default to tier 1
+      const maxTier = m.maxTier || 5; // Default to tier 5
+      if (tier < minTier || tier > maxTier) return false;
+    }
+
+    return true;
+  });
 }
 
 /**
- * Get a random monster template for a specific biome, based on rarity weights
+ * Get a random monster template for a specific biome and tier, based on rarity weights
+ * Biome-specific monsters have 80% spawn chance, cross-biome common monsters have 20%
  */
-export function getRandomMonsterTemplateForBiome(biome: BiomeId): MonsterTemplate {
-  const availableMonsters = getMonstersForBiome(biome);
+export function getRandomMonsterTemplateForBiome(biome: BiomeId, tier: Tier): MonsterTemplate {
+  const availableMonsters = getMonstersForBiome(biome, tier);
 
   if (availableMonsters.length === 0) {
-    throw new Error(`No monsters available for biome: ${biome}`);
+    throw new Error(`No monsters available for biome: ${biome}, tier: ${tier}`);
   }
 
-  // Use rarity weights
+  // Separate biome-specific monsters from cross-biome common monsters
+  // Biome-specific = only appears in this biome (biomes array length === 1)
+  // Cross-biome = appears in multiple biomes (common.ts monsters)
+  const biomeSpecificMonsters = availableMonsters.filter(m => m.biomes.length === 1);
+  const crossBiomeMonsters = availableMonsters.filter(m => m.biomes.length > 1);
+
+  // Decide which pool to use: 80% biome-specific, 20% cross-biome
+  let monsterPool: MonsterTemplate[];
+  if (biomeSpecificMonsters.length > 0 && Math.random() < 0.80) {
+    monsterPool = biomeSpecificMonsters;
+  } else if (crossBiomeMonsters.length > 0) {
+    monsterPool = crossBiomeMonsters;
+  } else {
+    // Fallback to biome-specific if no cross-biome available
+    monsterPool = biomeSpecificMonsters;
+  }
+
+  // If somehow we have no monsters in the selected pool, use all available
+  if (monsterPool.length === 0) {
+    monsterPool = availableMonsters;
+  }
+
+  // Use rarity weights on the selected pool
   const totalWeight = Object.values(RARITY_WEIGHTS).reduce((a, b) => a + b, 0);
   let random = Math.random() * totalWeight;
 
@@ -93,12 +144,12 @@ export function getRandomMonsterTemplateForBiome(biome: BiomeId): MonsterTemplat
     }
   }
 
-  // Filter by selected rarity
-  const monstersOfRarity = availableMonsters.filter(m => m.rarity === selectedRarity);
+  // Filter by selected rarity within the chosen pool
+  const monstersOfRarity = monsterPool.filter(m => m.rarity === selectedRarity);
 
-  // If no monsters of that rarity, fall back to any available monster
+  // If no monsters of that rarity in the pool, fall back to any monster in the pool
   if (monstersOfRarity.length === 0) {
-    return availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
+    return monsterPool[Math.floor(Math.random() * monsterPool.length)];
   }
 
   return monstersOfRarity[Math.floor(Math.random() * monstersOfRarity.length)];

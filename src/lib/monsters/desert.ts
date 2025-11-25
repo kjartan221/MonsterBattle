@@ -55,23 +55,33 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     }
   },
 
-  // Desert Tier 1 - Epic Mini-Boss
+  // Desert Tier 2+ - Epic Mini-Boss
   {
     name: 'Sand Djinn',
     imageUrl: '🧞',
     rarity: 'epic',
-    baseClicksRange: [40, 45], // 120 HP + 40 HP shield = 160 total ÷ 3.5 damage
-    baseAttackDamage: 4, // 4 HP/sec, shield mechanic, sandstorm blind
+    baseClicksRange: [40, 45], // 120 HP base → 240 HP at T2, 720 HP at T5
+    baseAttackDamage: 4, // 4 HP/sec → 8 HP/sec at T2, 60 HP/sec at T5
     biomes: ['desert'],
     moveInterval: 2000, // Slow - mini-boss, easier to target
-    isBoss: true, // Mini-Boss: No buffs except Tier 5
+    isBoss: true, // Mini-Boss: No random buffs except Tier 5
+    minTier: 1, // Available from Tier 1 onwards
     specialAttacks: [
       {
         type: 'fireball',
         damage: 15, // Direct damage to player
         cooldown: 5, // 5 seconds between fireballs
+        minTier: 1, // Basic fireball from T1
         visualEffect: 'orange',
         message: '🔥 The Sand Djinn hurls a blazing fireball!'
+      },
+      {
+        type: 'meteor',
+        damage: 20, // Sandstorm explosion
+        cooldown: 10, // 10 seconds between sandstorms
+        minTier: 2, // Unlocked at T2+
+        visualEffect: 'orange',
+        message: '🌪️ The Sand Djinn conjures a devastating sandstorm!'
       }
     ]
   }
