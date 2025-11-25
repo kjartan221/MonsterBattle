@@ -103,12 +103,21 @@ export interface PlayerStats {
   // Statistics
   stats: {
     battlesWon: number;
-    battlesWonStreak: number; // Current win streak (resets on death)
+    battlesWonStreak: number; // Legacy global win streak (deprecated, use battlesWonStreaks)
     monstersDefeated: number;
     bossesDefeated: number;
     totalDamageDealt: number;
     itemsCollected: number;
     legendariesFound: number;
+
+    // Per-zone streak tracking (5 biomes × 5 tiers = 25 independent streaks)
+    battlesWonStreaks?: {
+      forest: number[];
+      desert: number[];
+      ocean: number[];
+      volcano: number[];
+      castle: number[];
+    };
   };
 
   createdAt: Date;

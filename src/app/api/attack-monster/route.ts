@@ -4,8 +4,9 @@ import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
-import { getMonsterRewards, checkLevelUp } from '@/utils/playerProgression';
+import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier } from '@/utils/playerProgression';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
+import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { ObjectId } from 'mongodb';
 
@@ -237,12 +238,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Reset win streak
+      // Reset win streak for this zone
+      const currentBiome = session.biome;
+      const currentTier = session.tier;
+      const streakBeforeReset = getStreakForZone(playerStats.stats.battlesWonStreaks, currentBiome, currentTier);
+
+      // Reset the specific zone's streak
+      const updatedStreaks = resetStreakForZone(playerStats.stats.battlesWonStreaks, currentBiome, currentTier);
+
       await playerStatsCollection.updateOne(
         { userId },
         {
           $set: {
-            'stats.battlesWonStreak': 0
+            'stats.battlesWonStreak': 0, // Keep legacy field synced
+            'stats.battlesWonStreaks': updatedStreaks
           }
         }
       );
@@ -254,7 +263,7 @@ export async function POST(request: NextRequest) {
         totalHealing,
         expectedHP,
         goldLost,
-        streakLost: playerStats.stats.battlesWonStreak
+        streakLost: streakBeforeReset
       }, { status: 200 }); // Return 200 so frontend handles it properly
     }
 
@@ -301,7 +310,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate random loot drops (5 items) with streak multiplier
-    const winStreak = playerStats.stats.battlesWonStreak || 0;
+    // Get current streak for this specific zone
+    const currentBiome = session.biome;
+    const currentTier = session.tier;
+    const winStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, currentBiome, currentTier);
     const streakMultiplier = (1.0 + Math.min(winStreak * 0.03, 0.30)).toFixed(2);
     const lootOptions = getRandomLoot(monster.name, 5, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
@@ -325,8 +337,6 @@ export async function POST(request: NextRequest) {
     );
 
     // BIOME UNLOCK PROGRESSION: Unlock next biome/tier after victory
-    const currentBiome = session.biome;
-    const currentTier = session.tier;
     const nextUnlock = getNextUnlock(currentBiome, currentTier);
 
     if (nextUnlock) {
@@ -348,8 +358,18 @@ export async function POST(request: NextRequest) {
     }
 
     // REWARD PLAYER: Award XP and coins based on monster rarity
-    const rewards = getMonsterRewards(monster.rarity);
-    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster)`);
+    const baseRewards = getMonsterRewards(monster.rarity);
+
+    // Apply streak multiplier to rewards (higher streaks = more rewards)
+    // Use the per-zone streak we already calculated above
+    const rewardMultiplier = getStreakRewardMultiplier(winStreak);
+
+    const rewards = {
+      xp: Math.ceil(baseRewards.xp * rewardMultiplier),
+      coins: Math.ceil(baseRewards.coins * rewardMultiplier)
+    };
+
+    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, ${rewardMultiplier}x streak bonus)`);
 
     // Calculate new XP and coins
     const newXP = playerStats.experience + rewards.xp;

@@ -5,6 +5,7 @@ export interface EquipmentStats {
   maxHpBonus?: number;       // For armor - increases max HP
   attackSpeed?: number;      // For accessories - increases attack speed %
   coinBonus?: number;        // For accessories - increases coin drops %
+  healBonus?: number;        // For artifacts/armor - increases HP healing % (after battle victories)
 }
 
 export interface LootItem {
@@ -51,6 +52,9 @@ const RARE_LOOT: LootItem[] = [
   { lootId: 'rare_amulet', name: 'Mystic Amulet', icon: '📿', description: 'Enhances magical abilities', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 10 } },
   { lootId: 'rare_key', name: 'Ancient Key', icon: '🗝️', description: 'Opens mysterious locks', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 15 } },
   { lootId: 'rare_map', name: 'Treasure Map', icon: '🗺️', description: 'Leads to hidden riches', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 20 } },
+  // Heal-focused items (sustainability builds)
+  { lootId: 'regeneration_pendant', name: 'Regeneration Pendant', icon: '💚', description: 'Enhances natural healing (+4% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 4 } },
+  { lootId: 'ring_of_vitality', name: 'Ring of Vitality', icon: '💍', description: 'Grants enhanced recovery (+5% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 5, maxHpBonus: 5 } },
 ];
 
 // Monster-Specific Loot (only drops from specific monsters)
@@ -149,6 +153,9 @@ const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
   { lootId: 'guardian_armor', name: 'Guardian\'s Bark Armor', icon: '🛡️', description: 'Nature\'s protection', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 20 } },
   { lootId: 'nature_blade', name: 'Nature\'s Wrath', icon: '🗡️', description: 'Living weapon', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 8 } },
   { lootId: 'forest_crown', name: 'Crown of the Forest', icon: '👑', description: 'Blessed by the ancients', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, coinBonus: 10 } },
+  // Heal-focused items (nature healing theme)
+  { lootId: 'medics_robe', name: 'Medic\'s Robe', icon: '🧥', description: 'Blessed by forest healers (+6% heal)', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 8, maxHpBonus: 12, healBonus: 6 } },
+  { lootId: 'amulet_of_life', name: 'Amulet of Life', icon: '🌿', description: 'Channels nature\'s vitality (+8% heal)', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, healBonus: 8 } },
   { lootId: 'spell_scroll_heal', name: 'Minor Heal Scroll', icon: '📜', description: 'Unlocks Minor Heal spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Minor Heal', cooldown: 15, healing: 20 } },
 ];
 
@@ -170,6 +177,9 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
   { lootId: 'natures_judgment', name: 'Nature\'s Judgment', icon: '🪄', description: 'Ancient staff of the forest', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 9, critChance: 18, attackSpeed: 10 } },
   { lootId: 'ancient_bark_plate', name: 'Ancient Bark Plate', icon: '🛡️', description: 'Millennium-old protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 24, maxHpBonus: 55 } },
   { lootId: 'heart_of_forest', name: 'Heart of the Forest', icon: '💚', description: 'Essence of all nature', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 45, critChance: 14, coinBonus: 65 } },
+  // Legendary heal-focused items (ultimate sustainability)
+  { lootId: 'heart_crystal', name: 'Heart Crystal', icon: '💎', description: 'Ancient crystal pulsing with life (+12% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, healBonus: 12 } },
+  { lootId: 'lifebringers_crown', name: 'Lifebringer\'s Crown', icon: '👑', description: 'Crown of the eternal healer (+15% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, healBonus: 15, hpReduction: 10 } },
   { lootId: 'spell_scroll_earthquake', name: 'Earthquake Scroll', icon: '📜', description: 'Unlocks Earthquake spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'earthquake', spellName: 'Earthquake', cooldown: 45, damage: 140, effect: 'Massive earth damage' } },
 ];
 
@@ -448,10 +458,12 @@ const CRAFT_ONLY_WEAPONS: LootItem[] = [
 const CRAFT_ONLY_ARMOR: LootItem[] = [
   { lootId: 'reinforced_steel_plate', name: 'Reinforced Steel Plate', icon: '🛡️', description: 'Heavy armor with exceptional protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 20 } },
   { lootId: 'enchanted_silk_robes', name: 'Enchanted Silk Robes', icon: '🧥', description: 'Light armor imbued with protective magic', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 35, attackSpeed: 10 } },
+  { lootId: 'healers_plate', name: 'Healer\'s Plate', icon: '🛡️', description: 'Armor infused with restoration magic (+10% heal)', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 14, maxHpBonus: 30, healBonus: 10 } },
   { lootId: 'titans_armor', name: 'Titan\'s Armor', icon: '🛡️', description: 'Armor of the ancient giants', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 30, maxHpBonus: 100 } },
   { lootId: 'abyssal_plate', name: 'Abyssal Plate', icon: '🛡️', description: 'Forged in the deepest trenches', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 28, maxHpBonus: 90, attackSpeed: -5 } },
   { lootId: 'dragonlord_armor', name: 'Dragonlord Armor', icon: '🛡️', description: 'Ultimate volcanic protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 32, maxHpBonus: 110, critChance: 5 } },
   { lootId: 'dreadlord_plate', name: 'Dreadlord Plate', icon: '🛡️', description: 'Eternal undead protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 30, maxHpBonus: 95, damageBonus: 5 } },
+  { lootId: 'sacred_guardian_armor', name: 'Sacred Guardian Armor', icon: '🛡️', description: 'Divine protection with regenerative power (+12% heal)', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 26, maxHpBonus: 80, healBonus: 12 } },
 ];
 
 const CRAFT_ONLY_CONSUMABLES: LootItem[] = [

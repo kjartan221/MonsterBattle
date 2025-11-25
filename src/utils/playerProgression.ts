@@ -115,3 +115,85 @@ export function getMaxHealthForLevel(level: number): number {
 export function getBaseCritChance(): number {
   return 5;
 }
+
+/**
+ * Calculate streak reward multiplier for coins/XP
+ * Higher streaks = more rewards (encourages risk-taking)
+ *
+ * Streak tiers:
+ * - 0-2: 1.0x (base)
+ * - 3-9: 1.1x (+10%)
+ * - 10-24: 1.2x (+20%)
+ * - 25-49: 1.3x (+30%)
+ * - 50-99: 1.4x (+40%)
+ * - 100+: 1.5x (+50%)
+ */
+export function getStreakRewardMultiplier(streak: number): number {
+  if (streak <= 2) return 1.0;
+  if (streak <= 9) return 1.1;
+  if (streak <= 24) return 1.2;
+  if (streak <= 49) return 1.3;
+  if (streak <= 99) return 1.4;
+  return 1.5; // 100+ streak
+}
+
+/**
+ * Calculate streak rare drop chance bonus
+ * Higher streaks = slightly better loot chances
+ *
+ * Returns percentage points to ADD to base drop rates
+ * - 0-2: +0%
+ * - 3-9: +2%
+ * - 10-24: +4%
+ * - 25-49: +6%
+ * - 50-99: +8%
+ * - 100+: +10%
+ */
+export function getStreakRareDropBonus(streak: number): number {
+  if (streak <= 2) return 0;
+  if (streak <= 9) return 2;
+  if (streak <= 24) return 4;
+  if (streak <= 49) return 6;
+  if (streak <= 99) return 8;
+  return 10; // 100+ streak
+}
+
+/**
+ * Calculate corrupted monster spawn rate based on streak
+ * Higher streaks = more corrupted spawns = more challenge + more empowered loot
+ *
+ * Base corruption rate: 10%
+ * Returns final corruption rate (0.0 to 1.0)
+ * - 0-2: 10% (1.0x multiplier)
+ * - 3-9: 12% (1.2x multiplier)
+ * - 10-24: 15% (1.5x multiplier)
+ * - 25-49: 20% (2.0x multiplier)
+ * - 50-99: 25% (2.5x multiplier)
+ * - 100+: 30% (3.0x multiplier)
+ *
+ * Why streak scaling?
+ * - Higher challenge for skilled players (corrupted = +50% HP, +25% damage)
+ * - Higher reward for skilled players (corrupted drops empowered loot: +20% stats)
+ * - Reduces grind for best items (empowered + crafted = BiS items)
+ * - Makes streak progression more meaningful
+ */
+export function getCorruptionRateForStreak(streak: number): number {
+  const baseRate = 0.10; // 10% base corruption rate
+
+  let multiplier: number;
+  if (streak <= 2) {
+    multiplier = 1.0; // 10%
+  } else if (streak <= 9) {
+    multiplier = 1.2; // 12%
+  } else if (streak <= 24) {
+    multiplier = 1.5; // 15%
+  } else if (streak <= 49) {
+    multiplier = 2.0; // 20%
+  } else if (streak <= 99) {
+    multiplier = 2.5; // 25%
+  } else {
+    multiplier = 3.0; // 30% (streak 100+)
+  }
+
+  return baseRate * multiplier;
+}

@@ -42,7 +42,8 @@ export const ITEM_TIER_MULTIPLIERS: Record<Tier, number> = {
  */
 export function applyItemTierScaling(baseStat: number, tier: Tier): number {
   const multiplier = ITEM_TIER_MULTIPLIERS[tier];
-  return Math.round(baseStat * multiplier);
+  // Always round UP to avoid float numbers
+  return Math.ceil(baseStat * multiplier);
 }
 
 /**
@@ -70,7 +71,8 @@ export function scaleItemStats<T extends Record<string, number>>(
 
   for (const [key, value] of Object.entries(baseStats)) {
     if (typeof value === 'number' && !isNaN(value)) {
-      const scaledValue = Math.round(value * multiplier);
+      // Always round UP to avoid float numbers (consistent with empowered stats)
+      const scaledValue = Math.ceil(value * multiplier);
       // Defensive check - ensure result is not NaN
       scaled[key as keyof T] = (isNaN(scaledValue) ? 0 : scaledValue) as T[keyof T];
     } else {

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import toast from 'react-hot-toast';
+import type { BiomeId, Tier } from '@/lib/biome-config';
+import { getStreakForZone, incrementStreakForZone, resetStreakForZone, initializeStreaks, migrateLegacyStreak } from '@/utils/streakHelpers';
 
 export interface PlayerStats {
   _id?: string;
@@ -32,7 +34,15 @@ export interface PlayerStats {
   // Statistics
   stats: {
     battlesWon: number;
-    battlesWonStreak: number; // Current win streak (resets on death)
+    battlesWonStreak: number; // Legacy: Global win streak (deprecated, kept for migration)
+    battlesWonStreaks?: {
+      // Per-zone streaks: biome → array of 5 tiers (0-indexed: [T1, T2, T3, T4, T5])
+      forest: number[];
+      desert: number[];
+      ocean: number[];
+      volcano: number[];
+      castle: number[];
+    };
     monstersDefeated: number;
     bossesDefeated: number;
     totalDamageDealt: number;
@@ -55,8 +65,9 @@ interface PlayerContextType {
   healHealth: (amount: number) => Promise<void>;
   addCoins: (amount: number) => Promise<void>;
   addExperience: (amount: number) => Promise<void>;
-  incrementStreak: () => Promise<void>;
-  resetStreak: () => Promise<void>;
+  incrementStreak: (biome: BiomeId, tier: Tier) => Promise<void>;
+  resetStreak: (biome: BiomeId, tier: Tier) => Promise<void>;
+  getCurrentStreak: (biome: BiomeId, tier: Tier) => number;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -212,10 +223,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const incrementStreak = async () => {
+  /**
+   * Get current streak for a specific biome/tier
+   */
+  const getCurrentStreak = (biome: BiomeId, tier: Tier): number => {
+    if (!playerStats) return 0;
+
+    // Migrate legacy streak if needed
+    if (!playerStats.stats.battlesWonStreaks) {
+      const migrated = migrateLegacyStreak(playerStats, biome, tier);
+      return getStreakForZone(migrated, biome, tier);
+    }
+
+    return getStreakForZone(playerStats.stats.battlesWonStreaks, biome, tier);
+  };
+
+  const incrementStreak = async (biome: BiomeId, tier: Tier) => {
     if (!playerStats) return;
 
-    const newStreak = playerStats.stats.battlesWonStreak + 1;
+    // Initialize or migrate streaks if needed
+    let streaks = playerStats.stats.battlesWonStreaks;
+    if (!streaks) {
+      streaks = migrateLegacyStreak(playerStats, biome, tier);
+    }
+
+    // Increment the specific zone's streak
+    const updatedStreaks = incrementStreakForZone(streaks, biome, tier);
 
     // Update local state immediately
     setPlayerStats({
@@ -223,7 +256,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stats: {
         ...playerStats.stats,
         battlesWon: playerStats.stats.battlesWon + 1,
-        battlesWonStreak: newStreak,
+        battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier), // Keep legacy field synced
+        battlesWonStreaks: updatedStreaks,
       },
     });
 
@@ -232,20 +266,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stats: {
         ...playerStats.stats,
         battlesWon: playerStats.stats.battlesWon + 1,
-        battlesWonStreak: newStreak,
+        battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier),
+        battlesWonStreaks: updatedStreaks,
       },
     });
   };
 
-  const resetStreak = async () => {
+  const resetStreak = async (biome: BiomeId, tier: Tier) => {
     if (!playerStats) return;
+
+    // Initialize or migrate streaks if needed
+    let streaks = playerStats.stats.battlesWonStreaks;
+    if (!streaks) {
+      streaks = initializeStreaks();
+    }
+
+    // Reset the specific zone's streak
+    const updatedStreaks = resetStreakForZone(streaks, biome, tier);
 
     // Update local state immediately
     setPlayerStats({
       ...playerStats,
       stats: {
         ...playerStats.stats,
-        battlesWonStreak: 0,
+        battlesWonStreak: 0, // Keep legacy field synced
+        battlesWonStreaks: updatedStreaks,
       },
     });
 
@@ -254,6 +299,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stats: {
         ...playerStats.stats,
         battlesWonStreak: 0,
+        battlesWonStreaks: updatedStreaks,
       },
     });
   };
@@ -271,6 +317,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     addExperience,
     incrementStreak,
     resetStreak,
+    getCurrentStreak,
   };
 
   return (

@@ -37,7 +37,7 @@ interface MonsterBattleSectionProps {
 }
 
 export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs }: MonsterBattleSectionProps) {
-  const { playerStats, resetHealth, incrementStreak, resetStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
+  const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
@@ -309,7 +309,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     // Calculate gold loss (10% of current gold, rounded)
     const goldLost = Math.floor(playerStats.coins * 0.10);
-    const streakLost = playerStats.stats.battlesWonStreak;
+    const streakLost = selectedBiome && selectedTier ? getCurrentStreak(selectedBiome, selectedTier) : 0;
 
     // Deduct gold and reset streak
     await updatePlayerStats({
@@ -320,8 +320,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     });
 
-    // Reset streak
-    await resetStreak();
+    // Reset streak for current zone
+    if (selectedBiome && selectedTier) {
+      await resetStreak(selectedBiome, selectedTier);
+    }
 
     // Mark session as defeated (no loot)
     try {
@@ -487,7 +489,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       // Handle victory
       if (data.success && data.lootOptions) {
-        await incrementStreak();
+        // Increment streak for current zone
+        if (selectedBiome && selectedTier) {
+          await incrementStreak(selectedBiome, selectedTier);
+        }
 
         // Convert loot IDs to full items if needed
         const lootItems = Array.isArray(data.lootOptions) && typeof data.lootOptions[0] === 'string'
@@ -505,7 +510,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           toast.success(
             `🎊 LEVEL UP! ${data.levelUp.previousLevel} → ${data.levelUp.newLevel}\n` +
             `+${data.levelUp.statIncreases.maxHealth} Max HP, ` +
-            `+${data.levelUp.statIncreases.baseDamage} Base Damage`,
+            `+${data.levelUp.statIncreases.baseDamage} Base Damage\n` +
+            `HP Fully Restored!`,
             { duration: 5000 }
           );
         }
@@ -624,7 +630,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     // Treat escape as battle loss (same as player death)
     const goldLost = Math.floor((playerStats?.coins || 0) * 0.10);
-    const streakLost = playerStats?.stats?.battlesWonStreak || 0;
+    const streakLost = selectedBiome && selectedTier ? getCurrentStreak(selectedBiome, selectedTier) : 0;
 
     setDefeatData({ goldLost, streakLost });
 
@@ -632,7 +638,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (goldLost > 0) {
       await updatePlayerStats({ coins: (playerStats?.coins || 0) - goldLost });
     }
-    await resetStreak();
+    if (selectedBiome && selectedTier) {
+      await resetStreak(selectedBiome, selectedTier);
+    }
 
     // Mark session as defeated
     try {
@@ -707,7 +715,74 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setShieldHP(0);
     setEscapeTimer(null);
 
-    await resetHealth(equipmentStats.maxHpBonus);
+    // Determine which zone we're starting the battle in
+    // Use override if provided (from BiomeMapWidget zone change), otherwise use current selection
+    const battleBiome = overrideBiome || selectedBiome;
+    const battleTier = overrideTier || selectedTier;
+
+    // Update BiomeContext if override was provided (zone was changed)
+    if (overrideBiome && overrideTier) {
+      setBiomeTier(overrideBiome, overrideTier);
+    }
+
+    // Streak-based healing after victory (progressively more challenging):
+    // - Streak 0: 100% heal (first battle or after death)
+    // - Streak 1-2: 80% heal
+    // - Streak 3-5: 70% heal
+    // - Streak 6-9: 60% heal
+    // - Streak 10-24: 50% heal
+    // - Streak 25-49: 40% heal
+    // - Streak 50-99: 30% heal
+    // - Streak 100+: 20% heal (legendary difficulty!)
+    //
+    // FUTURE FEATURE: Random Healer NPC
+    // - Small chance (5-10%) to spawn between battles at high streaks (10+)
+    // - Player can spend gold to buy healing (25 gold per 10% HP?)
+    // - Creates strategic choice: spend gold for safety or risk it?
+    const currentStreak = battleBiome && battleTier ? getCurrentStreak(battleBiome, battleTier) : 0;
+    let healPercent = 1.0; // 100%
+
+    if (currentStreak === 0) {
+      healPercent = 1.0; // 100%
+    } else if (currentStreak <= 2) {
+      healPercent = 0.8; // 80%
+    } else if (currentStreak <= 5) {
+      healPercent = 0.7; // 70%
+    } else if (currentStreak <= 9) {
+      healPercent = 0.6; // 60%
+    } else if (currentStreak <= 24) {
+      healPercent = 0.5; // 50%
+    } else if (currentStreak <= 49) {
+      healPercent = 0.4; // 40%
+    } else if (currentStreak <= 99) {
+      healPercent = 0.3; // 30%
+    } else {
+      healPercent = 0.2; // 20% - hardcore mode!
+    }
+
+    // Calculate total max HP with equipment bonuses
+    const baseMaxHP = playerStats?.maxHealth || 100;
+    const totalMaxHP = baseMaxHP + equipmentStats.maxHpBonus;
+    const currentHP = playerStats?.currentHealth || totalMaxHP;
+
+    // Apply equipment heal bonus (adds percentage points to base heal percent)
+    // Example: Streak 50 (40% base) + 24% equipment = 64% total heal
+    const equipmentHealBonus = equipmentStats.healBonus / 100; // Convert percentage to decimal
+    const finalHealPercent = healPercent + equipmentHealBonus;
+
+    // Calculate heal amount (percentage of total max HP)
+    const healAmount = Math.ceil(totalMaxHP * finalHealPercent);
+    const newHP = Math.min(totalMaxHP, currentHP + healAmount);
+
+    // Update HP directly (partial heal based on streak + equipment)
+    await updatePlayerStats({ currentHealth: newHP });
+
+    // Show healing notification with equipment bonus if applicable
+    const basePercentLabel = `${Math.round(healPercent * 100)}%`;
+    const equipmentBonusLabel = equipmentStats.healBonus > 0 ? ` +${equipmentStats.healBonus}%` : '';
+    const totalPercentLabel = equipmentStats.healBonus > 0 ? ` = ${Math.round(finalHealPercent * 100)}%` : '';
+    toast.success(`Healed ${healAmount} HP (${basePercentLabel}${equipmentBonusLabel}${totalPercentLabel}) - Streak: ${currentStreak}`, { duration: 3000 });
+
     await fetchPlayerStats();
     await startBattle(overrideBiome, overrideTier, true);
   };

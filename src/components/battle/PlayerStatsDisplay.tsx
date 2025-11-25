@@ -2,6 +2,7 @@
 
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
+import { useBiome } from '@/contexts/BiomeContext';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 import { getXPForLevel, getBaseCritChance } from '@/utils/playerProgression';
 import DebuffIndicators from '@/components/battle/DebuffIndicators';
@@ -12,8 +13,9 @@ interface PlayerStatsDisplayProps {
 }
 
 export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDisplayProps) {
-  const { playerStats } = usePlayer();
+  const { playerStats, getCurrentStreak } = usePlayer();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
+  const { selectedBiome, selectedTier } = useBiome();
 
   if (!playerStats) return null;
 
@@ -32,7 +34,8 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
   const maxHealth = baseMaxHealth + (Number(equipmentStats.maxHpBonus) || 0);
   const healthPercentage = maxHealth > 0 ? (currentHealth / maxHealth) * 100 : 0;
 
-  const streak = Number(playerStats.stats?.battlesWonStreak) || 0;
+  // Get per-zone streak (uses current biome/tier)
+  const streak = selectedBiome && selectedTier ? getCurrentStreak(selectedBiome, selectedTier) : 0;
   const streakColor = streak >= 10 ? 'text-yellow-400' : streak >= 5 ? 'text-orange-400' : 'text-gray-300';
   const streakIcon = streak >= 10 ? '🔥' : streak >= 5 ? '⚡' : '🎯';
 

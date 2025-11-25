@@ -5,6 +5,8 @@ import { verifyJWT } from '@/utils/jwt';
 import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
 import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable } from '@/lib/biome-config';
 import { generateMonsterBuffs } from '@/utils/monsterBuffs';
+import { getCorruptionRateForStreak } from '@/utils/playerProgression';
+import { getStreakForZone } from '@/utils/streakHelpers';
 import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
@@ -123,8 +125,13 @@ export async function POST(request: NextRequest) {
     // Combine initial buffs and random buffs (they stack!)
     const buffs = [...processedInitialBuffs, ...randomBuffs];
 
-    // Corruption system: 10% chance for any monster to spawn corrupted
-    const isCorrupted = Math.random() < 0.11;
+    // Corruption system: Spawn rate scales with streak (10% base → 30% at streak 100+)
+    // Get current streak for this zone
+    const currentStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, biome, tier);
+
+    // Calculate corruption rate based on streak (higher streak = more corrupted spawns)
+    const corruptionRate = getCorruptionRateForStreak(currentStreak);
+    const isCorrupted = Math.random() < corruptionRate;
 
     // Apply corruption multipliers if corrupted
     const finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
