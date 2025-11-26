@@ -44,9 +44,9 @@ const COMMON_LOOT: LootItem[] = [
   { lootId: 'common_cloth', name: 'Torn Cloth', icon: '🧶', description: 'Shabby fabric material', rarity: 'common', type: 'material' },
   { lootId: 'common_wood', name: 'Wooden Plank', icon: '🪵', description: 'Rough lumber for crafting', rarity: 'common', type: 'material' },
   { lootId: 'common_stone', name: 'Stone Fragment', icon: '🪨', description: 'A piece of rock', rarity: 'common', type: 'material' },
-  // Phase 2.6: Basic spell scrolls (common tier)
-  { lootId: 'spell_scroll_spark', name: 'Spark Scroll', icon: '⚡', description: 'Unlocks Spark spell - Basic magic missile', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'spark', spellName: 'Spark', cooldown: 10, damage: 30, effect: 'Lightning damage' } },
-  { lootId: 'spell_scroll_light_heal', name: 'Light Heal Scroll', icon: '✨', description: 'Unlocks Light Heal spell - Basic restoration', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'light_heal', spellName: 'Light Heal', cooldown: 12, healing: 15 } },
+  // Phase 2.6: Basic spell scrolls (common tier) - Nerfed to balance with legendary spells
+  { lootId: 'spell_scroll_spark', name: 'Spark Scroll', icon: '⚡', description: 'Unlocks Spark spell - Basic magic missile', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'spark', spellName: 'Spark', cooldown: 10, damage: 15, effect: 'Lightning damage' } },
+  { lootId: 'spell_scroll_light_heal', name: 'Light Heal Scroll', icon: '✨', description: 'Unlocks Light Heal spell - Basic restoration', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'light_heal', spellName: 'Light Heal', cooldown: 12, healing: 8 } },
 ];
 
 // Rare Loot (shared across all monsters, but less common than COMMON_LOOT)
@@ -60,9 +60,9 @@ const RARE_LOOT: LootItem[] = [
   // Heal-focused items (sustainability builds)
   { lootId: 'regeneration_pendant', name: 'Regeneration Pendant', icon: '💚', description: 'Enhances natural healing (+4% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 4 } },
   { lootId: 'ring_of_vitality', name: 'Ring of Vitality', icon: '💍', description: 'Grants enhanced recovery (+5% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 5, maxHpBonus: 5 } },
-  // Phase 2.6: Intermediate spell scrolls (rare tier)
-  { lootId: 'spell_scroll_ice_shard', name: 'Ice Shard Scroll', icon: '❄️', description: 'Unlocks Ice Shard spell - Freezing projectile', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'ice_shard', spellName: 'Ice Shard', cooldown: 20, damage: 50, effect: 'Ice damage' } },
-  { lootId: 'spell_scroll_greater_heal', name: 'Greater Heal Scroll', icon: '💫', description: 'Unlocks Greater Heal spell - Strong restoration', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_heal', spellName: 'Greater Heal', cooldown: 25, healing: 40 } },
+  // Phase 2.6: Intermediate spell scrolls (rare tier) - Nerfed to balance with legendary spells
+  { lootId: 'spell_scroll_ice_shard', name: 'Ice Shard Scroll', icon: '❄️', description: 'Unlocks Ice Shard spell - Freezing projectile', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'ice_shard', spellName: 'Ice Shard', cooldown: 20, damage: 25, effect: 'Ice damage' } },
+  { lootId: 'spell_scroll_greater_heal', name: 'Greater Heal Scroll', icon: '💫', description: 'Unlocks Greater Heal spell - Strong restoration', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_heal', spellName: 'Greater Heal', cooldown: 25, healing: 15 } },
 ];
 
 // Monster-Specific Loot (only drops from specific monsters)
@@ -630,15 +630,52 @@ export function getLootItemsByIds(lootIds: string[]): LootItem[] {
  * @param count - Number of items to generate
  * @param winStreak - Current win streak (increases rare drop chance)
  */
+/**
+ * Weighted random selection from loot pool
+ * Spell scrolls have 50% weight compared to other items (makes them 2x rarer)
+ * @param pool - Available items to select from
+ * @param count - Number of items to select
+ * @param excludeLootIds - LootIds to exclude from selection (prevents duplicates)
+ */
+function selectWeightedLoot(pool: LootItem[], count: number, excludeLootIds: Set<string> = new Set()): LootItem[] {
+  const results: LootItem[] = [];
+  // Filter out already-selected items
+  const poolCopy = pool.filter(item => !excludeLootIds.has(item.lootId));
+
+  for (let i = 0; i < count && poolCopy.length > 0; i++) {
+    // Calculate weights: spell scrolls get 0.5x weight, everything else gets 1.0x weight
+    const weights = poolCopy.map(item => item.type === 'spell_scroll' ? 0.5 : 1.0);
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+    // Weighted random selection
+    let random = Math.random() * totalWeight;
+    let selectedIndex = 0;
+
+    for (let j = 0; j < weights.length; j++) {
+      random -= weights[j];
+      if (random <= 0) {
+        selectedIndex = j;
+        break;
+      }
+    }
+
+    results.push(poolCopy[selectedIndex]);
+    excludeLootIds.add(poolCopy[selectedIndex].lootId); // Track selected item
+    poolCopy.splice(selectedIndex, 1); // Remove selected item to avoid duplicates
+  }
+
+  return results;
+}
+
 export function getRandomLoot(monsterName: string, count: number = 3, winStreak: number = 0): LootItem[] {
   const monsterLoot = MONSTER_SPECIFIC_LOOT[monsterName] || [];
   const results: LootItem[] = [];
+  const selectedLootIds = new Set<string>(); // Track selected items to prevent duplicates
 
   if (monsterLoot.length === 0) {
-    // Fallback: if no monster-specific loot, just return common/rare loot
+    // Fallback: if no monster-specific loot, use weighted selection from common/rare loot
     const fallbackPool = [...COMMON_LOOT, ...RARE_LOOT];
-    const shuffled = [...fallbackPool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    return selectWeightedLoot(fallbackPool, count, selectedLootIds);
   }
 
   // Step 1: Determine how many monster-specific items to include (1-3 possible)
@@ -660,21 +697,13 @@ export function getRandomLoot(monsterName: string, count: number = 3, winStreak:
     monsterItemCount = Math.min(3, count); // Can get all 3 from monster if lucky!
   }
 
-  // Step 2: Pick random monster-specific items
-  const shuffledMonsterLoot = [...monsterLoot].sort(() => Math.random() - 0.5);
-  const selectedMonsterLoot = shuffledMonsterLoot.slice(0, Math.min(monsterItemCount, monsterLoot.length));
+  // Step 2: Pick random monster-specific items using weighted selection
+  const selectedMonsterLoot = selectWeightedLoot(monsterLoot, Math.min(monsterItemCount, monsterLoot.length), selectedLootIds);
   results.push(...selectedMonsterLoot);
 
-  // Step 3: Fill remaining slots with common or rare loot
+  // Step 3: Fill remaining slots with common or rare loot using weighted selection
   const remainingSlots = count - results.length;
   if (remainingSlots > 0) {
-    // Shuffle both pools once
-    const shuffledCommon = [...COMMON_LOOT].sort(() => Math.random() - 0.5);
-    const shuffledRare = [...RARE_LOOT].sort(() => Math.random() - 0.5);
-
-    let commonIndex = 0;
-    let rareIndex = 0;
-
     // Calculate drop chance multiplier based on win streak
     // Multiplicative bonus: +3% per win streak (max +30% at 10 streak)
     // Example: 30% base rare → 39% at 10 streak (1.3x multiplier)
@@ -686,20 +715,24 @@ export function getRandomLoot(monsterName: string, count: number = 3, winStreak:
     for (let i = 0; i < remainingSlots; i++) {
       const isCommon = Math.random() < commonChance;
 
-      if (isCommon && commonIndex < shuffledCommon.length) {
-        results.push(shuffledCommon[commonIndex]);
-        commonIndex++;
-      } else if (!isCommon && rareIndex < shuffledRare.length) {
-        results.push(shuffledRare[rareIndex]);
-        rareIndex++;
-      } else if (commonIndex < shuffledCommon.length) {
-        // Fallback to common if rare pool is exhausted
-        results.push(shuffledCommon[commonIndex]);
-        commonIndex++;
-      } else if (rareIndex < shuffledRare.length) {
-        // Fallback to rare if common pool is exhausted
-        results.push(shuffledRare[rareIndex]);
-        rareIndex++;
+      if (isCommon && COMMON_LOOT.length > 0) {
+        // Use weighted selection for common loot (spell scrolls are rarer)
+        const selected = selectWeightedLoot(COMMON_LOOT, 1, selectedLootIds);
+        if (selected.length > 0) {
+          results.push(selected[0]);
+        }
+      } else if (!isCommon && RARE_LOOT.length > 0) {
+        // Use weighted selection for rare loot (spell scrolls are rarer)
+        const selected = selectWeightedLoot(RARE_LOOT, 1, selectedLootIds);
+        if (selected.length > 0) {
+          results.push(selected[0]);
+        }
+      } else if (COMMON_LOOT.length > 0) {
+        // Fallback to common if rare pool was chosen but empty
+        const selected = selectWeightedLoot(COMMON_LOOT, 1, selectedLootIds);
+        if (selected.length > 0) {
+          results.push(selected[0]);
+        }
       }
     }
   }
