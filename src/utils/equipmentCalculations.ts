@@ -10,6 +10,8 @@ export interface TotalEquipmentStats {
   attackSpeed: number;
   coinBonus: number;
   healBonus: number;
+  lifesteal: number;      // Phase 2.5: % of damage dealt returned as HP
+  autoClickRate: number;  // Phase 2.5: auto-hits per second (stacks)
 }
 
 /**
@@ -29,7 +31,9 @@ export function calculateTotalEquipmentStats(
     maxHpBonus: 0,
     attackSpeed: 0,
     coinBonus: 0,
-    healBonus: 0
+    healBonus: 0,
+    lifesteal: 0,
+    autoClickRate: 0
   };
 
   const equippedItems = [equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2];
@@ -49,7 +53,9 @@ export function calculateTotalEquipmentStats(
       maxHpBonus: baseStats.maxHpBonus || 0,
       attackSpeed: baseStats.attackSpeed || 0,
       coinBonus: baseStats.coinBonus || 0,
-      healBonus: baseStats.healBonus || 0
+      healBonus: baseStats.healBonus || 0,
+      lifesteal: baseStats.lifesteal || 0,
+      autoClickRate: baseStats.autoClickRate || 0
     };
 
     const scaledStats = scaleItemStats(statsToScale, itemTier);
@@ -64,6 +70,8 @@ export function calculateTotalEquipmentStats(
       stats.attackSpeed += Math.ceil(scaledStats.attackSpeed * 1.2);
       stats.coinBonus += Math.ceil(scaledStats.coinBonus * 1.2);
       stats.healBonus += Math.ceil(scaledStats.healBonus * 1.2);
+      stats.lifesteal += Math.ceil(scaledStats.lifesteal * 1.2);
+      stats.autoClickRate += Math.ceil(scaledStats.autoClickRate * 1.2);
     } else {
       // No empowered bonus, just sum the scaled stats
       stats.damageBonus += scaledStats.damageBonus;
@@ -73,6 +81,8 @@ export function calculateTotalEquipmentStats(
       stats.attackSpeed += scaledStats.attackSpeed;
       stats.coinBonus += scaledStats.coinBonus;
       stats.healBonus += scaledStats.healBonus;
+      stats.lifesteal += scaledStats.lifesteal;
+      stats.autoClickRate += scaledStats.autoClickRate;
     }
   }
 

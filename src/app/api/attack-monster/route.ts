@@ -201,6 +201,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Phase 2.5: Calculate lifesteal healing
+    // Lifesteal heals for % of damage dealt to monster
+    if (equipmentStats.lifesteal > 0 && totalDamage > 0) {
+      const lifestealHealing = Math.ceil(totalDamage * (equipmentStats.lifesteal / 100));
+      totalHealing += lifestealHealing;
+      console.log(`Lifesteal healing: ${lifestealHealing} HP (${equipmentStats.lifesteal}% of ${totalDamage} damage)`);
+    }
+
     // Calculate expected HP after battle
     const expectedHP = playerStats.maxHealth - expectedDamage + totalHealing;
 
@@ -267,9 +275,24 @@ export async function POST(request: NextRequest) {
       }, { status: 200 }); // Return 200 so frontend handles it properly
     }
 
-    // CHEAT DETECTION: If clicking too fast
-    if (clickRate > MAX_CLICKS_PER_SECOND) {
-      console.warn(`⚠️ Cheat detected! User ${userId} exceeded max click rate: ${clickRate.toFixed(2)} clicks/second`);
+    // Phase 2.5: Calculate expected auto-clicks
+    // Frontend doesn't increment clickCount for auto-hits, so clickCount = manual clicks only
+    const expectedAutoClicks = Math.floor(timeInSeconds * equipmentStats.autoClickRate);
+
+    // CHEAT DETECTION: Check total click potential (manual + auto) with 20% tolerance
+    // Max allowed manual clicks in this time
+    const maxManualClicks = Math.ceil(timeInSeconds * MAX_CLICKS_PER_SECOND * 1.2); // 20% tolerance
+    // Total click potential = manual clicks + expected auto-clicks
+    const totalClickPotential = clickCount + expectedAutoClicks;
+    // Max allowed total = max manual + expected auto (both with tolerance baked in)
+    const maxAllowedTotal = maxManualClicks + expectedAutoClicks;
+
+    console.log(`Click Verification - Manual: ${clickCount}, Auto: ${expectedAutoClicks}, Total: ${totalClickPotential}, Max Allowed: ${maxAllowedTotal} (${timeInSeconds.toFixed(2)}s)`);
+
+    if (totalClickPotential > maxAllowedTotal) {
+      const manualClickRate = clickCount / timeInSeconds;
+      console.warn(`⚠️ Cheat detected! User ${userId} exceeded max click potential: ${totalClickPotential} > ${maxAllowedTotal}`);
+      console.warn(`   Manual: ${clickCount} (${manualClickRate.toFixed(2)}/sec), Auto: ${expectedAutoClicks} (${equipmentStats.autoClickRate}/sec), Time: ${timeInSeconds.toFixed(2)}s`);
 
       // Punish cheater by doubling the required clicks
       const newClicksRequired = monster.clicksRequired * 2;
@@ -288,7 +311,7 @@ export async function POST(request: NextRequest) {
         cheatingDetected: true,
         message: 'That was quite fast for a human, are you cheating?',
         newClicksRequired,
-        clickRate: clickRate.toFixed(2)
+        clickRate: (totalClickPotential / timeInSeconds).toFixed(2)
       }, { status: 200 });
     }
 

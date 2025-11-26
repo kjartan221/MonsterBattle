@@ -37,7 +37,7 @@ interface MonsterBattleSectionProps {
 }
 
 export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs }: MonsterBattleSectionProps) {
-  const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, updatePlayerStats, fetchPlayerStats } = usePlayer();
+  const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
@@ -529,7 +529,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   };
 
-  const handleClick = () => {
+  /**
+   * Apply damage to monster (used by both manual clicks and auto-hits)
+   * Handles: crit calculation, shield damage, boss phases, lifesteal
+   */
+  const applyDamageToMonster = useCallback((isAutoHit: boolean = false) => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
 
     // Use player's base damage instead of defaulting to 1
@@ -552,23 +556,32 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       return; // Shield absorbs all damage, excess is ignored
     }
 
+    // Phase 2.5: Apply lifesteal healing (5% of damage dealt)
+    if (equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
+      const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
+      healHealth(healAmount);
+    }
+
     // For bosses: use phase HP system via useBossPhases hook
     const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
 
     if (isBoss) {
       // Apply damage via useBossPhases hook (caps at phase boundary)
-      console.log(`[handleClick] Boss detected, calling damagePhase(${damage})`);
       damagePhase(damage);
 
       // Track total damage and actual click count
       setTotalDamage(prev => prev + damage);
-      setClickCount(prev => prev + 1);
+      if (!isAutoHit) {
+        setClickCount(prev => prev + 1);
+      }
     } else {
       // Non-boss: use regular click tracking
       const newTotalDamage = totalDamage + damage;
-      const newClickCount = clickCount + 1;
+      const newClickCount = isAutoHit ? clickCount : clickCount + 1;
       setTotalDamage(newTotalDamage);
-      setClickCount(newClickCount);
+      if (!isAutoHit) {
+        setClickCount(newClickCount);
+      }
       damagePhase(damage); // Also use hook for consistency
 
       // Check victory condition - pass current values to avoid stale state
@@ -576,7 +589,38 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         submitBattleCompletion(newClickCount, newTotalDamage);
       }
     }
+  }, [gameState, playerStats, equipmentStats, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth]);
+
+  const handleClick = () => {
+    applyDamageToMonster(false);
   };
+
+  // Phase 2.5: Auto-hit interval based on equipment autoClickRate
+  useEffect(() => {
+    // Only run auto-hits during active battle
+    if (!gameState.canAttackMonster() || !gameState.session || gameState.session.isDefeated) return;
+
+    // Calculate total auto-click rate from all equipped items (stacks)
+    const totalAutoClickRate = equipmentStats.autoClickRate || 0;
+
+    // If no auto-click rate, don't set up interval
+    if (totalAutoClickRate <= 0) return;
+
+    // Calculate interval in milliseconds (1 / rate = seconds between hits)
+    const intervalMs = Math.floor(1000 / totalAutoClickRate);
+
+    console.log(`[Auto-Hit] Setting up interval: ${totalAutoClickRate}/sec (${intervalMs}ms)`);
+
+    const interval = setInterval(() => {
+      // Apply damage as auto-hit
+      applyDamageToMonster(true);
+    }, intervalMs);
+
+    return () => {
+      console.log('[Auto-Hit] Clearing interval');
+      clearInterval(interval);
+    };
+  }, [equipmentStats.autoClickRate, gameState.gameState, gameState.session, applyDamageToMonster]);
 
   const handleSummonClick = (summonId: string) => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;

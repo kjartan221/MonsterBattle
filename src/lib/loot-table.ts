@@ -6,6 +6,8 @@ export interface EquipmentStats {
   attackSpeed?: number;      // For accessories - increases attack speed %
   coinBonus?: number;        // For accessories - increases coin drops %
   healBonus?: number;        // For artifacts/armor - increases HP healing % (after battle victories)
+  lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on manual & auto-clicks)
+  autoClickRate?: number;    // For weapons/artifacts - auto-clicks per second (stacks across items)
 }
 
 export interface LootItem {
@@ -453,6 +455,9 @@ const CRAFT_ONLY_WEAPONS: LootItem[] = [
   { lootId: 'tidal_reaver', name: 'Tidal Reaver', icon: '🔱', description: 'Legendary trident of the sea', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 14, critChance: 25, attackSpeed: 12 } },
   { lootId: 'infernal_claymore', name: 'Infernal Claymore', icon: '⚔️', description: 'Forged in volcanic fury', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 16, critChance: 22, maxHpBonus: 20 } },
   { lootId: 'reaper_scythe', name: 'Reaper\'s Scythe', icon: '🗡️', description: 'Harvests souls of the living', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 13, critChance: 28, maxHpBonus: 30 } },
+  // Phase 2.5 - Advanced Legendary Items with special effects
+  { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword of kings - strikes with divine fury', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 18, critChance: 35, autoClickRate: 1 } },
+  { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'Crimson blade that thirsts for blood - heals with every strike', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 14, critChance: 30, lifesteal: 5 } },
 ];
 
 const CRAFT_ONLY_ARMOR: LootItem[] = [

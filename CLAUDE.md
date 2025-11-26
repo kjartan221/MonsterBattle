@@ -83,11 +83,53 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-10-31 (Crafting Stat Roll System)
+**Last Updated**: 2025-11-26 (Phase 2.5: Advanced Legendary Items)
 
-**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1062-1079 (Implementation Checklist)
+**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1253-1255 (Phase 2.5)
 
 ### ✅ Recently Completed (This Session)
+
+#### **Phase 2.5: Advanced Legendary Items with Special Effects**
+- **Backend: Equipment Stats Extension** (loot-table.ts:1-11):
+  - Added `lifesteal?: number` - % of damage dealt returned as HP (works on manual & auto-hits)
+  - Added `autoClickRate?: number` - auto-hits per second (stacks across items)
+- **Legendary Craftables** (loot-table.ts:458-460):
+  - **Excalibur** ⚔️: damageBonus +18, critChance +35%, autoClickRate 1/sec
+    - "The legendary sword of kings - strikes with divine fury"
+    - Auto-hits apply same damage calculation as manual clicks (includes crits, lifesteal)
+  - **Scarlet Dagger** 🗡️: damageBonus +12, critChance +30%, lifesteal 5%
+    - "Crimson blade that thirsts for blood - heals with every strike"
+    - Heals 5% of damage dealt (rounded up)
+- **Crafting Recipes** (recipe-table.ts:912-948):
+  - Excalibur: Requires soul_stone x2, phoenix_feather x3, dragon_heart x2, rare_steel x50, rare_gem x30, millennium_root x5 (Level 20)
+  - Scarlet Dagger: Requires vampire_blood x20, blood_chalice x1, demon_horn x8, rare_steel x35, rare_gem x20, crimson_crown x1 (Level 20)
+- **Frontend: Auto-Hit System** (MonsterBattleSection.tsx:303-328):
+  - useEffect timer interval: `setInterval(() => applyDamageToMonster(true), 1000 / autoClickRate)`
+  - Runs only during active battle (not on start screen, defeat screen, victory screen)
+  - Auto-hits apply full damage calculation: base damage + equipment bonuses + crits + lifesteal
+  - Auto-clicks DON'T increment click count (prevents anti-cheat false positives)
+  - Multiple items with autoClickRate stack (e.g., 0.5 + 0.5 = 1 hit/sec)
+- **Frontend: Lifesteal System** (MonsterBattleSection.tsx:559-563):
+  - Integrated into `applyDamageToMonster()` function
+  - Calculates: `healAmount = ceil(damage * (lifesteal% / 100))`
+  - Calls `healHealth(healAmount)` to restore HP
+  - Works for both manual clicks and auto-hits
+  - Capped at maxHP by PlayerContext
+- **Implementation Notes**:
+  - Auto-hits use same logic as manual clicks (unified damage function)
+  - Lifesteal triggers after damage calculation, before HP application
+  - Shield damage reduction applies before lifesteal calculation
+  - Auto-hit interval clears on battle end, monster defeat, or player death
+- **Backend Anti-Cheat Updates** (attack-monster/route.ts:204-316):
+  - **Lifesteal Healing**: Added to totalHealing calculation (lines 204-210)
+    - `lifestealHealing = ceil(totalDamage * (lifesteal% / 100))`
+    - Prevents false positives from players healing during battle
+  - **Auto-Click Validation**: Accounts for auto-hit equipment (lines 278-316)
+    - Calculates `expectedAutoClicks = floor(timeInSeconds * autoClickRate)`
+    - Validates `totalClickPotential = clickCount + expectedAutoClicks`
+    - Max allowed = `(timeInSeconds * MAX_CLICKS_PER_SECOND * 1.2) + expectedAutoClicks`
+    - 20% tolerance prevents false positives from timing variations
+    - Players with auto-click can't bypass cheat detection
 
 #### **Crafting Stat Roll System**
 - **Backend Stat Roll Implementation** (src/app/api/crafting/craft/route.ts):

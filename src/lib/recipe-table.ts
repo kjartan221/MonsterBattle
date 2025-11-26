@@ -908,6 +908,43 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'reaper_scythe', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 16
+  },
+  // Phase 2.5 - Advanced Legendary Items with special effects
+  {
+    recipeId: 'craft_excalibur',
+    name: 'Excalibur',
+    description: 'The legendary sword of kings - strikes with divine fury',
+    icon: '⚔️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'soul_stone', quantity: 2 },
+      { lootTableId: 'phoenix_feather', quantity: 3 },
+      { lootTableId: 'dragon_heart', quantity: 2 },
+      { lootTableId: 'rare_steel', quantity: 50 },
+      { lootTableId: 'rare_gem', quantity: 30 },
+      { lootTableId: 'millennium_root', quantity: 5 }
+    ],
+    output: { lootTableId: 'excalibur', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
+  },
+  {
+    recipeId: 'craft_scarlet_dagger',
+    name: 'Scarlet Dagger',
+    description: 'Crimson blade that thirsts for blood - heals with every strike',
+    icon: '🗡️',
+    category: 'weapon',
+    requiredMaterials: [
+      { lootTableId: 'vampire_blood', quantity: 20 },
+      { lootTableId: 'blood_chalice', quantity: 1 },
+      { lootTableId: 'demon_horn', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 35 },
+      { lootTableId: 'rare_gem', quantity: 20 },
+      { lootTableId: 'crimson_crown', quantity: 1 }
+    ],
+    output: { lootTableId: 'scarlet_dagger', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
   }
 ];
 
