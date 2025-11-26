@@ -129,13 +129,22 @@ export async function POST(request: NextRequest) {
     // Get current streak for this zone
     const currentStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, biome, tier);
 
+    console.log(`🎯 [STREAK DEBUG - START BATTLE] Biome: ${biome}, Tier: ${tier}, Current Streak: ${currentStreak}`);
+    console.log(`🎯 [STREAK DEBUG - START BATTLE] battlesWonStreaks:`, JSON.stringify(playerStats.stats.battlesWonStreaks));
+
     // Calculate corruption rate based on streak (higher streak = more corrupted spawns)
     const corruptionRate = getCorruptionRateForStreak(currentStreak);
     const isCorrupted = Math.random() < corruptionRate;
 
+    console.log(`🎯 [STREAK DEBUG - START BATTLE] Corruption Rate: ${(corruptionRate * 100).toFixed(1)}% (streak ${currentStreak}), isCorrupted: ${isCorrupted}`);
+
     // Apply corruption multipliers if corrupted
     const finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
     const finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
+
+    if (isCorrupted) {
+      console.log(`🎯 [STREAK DEBUG - START BATTLE] Corrupted multipliers applied: HP ${clicksRequired} → ${finalClicksRequired} (+50%), DMG ${attackDamage} → ${finalAttackDamage} (+25%)`);
+    }
 
     // Filter special attacks based on current tier
     const filteredSpecialAttacks = monsterTemplate.specialAttacks?.filter(

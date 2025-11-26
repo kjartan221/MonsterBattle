@@ -201,10 +201,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const newCoins = playerStats.coins + amount;
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      coins: newCoins,
+    // Update local state immediately using functional setState to avoid overwriting other changes
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
+      return {
+        ...prevStats,
+        coins: newCoins,
+      };
     });
 
     // Update backend
@@ -218,10 +221,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const newExperience = playerStats.experience + amount;
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      experience: newExperience,
+    // Update local state immediately using functional setState to avoid overwriting other changes
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
+      return {
+        ...prevStats,
+        experience: newExperience,
+      };
     });
 
     // Update backend
@@ -257,15 +263,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // Increment the specific zone's streak
     const updatedStreaks = incrementStreakForZone(streaks, biome, tier);
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      stats: {
-        ...playerStats.stats,
-        battlesWon: playerStats.stats.battlesWon + 1,
-        battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier), // Keep legacy field synced
-        battlesWonStreaks: updatedStreaks,
-      },
+    // Update local state immediately using functional setState to avoid overwriting HP changes
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
+
+      return {
+        ...prevStats,
+        stats: {
+          ...prevStats.stats,
+          battlesWon: prevStats.stats.battlesWon + 1,
+          battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier), // Keep legacy field synced
+          battlesWonStreaks: updatedStreaks,
+        },
+      };
     });
 
     // Update backend
@@ -291,14 +301,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // Reset the specific zone's streak
     const updatedStreaks = resetStreakForZone(streaks, biome, tier);
 
-    // Update local state immediately
-    setPlayerStats({
-      ...playerStats,
-      stats: {
-        ...playerStats.stats,
-        battlesWonStreak: 0, // Keep legacy field synced
-        battlesWonStreaks: updatedStreaks,
-      },
+    // Update local state immediately using functional setState to avoid overwriting HP changes
+    setPlayerStats((prevStats) => {
+      if (!prevStats) return prevStats;
+
+      return {
+        ...prevStats,
+        stats: {
+          ...prevStats.stats,
+          battlesWonStreak: 0, // Keep legacy field synced
+          battlesWonStreaks: updatedStreaks,
+        },
+      };
     });
 
     // Update backend

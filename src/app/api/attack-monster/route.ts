@@ -108,18 +108,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch equipped items to calculate equipment bonuses
-    const equippedWeaponDoc = playerStats.equippedWeapon
-      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedWeapon) })
+    // Fetch equipped items to calculate equipment bonuses (use new equippedItems format)
+    const equippedWeaponDoc = playerStats.equippedItems?.weapon
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedItems.weapon) })
       : null;
-    const equippedArmorDoc = playerStats.equippedArmor
-      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedArmor) })
+    const equippedArmorDoc = playerStats.equippedItems?.armor
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedItems.armor) })
       : null;
-    const equippedAccessory1Doc = playerStats.equippedAccessory1
-      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedAccessory1) })
+    const equippedAccessory1Doc = playerStats.equippedItems?.accessory1
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedItems.accessory1) })
       : null;
-    const equippedAccessory2Doc = playerStats.equippedAccessory2
-      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedAccessory2) })
+    const equippedAccessory2Doc = playerStats.equippedItems?.accessory2
+      ? await userInventoryCollection.findOne({ _id: new ObjectId(playerStats.equippedItems.accessory2) })
       : null;
 
     // Convert to EquippedItem format for calculateTotalEquipmentStats
@@ -362,6 +362,11 @@ export async function POST(request: NextRequest) {
     const currentTier = session.tier;
     const winStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, currentBiome, currentTier);
     const streakMultiplier = (1.0 + Math.min(winStreak * 0.03, 0.30)).toFixed(2);
+
+    console.log(`🎯 [STREAK DEBUG] Biome: ${currentBiome}, Tier: ${currentTier}, Current Streak: ${winStreak}`);
+    console.log(`🎯 [STREAK DEBUG] Streak Multiplier for loot: ${streakMultiplier}x (${winStreak} * 0.03)`);
+    console.log(`🎯 [STREAK DEBUG] battlesWonStreaks:`, JSON.stringify(playerStats.stats.battlesWonStreaks));
+
     const lootOptions = getRandomLoot(monster.name, 5, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
@@ -411,6 +416,9 @@ export async function POST(request: NextRequest) {
     // Use the per-zone streak we already calculated above
     const rewardMultiplier = getStreakRewardMultiplier(winStreak);
 
+    console.log(`🎯 [STREAK DEBUG] Reward Multiplier: ${rewardMultiplier}x for streak ${winStreak}`);
+    console.log(`🎯 [STREAK DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins`);
+
     const rewards = {
       xp: Math.ceil(baseRewards.xp * rewardMultiplier),
       coins: Math.ceil(baseRewards.coins * rewardMultiplier)
@@ -438,6 +446,11 @@ export async function POST(request: NextRequest) {
       // Calculate total max HP including equipment bonuses
       const newMaxHealth = playerStats.maxHealth + levelUpResult.statIncreases.maxHealth;
       const totalMaxHP = newMaxHealth + equipmentStats.maxHpBonus;
+
+      console.log(`🎯 [LEVEL UP HEAL] Base Max HP: ${playerStats.maxHealth} + ${levelUpResult.statIncreases.maxHealth} = ${newMaxHealth}`);
+      console.log(`🎯 [LEVEL UP HEAL] Equipment Bonus: +${equipmentStats.maxHpBonus}`);
+      console.log(`🎯 [LEVEL UP HEAL] Total Max HP (with equipment): ${totalMaxHP}`);
+      console.log(`🎯 [LEVEL UP HEAL] Setting currentHealth to: ${totalMaxHP} (full heal with equipment)`);
 
       await playerStatsCollection.updateOne(
         { userId },

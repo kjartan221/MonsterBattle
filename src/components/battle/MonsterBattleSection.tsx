@@ -506,6 +506,64 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           await incrementStreak(selectedBiome, selectedTier);
         }
 
+        // Apply streak-based healing after victory (unless leveled up - level up does full heal)
+        if (!data.levelUp && selectedBiome && selectedTier) {
+          const currentStreak = getCurrentStreak(selectedBiome, selectedTier);
+          let healPercent = 1.0; // 100%
+
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Biome: ${selectedBiome}, Tier: ${selectedTier}, Current Streak: ${currentStreak}`);
+
+          if (currentStreak === 0) {
+            healPercent = 1.0; // 100%
+          } else if (currentStreak <= 2) {
+            healPercent = 0.8; // 80%
+          } else if (currentStreak <= 5) {
+            healPercent = 0.7; // 70%
+          } else if (currentStreak <= 9) {
+            healPercent = 0.6; // 60%
+          } else if (currentStreak <= 24) {
+            healPercent = 0.5; // 50%
+          } else if (currentStreak <= 49) {
+            healPercent = 0.4; // 40%
+          } else if (currentStreak <= 99) {
+            healPercent = 0.3; // 30%
+          } else {
+            healPercent = 0.2; // 20% - hardcore mode!
+          }
+
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Base heal percent for streak ${currentStreak}: ${Math.round(healPercent * 100)}%`);
+
+          // Calculate total max HP with equipment bonuses
+          const baseMaxHP = playerStats?.maxHealth || 100;
+          const totalMaxHP = baseMaxHP + equipmentStats.maxHpBonus;
+          const currentHP = playerStats?.currentHealth || totalMaxHP;
+
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Base Max HP: ${baseMaxHP}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}`);
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Current HP: ${currentHP}`);
+
+          // Apply equipment heal bonus (adds percentage points to base heal percent)
+          const equipmentHealBonus = equipmentStats.healBonus / 100;
+          const finalHealPercent = healPercent + equipmentHealBonus;
+
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Equipment Heal Bonus: +${equipmentStats.healBonus}%, Final Heal Percent: ${Math.round(finalHealPercent * 100)}%`);
+
+          // Calculate heal amount (percentage of total max HP)
+          const healAmount = Math.ceil(totalMaxHP * finalHealPercent);
+          const newHP = Math.min(totalMaxHP, currentHP + healAmount);
+
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Heal Amount: ${healAmount} HP (${Math.round(finalHealPercent * 100)}% of ${totalMaxHP})`);
+          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] New HP after heal: ${newHP} (capped at ${totalMaxHP})`);
+
+          // Update HP directly (partial heal based on streak + equipment)
+          await updatePlayerStats({ currentHealth: newHP });
+
+          // Show healing notification with equipment bonus if applicable
+          const basePercentLabel = `${Math.round(healPercent * 100)}%`;
+          const equipmentBonusLabel = equipmentStats.healBonus > 0 ? ` +${equipmentStats.healBonus}%` : '';
+          const totalPercentLabel = equipmentStats.healBonus > 0 ? ` = ${Math.round(finalHealPercent * 100)}%` : '';
+          toast.success(`Healed ${healAmount} HP (${basePercentLabel}${equipmentBonusLabel}${totalPercentLabel}) - Streak: ${currentStreak}`, { duration: 3000 });
+        }
+
         // Convert loot IDs to full items if needed
         const lootItems = Array.isArray(data.lootOptions) && typeof data.lootOptions[0] === 'string'
           ? getLootItemsByIds(data.lootOptions)
@@ -854,64 +912,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       setBiomeTier(overrideBiome, overrideTier);
     }
 
-    // Streak-based healing after victory (progressively more challenging):
-    // - Streak 0: 100% heal (first battle or after death)
-    // - Streak 1-2: 80% heal
-    // - Streak 3-5: 70% heal
-    // - Streak 6-9: 60% heal
-    // - Streak 10-24: 50% heal
-    // - Streak 25-49: 40% heal
-    // - Streak 50-99: 30% heal
-    // - Streak 100+: 20% heal (legendary difficulty!)
-    //
-    // FUTURE FEATURE: Random Healer NPC
-    // - Small chance (5-10%) to spawn between battles at high streaks (10+)
-    // - Player can spend gold to buy healing (25 gold per 10% HP?)
-    // - Creates strategic choice: spend gold for safety or risk it?
-    const currentStreak = battleBiome && battleTier ? getCurrentStreak(battleBiome, battleTier) : 0;
-    let healPercent = 1.0; // 100%
-
-    if (currentStreak === 0) {
-      healPercent = 1.0; // 100%
-    } else if (currentStreak <= 2) {
-      healPercent = 0.8; // 80%
-    } else if (currentStreak <= 5) {
-      healPercent = 0.7; // 70%
-    } else if (currentStreak <= 9) {
-      healPercent = 0.6; // 60%
-    } else if (currentStreak <= 24) {
-      healPercent = 0.5; // 50%
-    } else if (currentStreak <= 49) {
-      healPercent = 0.4; // 40%
-    } else if (currentStreak <= 99) {
-      healPercent = 0.3; // 30%
-    } else {
-      healPercent = 0.2; // 20% - hardcore mode!
-    }
-
-    // Calculate total max HP with equipment bonuses
-    const baseMaxHP = playerStats?.maxHealth || 100;
-    const totalMaxHP = baseMaxHP + equipmentStats.maxHpBonus;
-    const currentHP = playerStats?.currentHealth || totalMaxHP;
-
-    // Apply equipment heal bonus (adds percentage points to base heal percent)
-    // Example: Streak 50 (40% base) + 24% equipment = 64% total heal
-    const equipmentHealBonus = equipmentStats.healBonus / 100; // Convert percentage to decimal
-    const finalHealPercent = healPercent + equipmentHealBonus;
-
-    // Calculate heal amount (percentage of total max HP)
-    const healAmount = Math.ceil(totalMaxHP * finalHealPercent);
-    const newHP = Math.min(totalMaxHP, currentHP + healAmount);
-
-    // Update HP directly (partial heal based on streak + equipment)
-    await updatePlayerStats({ currentHealth: newHP });
-
-    // Show healing notification with equipment bonus if applicable
-    const basePercentLabel = `${Math.round(healPercent * 100)}%`;
-    const equipmentBonusLabel = equipmentStats.healBonus > 0 ? ` +${equipmentStats.healBonus}%` : '';
-    const totalPercentLabel = equipmentStats.healBonus > 0 ? ` = ${Math.round(finalHealPercent * 100)}%` : '';
-    toast.success(`Healed ${healAmount} HP (${basePercentLabel}${equipmentBonusLabel}${totalPercentLabel}) - Streak: ${currentStreak}`, { duration: 3000 });
-
+    // No healing here - healing happens after battle victory (with streak reduction)
+    // This just starts the next battle
     await fetchPlayerStats();
     await startBattle(overrideBiome, overrideTier, true);
   };
