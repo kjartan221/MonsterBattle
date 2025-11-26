@@ -209,6 +209,30 @@ export async function POST(request: NextRequest) {
       console.log(`Lifesteal healing: ${lifestealHealing} HP (${equipmentStats.lifesteal}% of ${totalDamage} damage)`);
     }
 
+    // Phase 2.6: Calculate spell healing (for healing spells)
+    // Calculate max possible spell casts based on time and cooldown
+    if (playerStats.equippedSpell && playerStats.equippedSpell !== 'empty') {
+      const equippedSpellDoc = await userInventoryCollection.findOne({
+        _id: new ObjectId(playerStats.equippedSpell),
+        userId
+      });
+
+      if (equippedSpellDoc) {
+        const spellItem = getLootItemById(equippedSpellDoc.lootTableId);
+        if (spellItem && spellItem.type === 'spell_scroll' && spellItem.spellData) {
+          const { healing: spellHealing, cooldown: spellCooldown } = spellItem.spellData;
+
+          if (spellHealing && spellHealing > 0 && spellCooldown > 0) {
+            // Calculate max possible spell casts (first cast at 0s, then every cooldown seconds)
+            const maxSpellCasts = Math.floor(timeInSeconds / spellCooldown) + 1; // +1 for initial cast
+            const maxSpellHealing = maxSpellCasts * spellHealing;
+            totalHealing += maxSpellHealing;
+            console.log(`Spell healing: ${maxSpellHealing} HP (${maxSpellCasts} casts × ${spellHealing} HP, ${spellCooldown}s cooldown)`);
+          }
+        }
+      }
+    }
+
     // Calculate expected HP after battle
     const expectedHP = playerStats.maxHealth - expectedDamage + totalHealing;
 

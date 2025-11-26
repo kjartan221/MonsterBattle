@@ -20,6 +20,7 @@ interface ConsumableSlot {
 }
 
 interface HotbarProps {
+  spellSlot?: SpellSlot; // External spell slot from hook (Phase 2.6)
   onSpellCast?: () => void;
   onConsumableUse?: (slot: number) => void;
   consumableSlots?: ConsumableSlot[]; // External slots from hook
@@ -27,15 +28,15 @@ interface HotbarProps {
   canInteract?: boolean; // True during rest phase, false during battle
 }
 
-export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: externalSlots, onSlotClick, canInteract = false }: HotbarProps) {
-  // Spell slot (Q key)
-  const [spellSlot, setSpellSlot] = useState<SpellSlot>({
+export default function Hotbar({ spellSlot: externalSpellSlot, onSpellCast, onConsumableUse, consumableSlots: externalSlots, onSlotClick, canInteract = false }: HotbarProps) {
+  // Use external spell slot if provided, otherwise use internal state
+  const spellSlot = externalSpellSlot || {
     spellId: null,
     name: '',
     icon: '',
     cooldown: 0,
     lastUsed: null
-  });
+  };
 
   // Consumable slots (1, 2, 3 keys) - use external or fallback to internal
   const consumableSlots = externalSlots || [
@@ -82,7 +83,7 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
     if (!spellSlot.spellId) return;
     if (spellCooldownRemaining > 0) return;
 
-    setSpellSlot(prev => ({ ...prev, lastUsed: Date.now() }));
+    // Call external handler (which manages state and cooldown via API)
     onSpellCast?.();
   };
 
@@ -176,21 +177,15 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
           {/* Spell Slot (Q) */}
           <button
             onClick={() => {
-              if (canInteract) {
-                onSlotClick?.('spell', 0);
-              } else {
-                handleSpellCast();
-              }
+              // Always open modal on click (spell casting only via Q keybind)
+              onSlotClick?.('spell', 0);
             }}
-            disabled={!canInteract && (!spellSlot.spellId || spellCooldownRemaining > 0)}
             className={`
-              relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all
+              relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all cursor-pointer
               ${spellSlot.spellId
                 ? 'border-purple-500 bg-purple-900/30 hover:bg-purple-800/40 active:scale-95'
-                : canInteract
-                  ? 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40 cursor-pointer'
-                  : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
-              ${!canInteract && spellCooldownRemaining > 0 ? 'opacity-50 cursor-not-allowed' : ''}
+                : 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40'}
+              ${!canInteract && spellCooldownRemaining > 0 ? 'opacity-50' : ''}
             `}
           >
             {/* Keybind indicator */}
@@ -246,21 +241,15 @@ export default function Hotbar({ onSpellCast, onConsumableUse, consumableSlots: 
             <button
               key={index}
               onClick={() => {
-                if (canInteract) {
-                  onSlotClick?.('consumable', index);
-                } else {
-                  handleConsumableUse(index);
-                }
+                // Always open modal on click (consumable use only via 1-3 keybinds)
+                onSlotClick?.('consumable', index);
               }}
-              disabled={!canInteract && (!slot.itemId || slot.quantity === 0 || consumableCooldownRemaining[index] > 0)}
               className={`
-                relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all
+                relative w-16 h-16 md:w-20 md:h-20 rounded-lg border-2 transition-all cursor-pointer
                 ${slot.itemId && slot.quantity > 0
                   ? 'border-blue-500 bg-blue-900/30 hover:bg-blue-800/40 active:scale-95'
-                  : canInteract
-                    ? 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40 cursor-pointer'
-                    : 'border-gray-600 bg-gray-800/50 cursor-not-allowed'}
-                ${!canInteract && consumableCooldownRemaining[index] > 0 ? 'opacity-50 cursor-not-allowed' : ''}
+                  : 'border-gray-500 bg-gray-800/30 hover:bg-gray-700/40'}
+                ${!canInteract && consumableCooldownRemaining[index] > 0 ? 'opacity-50' : ''}
               `}
             >
               {/* Keybind indicator */}

@@ -83,12 +83,22 @@ export interface PlayerStats {
   maxHealth: number;
   currentHealth: number;
 
-  // Equipment slots (store inventory item IDs)
+  // Equipment slots (single object containing all equipment)
+  equippedItems?: {
+    weapon?: ObjectId;
+    armor?: ObjectId;
+    accessory1?: ObjectId;
+    accessory2?: ObjectId;
+  };
+  equippedConsumables?: [ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty']; // Array of 3 ('empty' for empty slots)
+  equippedSpell?: ObjectId | 'empty'; // Phase 2.6: Spell scroll slot (Q key)
+  lastSpellCast?: number; // Phase 2.6: Server-side spell cooldown tracking (timestamp in ms)
+
+  // Legacy fields (deprecated, kept for migration)
   equippedWeapon?: ObjectId;
   equippedArmor?: ObjectId;
   equippedAccessory1?: ObjectId;
   equippedAccessory2?: ObjectId;
-  equippedConsumables?: [ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty']; // Array of 3 ('empty' for empty slots)
 
   // Battle stats
   baseDamage: number;

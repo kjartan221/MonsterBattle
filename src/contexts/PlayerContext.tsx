@@ -62,7 +62,7 @@ interface PlayerContextType {
   updatePlayerStats: (updates: Partial<PlayerStats>) => Promise<void>;
   resetHealth: (maxHpBonus?: number) => Promise<void>;
   takeDamage: (amount: number) => Promise<void>;
-  healHealth: (amount: number) => Promise<void>;
+  healHealth: (amount: number, maxHpBonus?: number) => Promise<void>;
   addCoins: (amount: number) => Promise<void>;
   addExperience: (amount: number) => Promise<void>;
   incrementStreak: (biome: BiomeId, tier: Tier) => Promise<void>;
@@ -172,22 +172,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * Client-side only HP restoration
    * Does NOT call backend - item usage tracked separately in battle session
    * Server will verify items used during battle completion
+   *
+   * @param amount - Amount of HP to heal
+   * @param maxHpBonus - Optional equipment max HP bonus (default: 0)
    */
-  const healHealth = async (amount: number) => {
+  const healHealth = useCallback(async (amount: number, maxHpBonus: number = 0) => {
     if (!playerStats) return;
 
     // Use functional setState to avoid stale state issues
     setPlayerStats((prevStats) => {
       if (!prevStats) return prevStats;
 
-      const newHealth = Math.min(prevStats.maxHealth, prevStats.currentHealth + amount);
+      // Calculate total max HP including equipment bonuses
+      const totalMaxHP = prevStats.maxHealth + maxHpBonus;
+
+      // Cap at totalMaxHP (base + equipment bonus)
+      const newHealth = Math.min(totalMaxHP, prevStats.currentHealth + amount);
 
       return {
         ...prevStats,
         currentHealth: newHealth,
       };
     });
-  };
+  }, [playerStats]);
 
   const addCoins = async (amount: number) => {
     if (!playerStats) return;

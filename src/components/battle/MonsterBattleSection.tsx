@@ -30,13 +30,22 @@ import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 
+interface SpellCastData {
+  spellName: string;
+  damage?: number;
+  healing?: number;
+  effect?: string;
+  visualEffect?: string;
+}
+
 interface MonsterBattleSectionProps {
   onBattleComplete?: () => void;
   applyDebuff: (effect: DebuffEffect, appliedBy?: string) => boolean;
   clearDebuffs: () => void;
+  spellDamageHandler?: React.MutableRefObject<((spellData: SpellCastData) => void) | null>; // Phase 2.6: Ref to spell damage handler
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -62,6 +71,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Phase attack visual feedback (separate from regular special attacks)
   const [phaseAttack, setPhaseAttack] = useState<SpecialAttack | null>(null);
+
+  // Phase 2.6: Spell cast visual feedback
+  const [spellCast, setSpellCast] = useState<SpecialAttack | null>(null);
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -595,6 +607,79 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     applyDamageToMonster(false);
   };
 
+  /**
+   * Phase 2.6: Handle spell cast effects (damage, healing, visual effects)
+   */
+  const handleSpellCast = useCallback((spellData: SpellCastData) => {
+    if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;
+
+    // Determine visual effect color based on spell effect
+    let visualEffect = spellData.visualEffect || 'purple'; // Default purple for magic
+    if (spellData.effect?.toLowerCase().includes('fire')) visualEffect = 'orange';
+    if (spellData.effect?.toLowerCase().includes('ice')) visualEffect = 'blue';
+    if (spellData.effect?.toLowerCase().includes('lightning') || spellData.effect?.toLowerCase().includes('electric')) visualEffect = 'blue';
+    if (spellData.healing && spellData.healing > 0) visualEffect = 'green';
+
+    // Trigger visual effect
+    setSpellCast({
+      type: spellData.damage ? 'fireball' : 'heal', // Use existing types for icon
+      damage: spellData.damage,
+      healing: spellData.healing,
+      cooldown: 0,
+      visualEffect,
+      message: `✨ ${spellData.spellName}!`
+    });
+
+    // Clear visual effect after animation
+    setTimeout(() => setSpellCast(null), 2500);
+
+    // Apply spell damage to monster
+    if (spellData.damage && spellData.damage > 0) {
+      let damage = spellData.damage;
+
+      // Damage shield first if it exists (with 25% damage reduction)
+      if (shieldHP > 0) {
+        const reducedDamage = Math.ceil(damage * 0.75); // 25% damage reduction
+        const newShieldHP = Math.max(0, shieldHP - reducedDamage);
+        setShieldHP(newShieldHP);
+        return; // Shield absorbs all damage, excess is ignored
+      }
+
+      // For bosses: use phase HP system
+      const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
+
+      if (isBoss) {
+        // Apply damage via useBossPhases hook (caps at phase boundary)
+        damagePhase(damage);
+        setTotalDamage(prev => prev + damage);
+      } else {
+        // Non-boss: use regular damage tracking
+        const newTotalDamage = totalDamage + damage;
+        setTotalDamage(newTotalDamage);
+        damagePhase(damage);
+
+        // Check victory condition
+        if (gameState.monster && newTotalDamage >= gameState.monster.clicksRequired) {
+          submitBattleCompletion(clickCount, newTotalDamage);
+        }
+      }
+    }
+
+    // Healing is handled by parent (BattlePage) via healHealth
+  }, [gameState, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion]);
+
+  // Phase 2.6: Assign spell damage handler to ref so parent can call it
+  useEffect(() => {
+    if (spellDamageHandler) {
+      spellDamageHandler.current = handleSpellCast;
+    }
+    return () => {
+      if (spellDamageHandler) {
+        spellDamageHandler.current = null;
+      }
+    };
+  }, [handleSpellCast, spellDamageHandler]);
+
   // Phase 2.5: Auto-hit interval based on equipment autoClickRate
   useEffect(() => {
     // Only run auto-hits during active battle
@@ -896,7 +981,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   return (
     <>
-      {/* Special Attack Visual Feedback (phase attacks take priority) */}
+      {/* Player Spell Visual Feedback (separate instance to prevent race conditions) */}
+      <SpecialAttackFlash attack={spellCast} />
+
+      {/* Monster Special Attack Visual Feedback (phases > regular attacks) */}
       <SpecialAttackFlash attack={phaseAttack || lastAttack} />
 
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">

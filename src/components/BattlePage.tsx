@@ -2,12 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { usePlayer } from '@/contexts/PlayerContext';
-import { EquipmentSlot } from '@/contexts/EquipmentContext';
+import { EquipmentSlot, useEquipment } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
 import { useBiome } from '@/contexts/BiomeContext';
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
 import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
+import { usePlayerSpell } from '@/hooks/usePlayerSpell';
+import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
@@ -20,6 +22,7 @@ import toast from 'react-hot-toast';
 export default function BattlePage() {
   const router = useRouter();
   const { playerStats, loading: statsLoading, takeDamage, healHealth } = usePlayer();
+  const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
   const { setBiomeTier } = useBiome();
   const [equipmentModal, setEquipmentModal] = useState<{
@@ -52,6 +55,12 @@ export default function BattlePage() {
   // Consumable system (managed at page level)
   const { consumableSlots, useConsumable, equipConsumable, unequipConsumable } = usePlayerConsumable();
 
+  // Phase 2.6: Spell system (managed at page level)
+  const { spellSlot, castSpell, equipSpell, unequipSpell } = usePlayerSpell();
+
+  // Ref to MonsterBattleSection's spell damage handler
+  const spellDamageHandlerRef = useRef<((spellData: any) => void) | null>(null);
+
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
   };
@@ -69,7 +78,7 @@ export default function BattlePage() {
     setHotbarModal({ isOpen: false, slotType: 'consumable', slotIndex: 0 });
   };
 
-  const handleConsumableUse = async (slotIndex: number) => {
+  const handleConsumableUse = useCallback(async (slotIndex: number) => {
     // Get consumable details before using (since it will decrement)
     const slot = consumableSlots[slotIndex];
     if (!slot.itemId) return;
@@ -88,7 +97,14 @@ export default function BattlePage() {
 
     // Health restoration (use explicit healing field)
     if (consumableItem.healing && consumableItem.healing > 0) {
-      healHealth(consumableItem.healing);
+      // Calculate equipment stats to get max HP bonus
+      const equipmentStats = calculateTotalEquipmentStats(
+        equippedWeapon,
+        equippedArmor,
+        equippedAccessory1,
+        equippedAccessory2
+      );
+      healHealth(consumableItem.healing, equipmentStats.maxHpBonus);
       toast.success(`Restored ${consumableItem.healing} HP!`, { icon: '💚', duration: 2000 });
     }
 
@@ -103,7 +119,38 @@ export default function BattlePage() {
       toast.success('Immune to burn for 30s!', { icon: '🔥', duration: 3000 });
       // TODO: Implement burn immunity state
     }
-  };
+  }, [consumableSlots, useConsumable, healHealth, clearDebuffs, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
+
+  // Phase 2.6: Handle spell casting (wrapped in useCallback to prevent re-casting on re-renders)
+  const handleSpellCast = useCallback(async () => {
+    if (!spellSlot.spellId || !playerStats) return;
+
+    // Cast spell via API
+    const result: { success: boolean; damage?: number; healing?: number; spellName?: string; effect?: string } = await castSpell();
+    if (!result.success) return;
+
+    // Apply healing locally, passing equipment max HP bonus
+    if (result.healing && result.healing > 0) {
+      // Calculate equipment stats to get max HP bonus
+      const equipmentStats = calculateTotalEquipmentStats(
+        equippedWeapon,
+        equippedArmor,
+        equippedAccessory1,
+        equippedAccessory2
+      );
+      healHealth(result.healing, equipmentStats.maxHpBonus);
+    }
+
+    // Pass spell data to MonsterBattleSection for damage application and visual effects
+    if (spellDamageHandlerRef.current) {
+      spellDamageHandlerRef.current({
+        spellName: result.spellName || 'Spell',
+        damage: result.damage,
+        healing: result.healing,
+        effect: result.effect
+      });
+    }
+  }, [spellSlot.spellId, castSpell, healHealth, playerStats, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
 
   const handleLogout = async () => {
     try {
@@ -227,11 +274,14 @@ export default function BattlePage() {
       <MonsterBattleSection
         applyDebuff={applyDebuff}
         clearDebuffs={clearDebuffs}
+        spellDamageHandler={spellDamageHandlerRef}
       />
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}
       <Hotbar
+        spellSlot={spellSlot}
         consumableSlots={consumableSlots}
+        onSpellCast={handleSpellCast}
         onConsumableUse={handleConsumableUse}
         onSlotClick={handleHotbarSlotClick}
         canInteract={!gameState.canAttackMonster()} // Can click to equip during rest phase
@@ -243,7 +293,10 @@ export default function BattlePage() {
         onClose={handleCloseHotbarModal}
         slotType={hotbarModal.slotType}
         slotIndex={hotbarModal.slotIndex}
+        spellSlot={spellSlot}
         consumableSlots={consumableSlots}
+        equipSpell={equipSpell}
+        unequipSpell={unequipSpell}
         equipConsumable={equipConsumable}
         unequipConsumable={unequipConsumable}
       />

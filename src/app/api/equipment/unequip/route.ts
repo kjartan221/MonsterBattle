@@ -39,10 +39,9 @@ export async function POST(request: NextRequest) {
     const { playerStatsCollection } = await connectToMongo();
 
     // Unset the equipped item field
-    const updateField = getEquipmentFieldName(slot);
     await playerStatsCollection.updateOne(
       { userId },
-      { $unset: { [updateField]: '' } }
+      { $unset: { [`equippedItems.${slot}`]: '' } }
     );
 
     return NextResponse.json({
@@ -53,17 +52,4 @@ export async function POST(request: NextRequest) {
     console.error('Error unequipping item:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-/**
- * Maps slot name to database field name
- */
-function getEquipmentFieldName(slot: string): string {
-  const fieldMap: Record<string, string> = {
-    'weapon': 'equippedWeapon',
-    'armor': 'equippedArmor',
-    'accessory1': 'equippedAccessory1',
-    'accessory2': 'equippedAccessory2'
-  };
-  return fieldMap[slot];
 }

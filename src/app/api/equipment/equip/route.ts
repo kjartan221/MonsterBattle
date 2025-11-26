@@ -73,10 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Update player stats with the equipped item
-    const updateField = getEquipmentFieldName(slot);
     await playerStatsCollection.updateOne(
       { userId },
-      { $set: { [updateField]: itemObjectId } }
+      { $set: { [`equippedItems.${slot}`]: itemObjectId } }
     );
 
     return NextResponse.json({
@@ -108,15 +107,3 @@ function validateItemForSlot(itemType: string, slot: string): boolean {
   }
 }
 
-/**
- * Maps slot name to database field name
- */
-function getEquipmentFieldName(slot: string): string {
-  const fieldMap: Record<string, string> = {
-    'weapon': 'equippedWeapon',
-    'armor': 'equippedArmor',
-    'accessory1': 'equippedAccessory1',
-    'accessory2': 'equippedAccessory2'
-  };
-  return fieldMap[slot];
-}

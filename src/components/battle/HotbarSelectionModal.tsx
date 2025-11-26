@@ -21,15 +21,19 @@ interface HotbarSelectionModalProps {
   onClose: () => void;
   slotType: HotbarSlotType;
   slotIndex: number; // 0 for spell (Q), 0-2 for consumables (1-3)
+  spellSlot?: any; // Phase 2.6: Pass from parent
   consumableSlots?: any[]; // Pass from parent to avoid separate hook instance
+  equipSpell?: (inventoryId: string) => Promise<boolean>; // Phase 2.6
+  unequipSpell?: () => Promise<boolean>; // Phase 2.6
   equipConsumable?: (slotIndex: number, inventoryId: string) => Promise<boolean>;
   unequipConsumable?: (slotIndex: number) => Promise<boolean>;
 }
 
-export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIndex, consumableSlots = [], equipConsumable, unequipConsumable }: HotbarSelectionModalProps) {
+export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIndex, spellSlot, consumableSlots = [], equipSpell, unequipSpell, equipConsumable, unequipConsumable }: HotbarSelectionModalProps) {
   const [items, setItems] = useState<UserInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEquipping, setIsEquipping] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const getSlotLabel = () => {
     if (slotType === 'spell') {
@@ -47,7 +51,9 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
 
   const getCurrentlyEquipped = () => {
     if (slotType === 'spell') {
-      return null; // TODO: Implement spell slots in usePlayerSpell hook
+      if (!spellSlot || !spellSlot.spellId || !spellSlot.inventoryId) return null;
+      const lootItem = getLootItemById(spellSlot.spellId);
+      return lootItem ? { inventoryId: spellSlot.inventoryId, lootItem } : null;
     }
     const slot = consumableSlots[slotIndex];
     if (!slot.itemId || !slot.inventoryId) return null;
@@ -110,8 +116,11 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
     setIsEquipping(true);
     try {
       if (slotType === 'spell') {
-        // TODO: Implement spell equipping with usePlayerSpell hook
-        toast.error('Spell equipping not yet implemented');
+        if (!equipSpell) {
+          toast.error('Equip function not available');
+          return;
+        }
+        await equipSpell(inventoryId);
       } else {
         if (!equipConsumable) {
           toast.error('Equip function not available');
@@ -132,8 +141,11 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
     setIsEquipping(true);
     try {
       if (slotType === 'spell') {
-        // TODO: Implement spell unequipping with usePlayerSpell hook
-        toast.error('Spell unequipping not yet implemented');
+        if (!unequipSpell) {
+          toast.error('Unequip function not available');
+          return;
+        }
+        await unequipSpell();
       } else {
         if (!unequipConsumable) {
           toast.error('Unequip function not available');
@@ -147,6 +159,57 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
       toast.error('Failed to unequip item');
     } finally {
       setIsEquipping(false);
+    }
+  };
+
+  // Phase 2.6: Get upgrade requirements for spell tier
+  const getUpgradeRequirements = (currentTier: number) => {
+    const requirements: Record<number, { duplicates: number; gold: number }> = {
+      1: { duplicates: 2, gold: 500 },
+      2: { duplicates: 3, gold: 1500 },
+      3: { duplicates: 4, gold: 3000 },
+      4: { duplicates: 5, gold: 5000 }
+    };
+    return requirements[currentTier] || null;
+  };
+
+  // Phase 2.6: Count tier 1 duplicates of a spell
+  const countTier1Duplicates = (lootTableId: string, excludeInventoryId?: string) => {
+    return items.filter(item =>
+      item.lootTableId === lootTableId &&
+      item.tier === 1 &&
+      item._id !== excludeInventoryId // Exclude the equipped spell itself
+    ).length;
+  };
+
+  // Phase 2.6: Handle spell upgrade
+  const handleUpgrade = async (inventoryId: string, lootTableId: string, currentTier: number) => {
+    setIsUpgrading(true);
+    try {
+      const response = await fetch('/api/spells/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upgrade spell');
+      }
+
+      toast.success(
+        `✨ Spell upgraded to Tier ${data.newTier}!\nConsumed ${data.duplicatesConsumed} duplicates and ${data.goldSpent} gold.`,
+        { duration: 5000 }
+      );
+
+      // Refresh inventory to show updated state
+      await fetchInventoryItems();
+    } catch (error: any) {
+      console.error('Failed to upgrade spell:', error);
+      toast.error(error.message || 'Failed to upgrade spell');
+    } finally {
+      setIsUpgrading(false);
     }
   };
 
@@ -214,31 +277,74 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
         </div>
 
         {/* Currently Equipped */}
-        {currentlyEquipped && (
-          <div className="relative px-6 py-4 bg-gray-800/50 border-b border-gray-700">
-            <div className="text-sm text-gray-400 mb-2">Currently Equipped:</div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{currentlyEquipped.lootItem.icon}</span>
-                <div>
-                  <div className={`text-base font-semibold ${getRarityColor(currentlyEquipped.lootItem.rarity)}`}>
-                    {currentlyEquipped.lootItem.name}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {currentlyEquipped.lootItem.description}
+        {currentlyEquipped && (() => {
+          // Get equipped item details for upgrade system
+          const equippedItem = slotType === 'spell' ? items.find(i => i._id === currentlyEquipped.inventoryId) : null;
+          const currentTier = equippedItem?.tier || 1;
+          const requirements = slotType === 'spell' ? getUpgradeRequirements(currentTier) : null;
+          const tier1Duplicates = slotType === 'spell' ? countTier1Duplicates(currentlyEquipped.lootItem.lootId, currentlyEquipped.inventoryId) : 0;
+          const canUpgrade = requirements && tier1Duplicates >= requirements.duplicates && currentTier < 5;
+
+          return (
+            <div className="relative px-6 py-4 bg-gray-800/50 border-b border-gray-700">
+              <div className="text-sm text-gray-400 mb-2">Currently Equipped:</div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{currentlyEquipped.lootItem.icon}</span>
+                  <div>
+                    <div className={`text-base font-semibold ${getRarityColor(currentlyEquipped.lootItem.rarity)}`}>
+                      {currentlyEquipped.lootItem.name}
+                      {slotType === 'spell' && <span className="ml-2 text-xs text-purple-400 font-bold">(Tier {currentTier})</span>}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {currentlyEquipped.lootItem.description}
+                    </div>
                   </div>
                 </div>
+                <button
+                  onClick={handleUnequip}
+                  disabled={isEquipping}
+                  className="px-4 py-2 bg-red-900/50 text-red-200 border border-red-700 rounded hover:bg-red-800/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  {isEquipping ? 'Unequipping...' : 'Unequip'}
+                </button>
               </div>
-              <button
-                onClick={handleUnequip}
-                disabled={isEquipping}
-                className="px-4 py-2 bg-red-900/50 text-red-200 border border-red-700 rounded hover:bg-red-800/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-              >
-                {isEquipping ? 'Unequipping...' : 'Unequip'}
-              </button>
+
+              {/* Phase 2.6: Spell Upgrade UI */}
+              {slotType === 'spell' && requirements && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <div className="text-sm font-semibold text-gray-300 mb-2">Spell Upgrade</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-xs text-gray-400">
+                        Tier 1 Duplicates: <span className={`font-bold ${tier1Duplicates >= requirements.duplicates ? 'text-green-400' : 'text-red-400'}`}>
+                          {tier1Duplicates}/{requirements.duplicates}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Gold Cost: <span className="font-bold text-yellow-400">{requirements.gold}</span>
+                      </div>
+                      {currentTier >= 5 && (
+                        <div className="text-xs text-purple-400 font-semibold">✨ Maximum Tier Reached</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleUpgrade(currentlyEquipped.inventoryId!, currentlyEquipped.lootItem.lootId, currentTier)}
+                      disabled={!canUpgrade || isUpgrading}
+                      className={`px-4 py-2 border rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        canUpgrade
+                          ? 'bg-purple-900/50 text-purple-200 border-purple-700 hover:bg-purple-800/70'
+                          : 'bg-gray-800/50 text-gray-500 border-gray-700'
+                      }`}
+                    >
+                      {isUpgrading ? 'Upgrading...' : currentTier >= 5 ? 'Max Tier' : `Upgrade to Tier ${currentTier + 1}`}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Keybind Usage Hint */}
         <div className="px-6 py-3 bg-blue-900/20 border-b border-gray-700 text-center">

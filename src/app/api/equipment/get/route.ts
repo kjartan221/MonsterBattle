@@ -31,7 +31,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Player stats not found' }, { status: 404 });
     }
 
-    // Fetch equipped items from inventory
+    if (!playerStats.equippedItems) {
+      return NextResponse.json({});
+    }
+
+    // Collect all equipped item IDs
+    const equippedItemIds = Object.values(playerStats.equippedItems).filter(Boolean);
+
+    if (equippedItemIds.length === 0) {
+      return NextResponse.json({});
+    }
+
+    // Fetch all equipped items in a single query
+    const items = await userInventoryCollection.find({
+      _id: { $in: equippedItemIds },
+      userId
+    }).toArray();
+
+    // Build response object with slot mapping
     const equippedItems: {
       equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
       equippedArmor?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
@@ -39,61 +56,27 @@ export async function GET(request: NextRequest) {
       equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
     } = {};
 
-    if (playerStats.equippedWeapon) {
-      const item = await userInventoryCollection.findOne({ _id: playerStats.equippedWeapon });
-      if (item) {
-        equippedItems.equippedWeapon = {
-          inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId,
-          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
-          isEmpowered: item.isEmpowered || false,
-          crafted: item.crafted,
-          statRoll: item.statRoll
-        };
-      }
-    }
+    // Map items back to their slots
+    items.forEach(item => {
+      const itemData = {
+        inventoryId: item._id.toString(),
+        lootTableId: item.lootTableId,
+        tier: item.tier || 1,
+        isEmpowered: item.isEmpowered || false,
+        crafted: item.crafted,
+        statRoll: item.statRoll
+      };
 
-    if (playerStats.equippedArmor) {
-      const item = await userInventoryCollection.findOne({ _id: playerStats.equippedArmor });
-      if (item) {
-        equippedItems.equippedArmor = {
-          inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId,
-          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
-          isEmpowered: item.isEmpowered || false,
-          crafted: item.crafted,
-          statRoll: item.statRoll
-        };
+      if (playerStats.equippedItems!.weapon?.equals(item._id)) {
+        equippedItems.equippedWeapon = itemData;
+      } else if (playerStats.equippedItems!.armor?.equals(item._id)) {
+        equippedItems.equippedArmor = itemData;
+      } else if (playerStats.equippedItems!.accessory1?.equals(item._id)) {
+        equippedItems.equippedAccessory1 = itemData;
+      } else if (playerStats.equippedItems!.accessory2?.equals(item._id)) {
+        equippedItems.equippedAccessory2 = itemData;
       }
-    }
-
-    if (playerStats.equippedAccessory1) {
-      const item = await userInventoryCollection.findOne({ _id: playerStats.equippedAccessory1 });
-      if (item) {
-        equippedItems.equippedAccessory1 = {
-          inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId,
-          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
-          isEmpowered: item.isEmpowered || false,
-          crafted: item.crafted,
-          statRoll: item.statRoll
-        };
-      }
-    }
-
-    if (playerStats.equippedAccessory2) {
-      const item = await userInventoryCollection.findOne({ _id: playerStats.equippedAccessory2 });
-      if (item) {
-        equippedItems.equippedAccessory2 = {
-          inventoryId: item._id.toString(),
-          lootTableId: item.lootTableId,
-          tier: item.tier || 1, // Default to tier 1 for legacy items without tier
-          isEmpowered: item.isEmpowered || false,
-          crafted: item.crafted,
-          statRoll: item.statRoll
-        };
-      }
-    }
+    });
 
     return NextResponse.json(equippedItems);
   } catch (error) {

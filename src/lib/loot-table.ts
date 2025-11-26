@@ -44,6 +44,9 @@ const COMMON_LOOT: LootItem[] = [
   { lootId: 'common_cloth', name: 'Torn Cloth', icon: '🧶', description: 'Shabby fabric material', rarity: 'common', type: 'material' },
   { lootId: 'common_wood', name: 'Wooden Plank', icon: '🪵', description: 'Rough lumber for crafting', rarity: 'common', type: 'material' },
   { lootId: 'common_stone', name: 'Stone Fragment', icon: '🪨', description: 'A piece of rock', rarity: 'common', type: 'material' },
+  // Phase 2.6: Basic spell scrolls (common tier)
+  { lootId: 'spell_scroll_spark', name: 'Spark Scroll', icon: '⚡', description: 'Unlocks Spark spell - Basic magic missile', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'spark', spellName: 'Spark', cooldown: 10, damage: 30, effect: 'Lightning damage' } },
+  { lootId: 'spell_scroll_light_heal', name: 'Light Heal Scroll', icon: '✨', description: 'Unlocks Light Heal spell - Basic restoration', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'light_heal', spellName: 'Light Heal', cooldown: 12, healing: 15 } },
 ];
 
 // Rare Loot (shared across all monsters, but less common than COMMON_LOOT)
@@ -57,6 +60,9 @@ const RARE_LOOT: LootItem[] = [
   // Heal-focused items (sustainability builds)
   { lootId: 'regeneration_pendant', name: 'Regeneration Pendant', icon: '💚', description: 'Enhances natural healing (+4% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 4 } },
   { lootId: 'ring_of_vitality', name: 'Ring of Vitality', icon: '💍', description: 'Grants enhanced recovery (+5% heal)', rarity: 'rare', type: 'artifact', equipmentStats: { healBonus: 5, maxHpBonus: 5 } },
+  // Phase 2.6: Intermediate spell scrolls (rare tier)
+  { lootId: 'spell_scroll_ice_shard', name: 'Ice Shard Scroll', icon: '❄️', description: 'Unlocks Ice Shard spell - Freezing projectile', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'ice_shard', spellName: 'Ice Shard', cooldown: 20, damage: 50, effect: 'Ice damage' } },
+  { lootId: 'spell_scroll_greater_heal', name: 'Greater Heal Scroll', icon: '💫', description: 'Unlocks Greater Heal spell - Strong restoration', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_heal', spellName: 'Greater Heal', cooldown: 25, healing: 40 } },
 ];
 
 // Monster-Specific Loot (only drops from specific monsters)
@@ -97,6 +103,9 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   { lootId: 'flame_sword', name: 'Flame Sword', icon: '🔥', description: 'Blade wreathed in eternal fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
   { lootId: 'blood_chalice', name: 'Blood Chalice', icon: '🏆', description: 'An ancient vampiric relic', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 25, coinBonus: 30 } },
   { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 30 } },
+  // Phase 2.6: Advanced spell scrolls (epic tier)
+  { lootId: 'spell_scroll_lightning_bolt', name: 'Lightning Bolt Scroll', icon: '⚡', description: 'Unlocks Lightning Bolt spell - Devastating electric strike', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'lightning_bolt', spellName: 'Lightning Bolt', cooldown: 35, damage: 100, effect: 'Electric damage' } },
+  { lootId: 'spell_scroll_mass_heal', name: 'Mass Heal Scroll', icon: '🌟', description: 'Unlocks Mass Heal spell - Powerful restoration', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'mass_heal', spellName: 'Mass Heal', cooldown: 40, healing: 60 } },
   { lootId: 'wing_fragment', name: 'Dragon Wing Fragment', icon: '🪽', description: 'Enables short flight', rarity: 'legendary', type: 'material' },
   { lootId: 'elixir_immortality', name: 'Elixir of Immortality', icon: '🧬', description: 'Restores 100 HP', rarity: 'legendary', type: 'consumable', cooldown: 20, healing: 100 },
   { lootId: 'crimson_crown', name: 'Crimson Crown', icon: '👑', description: 'Symbol of vampiric royalty', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 15, coinBonus: 50 } },

@@ -38,6 +38,46 @@ export async function GET(request: NextRequest) {
       playerStats.equippedConsumables = ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
     }
 
+    // Migrate legacy equipment: convert old separate fields to new equippedItems object
+    const hasLegacyFields = playerStats && (
+      playerStats.equippedWeapon !== undefined ||
+      playerStats.equippedArmor !== undefined ||
+      playerStats.equippedAccessory1 !== undefined ||
+      playerStats.equippedAccessory2 !== undefined
+    );
+
+    if (hasLegacyFields && playerStats) {
+      // Build new equippedItems object if it doesn't exist
+      if (!playerStats.equippedItems) {
+        const equippedItems: any = {};
+        if (playerStats.equippedWeapon) equippedItems.weapon = playerStats.equippedWeapon;
+        if (playerStats.equippedArmor) equippedItems.armor = playerStats.equippedArmor;
+        if (playerStats.equippedAccessory1) equippedItems.accessory1 = playerStats.equippedAccessory1;
+        if (playerStats.equippedAccessory2) equippedItems.accessory2 = playerStats.equippedAccessory2;
+
+        await playerStatsCollection.updateOne(
+          { userId },
+          { $set: { equippedItems } }
+        );
+      }
+
+      // Always remove legacy fields if they exist
+      await playerStatsCollection.updateOne(
+        { userId },
+        { $unset: { equippedWeapon: 1, equippedArmor: 1, equippedAccessory1: 1, equippedAccessory2: 1 } }
+      );
+
+      // Refetch to get the updated document without old fields
+      playerStats = await playerStatsCollection.findOne({ userId });
+
+      if (!playerStats) {
+        return NextResponse.json(
+          { error: 'Failed to refetch player stats after migration' },
+          { status: 500 }
+        );
+      }
+    }
+
     // If no stats exist, create default stats
     if (!playerStats) {
       const defaultStats = {
@@ -49,10 +89,7 @@ export async function GET(request: NextRequest) {
         currentHealth: 100,
 
         // Equipment slots (empty initially)
-        equippedWeapon: undefined,
-        equippedArmor: undefined,
-        equippedAccessory1: undefined,
-        equippedAccessory2: undefined,
+        equippedItems: {},
         equippedConsumables: ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'],
 
         // Battle stats
@@ -95,13 +132,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Convert ObjectId to string for frontend
+    const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2, ...cleanedStats } = playerStats;
+
     const statsForFrontend = {
-      ...playerStats,
+      ...cleanedStats,
       _id: playerStats._id?.toString(),
-      equippedWeapon: playerStats.equippedWeapon?.toString(),
-      equippedArmor: playerStats.equippedArmor?.toString(),
-      equippedAccessory1: playerStats.equippedAccessory1?.toString(),
-      equippedAccessory2: playerStats.equippedAccessory2?.toString(),
+      equippedItems: playerStats.equippedItems ? {
+        weapon: playerStats.equippedItems.weapon?.toString(),
+        armor: playerStats.equippedItems.armor?.toString(),
+        accessory1: playerStats.equippedItems.accessory1?.toString(),
+        accessory2: playerStats.equippedItems.accessory2?.toString(),
+      } : {},
       equippedConsumables: (playerStats.equippedConsumables && playerStats.equippedConsumables.length === 3)
         ? playerStats.equippedConsumables.map(id => id === 'empty' ? 'empty' : id.toString())
         : ['empty', 'empty', 'empty'],
