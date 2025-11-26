@@ -76,12 +76,21 @@ export async function POST(request: NextRequest) {
     }
 
     const spellData = lootItem.spellData;
+    const spellTier = inventoryItem.tier || 1;
+
+    // Apply tier scaling to spell stats (from GAME_DESIGN_PROPOSAL.md)
+    // Damage/Healing multipliers: [1.0, 1.5, 2.125, 2.875, 3.75]
+    // Cooldown reduction: -(tier - 1) * 2 seconds
+    const tierMultipliers = [1.0, 1.5, 2.125, 2.875, 3.75];
+    const statMultiplier = tierMultipliers[spellTier - 1] || 1.0;
+    const cooldownReduction = (spellTier - 1) * 2;
+    const actualCooldown = Math.max(5, spellData.cooldown - cooldownReduction); // Min 5s cooldown
 
     // ANTI-CHEAT: Check cooldown server-side
     // Use server-stored lastSpellCast timestamp (not client-provided)
     const lastSpellCast = playerStats.lastSpellCast || 0;
     const timeSinceLastCast = (Date.now() - lastSpellCast) / 1000; // seconds
-    const cooldownRemaining = Math.max(0, spellData.cooldown - timeSinceLastCast);
+    const cooldownRemaining = Math.max(0, actualCooldown - timeSinceLastCast);
 
     if (cooldownRemaining > 0) {
       return NextResponse.json(
@@ -93,17 +102,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute spell effect
+    // Execute spell effect with tier scaling
     let damage = 0;
     let healing = 0;
 
     if (spellData.damage) {
-      // Damage spell - return damage value for frontend to apply
-      damage = spellData.damage;
+      // Damage spell - apply tier multiplier
+      damage = Math.round(spellData.damage * statMultiplier);
     } else if (spellData.healing) {
-      // Healing spell - return healing amount for frontend to apply
+      // Healing spell - apply tier multiplier
       // Frontend's healHealth() hook will handle max HP calculation with equipment bonuses
-      healing = spellData.healing;
+      healing = Math.round(spellData.healing * statMultiplier);
 
       // Update cooldown timestamp
       await playerStatsCollection.updateOne(

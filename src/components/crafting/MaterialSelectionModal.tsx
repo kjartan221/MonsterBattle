@@ -43,7 +43,7 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
             return lootItem && lootItem.type === 'material';
           })
           .map((item: any) => ({
-            _id: item._id,
+            _id: item.inventoryId, // API returns inventoryId, not _id
             lootTableId: item.lootId,
             tier: item.tier || 1,
             isEmpowered: item.isEmpowered,
@@ -64,38 +64,55 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
 
   const handleMaterialClick = (material: InventoryMaterial) => {
     const requirement = recipe.requiredMaterials.find(r => r.lootTableId === material.lootTableId);
-    if (!requirement) return;
-
-    const currentSelected = selectedMaterials.get(material.lootTableId) || [];
-    const materialId = material._id;
-
-    // Check if already selected
-    if (currentSelected.includes(materialId)) {
-      // Deselect
-      const newSelected = currentSelected.filter(id => id !== materialId);
-      const newMap = new Map(selectedMaterials);
-      if (newSelected.length === 0) {
-        newMap.delete(material.lootTableId);
-      } else {
-        newMap.set(material.lootTableId, newSelected);
-      }
-      setSelectedMaterials(newMap);
-    } else {
-      // Select (if not at requirement limit)
-      if (currentSelected.length < requirement.quantity) {
-        const newSelected = [...currentSelected, materialId];
-        const newMap = new Map(selectedMaterials);
-        newMap.set(material.lootTableId, newSelected);
-        setSelectedMaterials(newMap);
-      } else {
-        toast.error(`Only need ${requirement.quantity} of this material`);
-      }
+    if (!requirement) {
+      console.warn('No requirement found for material:', material.lootTableId);
+      return;
     }
+
+    setSelectedMaterials(prevMap => {
+      const currentSelected = prevMap.get(material.lootTableId) || [];
+      const materialId = material._id;
+
+      console.log(`🔧 [MATERIAL CLICK] Clicked material:`, {
+        materialId,
+        lootTableId: material.lootTableId,
+        currentSelected,
+        prevMapSize: prevMap.size
+      });
+
+      // Check if already selected
+      if (currentSelected.includes(materialId)) {
+        // Deselect
+        const newSelected = currentSelected.filter(id => id !== materialId);
+        const newMap = new Map(prevMap);
+        if (newSelected.length === 0) {
+          newMap.delete(material.lootTableId);
+        } else {
+          newMap.set(material.lootTableId, newSelected);
+        }
+        console.log(`🔧 [MATERIAL DESELECT] New selection:`, Array.from(newMap.entries()));
+        return newMap;
+      } else {
+        // Select (if not at requirement limit)
+        if (currentSelected.length < requirement.quantity) {
+          const newSelected = [...currentSelected, materialId];
+          const newMap = new Map(prevMap);
+          newMap.set(material.lootTableId, newSelected);
+          console.log(`🔧 [MATERIAL SELECT] New selection:`, Array.from(newMap.entries()));
+          return newMap;
+        } else {
+          toast.error(`Only need ${requirement.quantity} of this material`);
+          return prevMap; // Return unchanged map
+        }
+      }
+    });
   };
 
   const isMaterialSelected = (materialId: string): boolean => {
     for (const ids of selectedMaterials.values()) {
-      if (ids.includes(materialId)) return true;
+      if (ids.includes(materialId)) {
+        return true;
+      }
     }
     return false;
   };
@@ -188,7 +205,7 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
 
               return (
                 <div
-                  key={req.lootTableId}
+                  key={`req-${req.lootTableId}`}
                   className={`flex justify-between items-center px-4 py-3 rounded-lg border-2 ${
                     isComplete
                       ? 'bg-green-900/30 border-green-500'
@@ -218,7 +235,7 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
             if (availableMaterials.length === 0) return null;
 
             return (
-              <div key={req.lootTableId} className="mb-4">
+              <div key={`mat-section-${req.lootTableId}`} className="mb-4">
                 <h4 className="text-lg font-semibold text-gray-300 mb-2">
                   {material?.icon} {material?.name}
                 </h4>

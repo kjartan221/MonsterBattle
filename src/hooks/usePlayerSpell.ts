@@ -4,6 +4,7 @@ import { getLootItemById, LootItem } from '@/lib/loot-table';
 
 interface SpellSlot {
   spellId: string | null;           // Spell ID (e.g., 'minor_heal', 'fireball')
+  lootTableId: string | null;       // Loot table ID (e.g., 'spell_scroll_heal')
   inventoryId: string | null;       // ID in userInventory collection
   name: string;                     // Spell scroll name
   icon: string;                     // Emoji icon
@@ -41,6 +42,7 @@ interface UsePlayerSpellResult {
 export function usePlayerSpell(): UsePlayerSpellResult {
   const [spellSlot, setSpellSlot] = useState<SpellSlot>({
     spellId: null,
+    lootTableId: null,
     inventoryId: null,
     name: '',
     icon: '',
@@ -73,6 +75,7 @@ export function usePlayerSpell(): UsePlayerSpellResult {
       if (!equippedSpellId || equippedSpellId === 'empty') {
         setSpellSlot({
           spellId: null,
+          lootTableId: null,
           inventoryId: null,
           name: '',
           icon: '',
@@ -99,6 +102,7 @@ export function usePlayerSpell(): UsePlayerSpellResult {
         // Item no longer exists, clear slot
         setSpellSlot({
           spellId: null,
+          lootTableId: null,
           inventoryId: null,
           name: '',
           icon: '',
@@ -116,6 +120,7 @@ export function usePlayerSpell(): UsePlayerSpellResult {
         // Not a spell scroll, clear slot
         setSpellSlot({
           spellId: null,
+          lootTableId: null,
           inventoryId: null,
           name: '',
           icon: '',
@@ -129,12 +134,19 @@ export function usePlayerSpell(): UsePlayerSpellResult {
       // Preserve existing lastUsed from ref
       const lastUsed = lastUsedRef.current;
 
+      // Apply tier scaling to cooldown (from GAME_DESIGN_PROPOSAL.md)
+      // Cooldown reduction: -(tier - 1) * 2 seconds, minimum 5s
+      const spellTier = equippedItem.tier || 1;
+      const cooldownReduction = (spellTier - 1) * 2;
+      const actualCooldown = Math.max(5, lootItem.spellData.cooldown - cooldownReduction);
+
       setSpellSlot({
         spellId: lootItem.spellData.spellId,
+        lootTableId: lootTableId,
         inventoryId: inventoryIdStr,
         name: lootItem.name,
         icon: lootItem.icon,
-        cooldown: lootItem.spellData.cooldown,
+        cooldown: actualCooldown, // Use tier-scaled cooldown
         lastUsed,
         spellData: lootItem.spellData
       });

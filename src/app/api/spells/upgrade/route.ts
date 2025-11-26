@@ -79,15 +79,15 @@ export async function POST(request: NextRequest) {
     const currentTier = targetSpell.tier || 1;
     const nextTier = currentTier + 1;
 
-    // Define upgrade requirements per tier
-    // Tier 1 → 2: 2 duplicates, 500 gold
-    // Tier 2 → 3: 3 duplicates, 1500 gold
-    // Tier 3 → 4: 4 duplicates, 3000 gold
+    // Define upgrade requirements per tier (from GAME_DESIGN_PROPOSAL.md)
+    // Tier 1 → 2: 1 duplicate, 500 gold
+    // Tier 2 → 3: 2 duplicates, 1000 gold
+    // Tier 3 → 4: 3 duplicates, 2000 gold
     // Tier 4 → 5: 5 duplicates, 5000 gold
     const upgradeRequirements: Record<number, { duplicates: number; gold: number }> = {
-      1: { duplicates: 2, gold: 500 },
-      2: { duplicates: 3, gold: 1500 },
-      3: { duplicates: 4, gold: 3000 },
+      1: { duplicates: 1, gold: 500 },
+      2: { duplicates: 2, gold: 1000 },
+      3: { duplicates: 3, gold: 2000 },
       4: { duplicates: 5, gold: 5000 }
     };
 
