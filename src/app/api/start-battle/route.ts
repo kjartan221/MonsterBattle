@@ -7,6 +7,7 @@ import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable } from '@/lib/b
 import { generateMonsterBuffs } from '@/utils/monsterBuffs';
 import { getCorruptionRateForStreak } from '@/utils/playerProgression';
 import { getStreakForZone } from '@/utils/streakHelpers';
+import { MonsterBuffType } from '@/lib/types';
 import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
@@ -108,8 +109,28 @@ export async function POST(request: NextRequest) {
     const clicksRequired = getRandomClicksRequired(monsterTemplate.baseClicksRange, tier);
     const attackDamage = getScaledAttackDamage(monsterTemplate.baseAttackDamage, tier);
 
+    // Load challenge config to check for forced buffs (before generating random buffs)
+    const challengeConfig = playerStats.battleChallengeConfig || {
+      forceShield: false,
+      forceSpeed: false,
+      damageMultiplier: 1.0,
+      hpMultiplier: 1.0,
+      dotIntensity: 1.0,
+      corruptionRate: 0,
+      escapeTimerSpeed: 1.0,
+      buffStrength: 1.0,
+      bossAttackSpeed: 1.0
+    };
+
+    // Determine which buff types to exclude from random generation
+    const excludeBuffTypes: MonsterBuffType[] = [];
+    if (challengeConfig.forceSpeed) {
+      excludeBuffTypes.push('fast'); // Don't generate random fast buff if challenge forces it
+      console.log(`⚔️ [CHALLENGE] Speed buff forced by config - excluding 'fast' from random buff generation`);
+    }
+
     // Generate random buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
-    const randomBuffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false);
+    const randomBuffs = generateMonsterBuffs(tier, clicksRequired, monsterTemplate.isBoss || false, excludeBuffTypes);
 
     // Apply initial buffs from template (these stack with random buffs)
     const initialBuffs = monsterTemplate.initialBuffs || [];
@@ -147,17 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply Challenge Mode multipliers (Phase 3.3)
-    const challengeConfig = playerStats.battleChallengeConfig || {
-      forceShield: false,
-      forceSpeed: false,
-      damageMultiplier: 1.0,
-      hpMultiplier: 1.0,
-      dotIntensity: 1.0,
-      corruptionRate: 0,
-      escapeTimerSpeed: 1.0,
-      buffStrength: 1.0,
-      bossAttackSpeed: 1.0
-    };
+    // (challengeConfig already loaded above for buff exclusion)
 
     // Apply HP multiplier
     if (challengeConfig.hpMultiplier > 1.0) {

@@ -13,8 +13,10 @@ import { Tier } from '@/lib/biome-config';
  * - Bosses: No buffs except in Tier 5
  *
  * Note: Shield reduces player damage by 25%, can be removed with consumables (e.g. Acid Bottle)
+ *
+ * @param excludeBuffTypes - Buff types to exclude from random generation (e.g., if challenge config forces them)
  */
-export function generateMonsterBuffs(tier: Tier, monsterHP: number, isBoss: boolean = false): MonsterBuff[] {
+export function generateMonsterBuffs(tier: Tier, monsterHP: number, isBoss: boolean = false, excludeBuffTypes: MonsterBuffType[] = []): MonsterBuff[] {
   const buffs: MonsterBuff[] = [];
 
   // Tier 1: No buffs
@@ -51,7 +53,11 @@ export function generateMonsterBuffs(tier: Tier, monsterHP: number, isBoss: bool
   if (buffCount === 0) return buffs;
 
   // Available buff types (only Shield and Fast for Phase 2.1)
-  const availableBuffs: MonsterBuffType[] = ['shield', 'fast'];
+  // Filter out any buffs that are forced by challenge config (avoid duplicates)
+  const allBuffTypes: MonsterBuffType[] = ['shield', 'fast'];
+  const availableBuffs: MonsterBuffType[] = allBuffTypes.filter(
+    buffType => !excludeBuffTypes.includes(buffType)
+  );
 
   // Randomly select buffs (no duplicates)
   const selectedBuffTypes: MonsterBuffType[] = [];
