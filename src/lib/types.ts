@@ -130,6 +130,19 @@ export interface PlayerStats {
     };
   };
 
+  // Challenge Mode Configuration (Phase 3.3)
+  battleChallengeConfig?: {
+    forceShield: boolean;       // Force all monsters to spawn with shield
+    forceSpeed: boolean;        // Force all monsters to spawn with speed challenge
+    damageMultiplier: number;   // Monster damage multiplier (1.0, 1.25, 1.5, 2.0, 3.0)
+    hpMultiplier: number;       // Monster HP multiplier (1.0, 1.5, 2.0, 3.0, 5.0)
+    dotIntensity: number;       // DoT effect multiplier (1.0, 1.5, 2.0, 3.0, 5.0)
+    corruptionRate: number;     // Force corruption rate (0, 0.25, 0.5, 0.75, 1.0)
+    escapeTimerSpeed: number;   // Escape timer speed multiplier (1.0, 1.5, 2.0, 3.0, 4.0) - 10s minimum
+    buffStrength: number;       // Monster buff strength multiplier (1.0, 1.5, 2.0, 3.0, 5.0)
+    bossAttackSpeed: number;    // Boss attack cooldown multiplier (1.0, 0.75, 0.5, 0.33, 0.25)
+  };
+
   createdAt: Date;
   lastBattleAt?: Date;
 }

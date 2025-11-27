@@ -171,7 +171,7 @@ export default function Hotbar({ spellSlot: externalSpellSlot, onSpellCast, onCo
   }, []); // Empty deps - listener never recreates, uses refs for current values
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-10">
       <div className="bg-gray-900/95 border-2 border-gray-700 rounded-lg p-3 md:p-4 shadow-2xl">
         <div className="flex gap-3 md:gap-4">
           {/* Spell Slot (Q) */}

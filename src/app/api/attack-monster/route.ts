@@ -392,7 +392,99 @@ export async function POST(request: NextRequest) {
     console.log(`🎯 [STREAK DEBUG] Streak Multiplier for loot: ${streakMultiplier}x (${winStreak} * 0.03)`);
     console.log(`🎯 [STREAK DEBUG] battlesWonStreaks:`, JSON.stringify(playerStats.stats.battlesWonStreaks));
 
-    const lootOptions = getRandomLoot(monster.name, 5, winStreak);
+    // Calculate Challenge Mode reward bonuses (Phase 3.3)
+    const challengeConfig = playerStats.battleChallengeConfig || {
+      forceShield: false,
+      forceSpeed: false,
+      damageMultiplier: 1.0,
+      hpMultiplier: 1.0,
+      dotIntensity: 1.0,
+      corruptionRate: 0,
+      escapeTimerSpeed: 1.0,
+      buffStrength: 1.0,
+      bossAttackSpeed: 1.0
+    };
+
+    let extraLootCards = 0;
+    let challengeXPMultiplier = 1.0;
+
+    // Toggle bonuses
+    if (challengeConfig.forceShield) {
+      extraLootCards += 1;
+      console.log(`⚔️ [CHALLENGE] Force Shield bonus: +1 loot card`);
+    }
+    if (challengeConfig.forceSpeed) {
+      extraLootCards += 1;
+      console.log(`⚔️ [CHALLENGE] Force Speed bonus: +1 loot card`);
+    }
+
+    // Max slider bonuses (+1 loot card for the 3 hardest settings)
+    if (challengeConfig.damageMultiplier === 3.0) {
+      extraLootCards += 1;
+      console.log(`⚔️ [CHALLENGE] Max Damage bonus: +1 loot card`);
+    }
+    if (challengeConfig.escapeTimerSpeed === 4.0) {
+      extraLootCards += 1;
+      console.log(`⚔️ [CHALLENGE] Max Escape Timer bonus: +1 loot card`);
+    }
+    if (challengeConfig.buffStrength === 5.0) {
+      extraLootCards += 1;
+      console.log(`⚔️ [CHALLENGE] Max Buff Strength bonus: +1 loot card`);
+    }
+
+    // Damage multiplier bonus (+25% per step)
+    if (challengeConfig.damageMultiplier > 1.0) {
+      const damageSteps = Math.log(challengeConfig.damageMultiplier) / Math.log(1.25);
+      challengeXPMultiplier += damageSteps * 0.25;
+      console.log(`⚔️ [CHALLENGE] Damage multiplier ${challengeConfig.damageMultiplier}x: +${Math.round(damageSteps * 25)}% rewards`);
+    }
+
+    // HP multiplier bonus (+50% per step)
+    if (challengeConfig.hpMultiplier > 1.0) {
+      const hpSteps = Math.log(challengeConfig.hpMultiplier) / Math.log(1.5);
+      challengeXPMultiplier += hpSteps * 0.50;
+      console.log(`⚔️ [CHALLENGE] HP multiplier ${challengeConfig.hpMultiplier}x: +${Math.round(hpSteps * 50)}% rewards`);
+    }
+
+    // DoT intensity bonus (+30% per step)
+    if (challengeConfig.dotIntensity > 1.0) {
+      const dotSteps = Math.log(challengeConfig.dotIntensity) / Math.log(1.5);
+      challengeXPMultiplier += dotSteps * 0.30;
+      console.log(`⚔️ [CHALLENGE] DoT intensity ${challengeConfig.dotIntensity}x: +${Math.round(dotSteps * 30)}% rewards`);
+    }
+
+    // Corruption rate bonus (+60% at 100%)
+    if (challengeConfig.corruptionRate > 0) {
+      challengeXPMultiplier += challengeConfig.corruptionRate * 0.60;
+      console.log(`⚔️ [CHALLENGE] Corruption rate ${Math.round(challengeConfig.corruptionRate * 100)}%: +${Math.round(challengeConfig.corruptionRate * 60)}% rewards`);
+    }
+
+    // Escape timer speed bonus (+40% per step, minimum 10s enforced)
+    if (challengeConfig.escapeTimerSpeed > 1.0) {
+      const escapeSteps = Math.log(challengeConfig.escapeTimerSpeed) / Math.log(1.5);
+      challengeXPMultiplier += escapeSteps * 0.40;
+      console.log(`⚔️ [CHALLENGE] Escape timer ${challengeConfig.escapeTimerSpeed}x: +${Math.round(escapeSteps * 40)}% rewards`);
+    }
+
+    // Buff strength bonus (+35% per step)
+    if (challengeConfig.buffStrength > 1.0) {
+      const buffSteps = Math.log(challengeConfig.buffStrength) / Math.log(1.5);
+      challengeXPMultiplier += buffSteps * 0.35;
+      console.log(`⚔️ [CHALLENGE] Buff strength ${challengeConfig.buffStrength}x: +${Math.round(buffSteps * 35)}% rewards`);
+    }
+
+    // Boss attack speed bonus (+50% per step)
+    if (challengeConfig.bossAttackSpeed < 1.0) {
+      const bossSteps = Math.log(1.0 / challengeConfig.bossAttackSpeed) / Math.log(1.33);
+      challengeXPMultiplier += bossSteps * 0.50;
+      console.log(`⚔️ [CHALLENGE] Boss attack ${challengeConfig.bossAttackSpeed}x: +${Math.round(bossSteps * 50)}% rewards`);
+    }
+
+    const totalLootCards = 5 + extraLootCards;
+    console.log(`⚔️ [CHALLENGE] Total loot cards: ${totalLootCards} (base 5 + ${extraLootCards} challenge bonus)`);
+    console.log(`⚔️ [CHALLENGE] Total XP/Coin multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
+
+    const lootOptions = getRandomLoot(monster.name, totalLootCards, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
     console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks (${totalDamage} damage) in ${timeInSeconds.toFixed(2)}s`);
@@ -444,13 +536,14 @@ export async function POST(request: NextRequest) {
     // Apply tier multiplier to rewards (higher tiers = MUCH more rewards)
     const tierMultiplier = getTierRewardMultiplier(currentTier);
 
-    // Combined multiplier (streak * tier)
-    const totalRewardMultiplier = rewardStreakMultiplier * tierMultiplier;
+    // Combined multiplier (streak * tier * challenge)
+    const totalRewardMultiplier = rewardStreakMultiplier * tierMultiplier * challengeXPMultiplier;
 
     console.log(`🎯 [REWARD DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins (${monster.rarity})`);
     console.log(`🎯 [REWARD DEBUG] Streak Multiplier: ${rewardStreakMultiplier}x (streak ${winStreak})`);
     console.log(`🎯 [REWARD DEBUG] Tier Multiplier: ${tierMultiplier}x (Tier ${currentTier})`);
-    console.log(`🎯 [REWARD DEBUG] Total Multiplier: ${totalRewardMultiplier}x`);
+    console.log(`🎯 [REWARD DEBUG] Challenge Multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
+    console.log(`🎯 [REWARD DEBUG] Total Multiplier: ${totalRewardMultiplier.toFixed(2)}x`);
 
     const rewards = {
       xp: Math.ceil(baseRewards.xp * totalRewardMultiplier),

@@ -54,9 +54,10 @@ interface MonsterBattleSectionProps {
   activeBuffs?: import('@/types/buffs').Buff[]; // Phase 2.6: Active player buffs for crit multiplier calculation
   damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
   healingReportHandler?: React.MutableRefObject<((amount: number) => void) | null>; // Report healing for cheat detection
+  buffReportHandler?: React.MutableRefObject<((buffType: string, buffValue: number) => void) | null>; // Report buffs for cheat detection
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler, buffReportHandler }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -65,6 +66,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Local battle progress state
   const [totalDamage, setTotalDamage] = useState(0);
   const [totalHealing, setTotalHealing] = useState(0); // Track all healing for cheat detection
+  const [totalShieldGained, setTotalShieldGained] = useState(0); // Track all shield HP gained
+  const [totalDamageReduction, setTotalDamageReduction] = useState(0); // Track all damage reduction buffs
   const [invulnerabilityTime, setInvulnerabilityTime] = useState(0); // Track boss invulnerability time (ms)
   const [summonDamage, setSummonDamage] = useState(0); // Track damage from summons (not reduced by armor)
   const [clickCount, setClickCount] = useState(0);
@@ -203,6 +206,26 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     };
   }, [healingReportHandler, totalHealing]);
+
+  // Expose buff tracking function via ref (for BattlePage to report consumable/spell buffs)
+  useEffect(() => {
+    if (buffReportHandler) {
+      buffReportHandler.current = (buffType: string, buffValue: number) => {
+        if (buffType === 'shield') {
+          setTotalShieldGained(prev => prev + buffValue);
+          console.log(`🛡️ [Buff Report] Shield +${buffValue} HP, total: ${totalShieldGained + buffValue}`);
+        } else if (buffType === 'damage_reduction') {
+          setTotalDamageReduction(prev => prev + buffValue);
+          console.log(`🛡️ [Buff Report] Damage Reduction +${buffValue}%, total: ${totalDamageReduction + buffValue}%`);
+        }
+      };
+    }
+    return () => {
+      if (buffReportHandler) {
+        buffReportHandler.current = null;
+      }
+    };
+  }, [buffReportHandler, totalShieldGained, totalDamageReduction]);
 
   // Determine if this is a boss monster (before calling hooks)
   const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
@@ -532,15 +555,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearDebuffs();
     clearInteractiveAttacks();
 
-    // Calculate current buff protection for cheat detection
-    const totalShieldHP = activeBuffs
-      .filter(buff => buff.buffType === BuffType.SHIELD)
-      .reduce((sum, buff) => sum + buff.value, 0);
-
-    const totalDamageReduction = activeBuffs
-      .filter(buff => buff.buffType === BuffType.DAMAGE_REDUCTION)
-      .reduce((sum, buff) => sum + buff.value, 0);
-
     gameState.setBattleCompleting();
 
     try {
@@ -552,7 +566,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           clickCount: finalClickCount,
           totalDamage: finalTotalDamage,
           usedItems: [],
-          currentShieldHP: totalShieldHP,
+          currentShieldHP: totalShieldGained,
           damageReductionPercent: totalDamageReduction,
           actualHealing: totalHealing,
           invulnerabilityTimeMs: invulnerabilityTime,
@@ -580,6 +594,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         setLastSavedClickCount(0);
         setTotalDamage(0);
         setTotalHealing(0); // Reset healing tracker on cheat reset
+        setTotalShieldGained(0); // Reset shield tracker on cheat reset
+        setTotalDamageReduction(0); // Reset damage reduction tracker on cheat reset
         setInvulnerabilityTime(0); // Reset invulnerability tracker
         setSummonDamage(0); // Reset summon damage tracker
         setMonsterDebuffs([]); // Clear debuffs on cheat reset
@@ -589,6 +605,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
 
       if (data.hpCheatDetected) {
+        toast.error(data.message || 'You should have been defeated by the monster!\n\nYour battle session has been ended.');
         await handlePlayerDeath();
         return;
       }
@@ -1087,6 +1104,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setLastSavedClickCount(0);
     setTotalDamage(0);
     setTotalHealing(0); // Reset healing tracker on new monster
+    setTotalShieldGained(0); // Reset shield tracker on new monster
+    setTotalDamageReduction(0); // Reset damage reduction tracker on new monster
     setInvulnerabilityTime(0); // Reset invulnerability tracker
     setSummonDamage(0); // Reset summon damage tracker
     setShieldHP(0);

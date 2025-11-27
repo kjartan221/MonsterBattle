@@ -139,17 +139,115 @@ export async function POST(request: NextRequest) {
     console.log(`🎯 [STREAK DEBUG - START BATTLE] Corruption Rate: ${(corruptionRate * 100).toFixed(1)}% (streak ${currentStreak}), isCorrupted: ${isCorrupted}`);
 
     // Apply corruption multipliers if corrupted
-    const finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
-    const finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
+    let finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
+    let finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
 
     if (isCorrupted) {
       console.log(`🎯 [STREAK DEBUG - START BATTLE] Corrupted multipliers applied: HP ${clicksRequired} → ${finalClicksRequired} (+50%), DMG ${attackDamage} → ${finalAttackDamage} (+25%)`);
     }
 
-    // Filter special attacks based on current tier
-    const filteredSpecialAttacks = monsterTemplate.specialAttacks?.filter(
+    // Apply Challenge Mode multipliers (Phase 3.3)
+    const challengeConfig = playerStats.battleChallengeConfig || {
+      forceShield: false,
+      forceSpeed: false,
+      damageMultiplier: 1.0,
+      hpMultiplier: 1.0,
+      dotIntensity: 1.0,
+      corruptionRate: 0,
+      escapeTimerSpeed: 1.0,
+      buffStrength: 1.0,
+      bossAttackSpeed: 1.0
+    };
+
+    // Apply HP multiplier
+    if (challengeConfig.hpMultiplier > 1.0) {
+      const hpBefore = finalClicksRequired;
+      finalClicksRequired = Math.round(finalClicksRequired * challengeConfig.hpMultiplier);
+      console.log(`⚔️ [CHALLENGE] HP multiplier applied: ${hpBefore} → ${finalClicksRequired} (${challengeConfig.hpMultiplier}x)`);
+    }
+
+    // Apply damage multiplier
+    if (challengeConfig.damageMultiplier > 1.0) {
+      const dmgBefore = finalAttackDamage;
+      finalAttackDamage = Math.round(finalAttackDamage * challengeConfig.damageMultiplier);
+      console.log(`⚔️ [CHALLENGE] Damage multiplier applied: ${dmgBefore} → ${finalAttackDamage} (${challengeConfig.damageMultiplier}x)`);
+    }
+
+    // Apply forced buffs from challenge config (with buff strength multiplier)
+    if (challengeConfig.forceShield) {
+      const baseShieldHP = Math.floor(finalClicksRequired * 0.3); // 30% of monster HP
+      const shieldHP = Math.floor(baseShieldHP * challengeConfig.buffStrength);
+      buffs.push({ type: 'shield', value: shieldHP });
+      console.log(`⚔️ [CHALLENGE] Force Shield applied: ${shieldHP} HP (${challengeConfig.buffStrength}x strength)`);
+    }
+
+    if (challengeConfig.forceSpeed) {
+      const baseTimer = 30; // 30 second base timer (will be modified by escapeTimerSpeed later)
+      buffs.push({ type: 'fast', value: baseTimer });
+      console.log(`⚔️ [CHALLENGE] Force Speed applied: ${baseTimer}s base timer`);
+    }
+
+    // Apply buff strength multiplier to existing shield buffs
+    if (challengeConfig.buffStrength > 1.0) {
+      buffs.forEach(buff => {
+        if (buff.type === 'shield') {
+          const oldValue = buff.value;
+          buff.value = Math.floor(buff.value * challengeConfig.buffStrength);
+          console.log(`⚔️ [CHALLENGE] Shield buff strength: ${oldValue} → ${buff.value} HP (${challengeConfig.buffStrength}x)`);
+        }
+      });
+    }
+
+    // Apply escape timer speed to existing fast buffs (with 10 second minimum)
+    if (challengeConfig.escapeTimerSpeed > 1.0) {
+      buffs.forEach(buff => {
+        if (buff.type === 'fast') {
+          const oldValue = buff.value;
+          const calculatedTimer = Math.floor(buff.value / challengeConfig.escapeTimerSpeed);
+          buff.value = Math.max(10, calculatedTimer); // Minimum 10 seconds
+          console.log(`⚔️ [CHALLENGE] Escape timer speed: ${oldValue}s → ${buff.value}s (${challengeConfig.escapeTimerSpeed}x, min 10s)`);
+        }
+      });
+    }
+
+    // Apply DoT intensity multiplier to monster DoT effects
+    let modifiedDotEffect = monsterTemplate.dotEffect;
+    if (modifiedDotEffect && challengeConfig.dotIntensity > 1.0) {
+      modifiedDotEffect = {
+        ...modifiedDotEffect,
+        damageAmount: modifiedDotEffect.damageAmount * challengeConfig.dotIntensity
+      };
+      console.log(`⚔️ [CHALLENGE] DoT intensity: ${monsterTemplate.dotEffect?.damageAmount}% → ${modifiedDotEffect.damageAmount}% (${challengeConfig.dotIntensity}x)`);
+    }
+
+    // Override corruption rate if challenge config forces it
+    let finalIsCorrupted = isCorrupted;
+    let hasEnrageBuff = false;
+    if (challengeConfig.corruptionRate > 0) {
+      const forcedCorruption = Math.random() < challengeConfig.corruptionRate;
+      if (forcedCorruption && !isCorrupted) {
+        // Force corruption via challenge mode
+        finalIsCorrupted = true;
+        finalClicksRequired = Math.round(finalClicksRequired * 1.5); // +50% HP
+        finalAttackDamage = Math.round(finalAttackDamage * 1.25); // +25% damage
+        // Add enrage buff (+20% damage) for forced corruption
+        hasEnrageBuff = true;
+        finalAttackDamage = Math.round(finalAttackDamage * 1.2); // +20% enrage
+        console.log(`⚔️ [CHALLENGE] Forced corruption: HP +50%, DMG +25%, Enrage +20% (total DMG: ${finalAttackDamage})`);
+      }
+    }
+
+    // Apply boss attack speed multiplier to special attacks
+    let modifiedSpecialAttacks = monsterTemplate.specialAttacks?.filter(
       attack => !attack.minTier || tier >= attack.minTier
     );
+    if (modifiedSpecialAttacks && challengeConfig.bossAttackSpeed < 1.0) {
+      modifiedSpecialAttacks = modifiedSpecialAttacks.map(attack => ({
+        ...attack,
+        cooldown: Math.round(attack.cooldown * challengeConfig.bossAttackSpeed)
+      }));
+      console.log(`⚔️ [CHALLENGE] Boss attack speed: Cooldowns multiplied by ${challengeConfig.bossAttackSpeed}x`);
+    }
 
     const newMonster = {
       name: monsterTemplate.name,
@@ -161,10 +259,10 @@ export async function POST(request: NextRequest) {
       tier,
       moveInterval: monsterTemplate.moveInterval, // Monster movement speed (700-3000ms)
       isBoss: monsterTemplate.isBoss, // Mark boss monsters (enables phase system)
-      isCorrupted, // Mark corrupted monsters (drops empowered items)
-      dotEffect: monsterTemplate.dotEffect, // Pass DoT effect to frontend
+      isCorrupted: finalIsCorrupted, // Mark corrupted monsters (drops empowered items) - includes forced corruption
+      dotEffect: modifiedDotEffect, // Pass DoT effect to frontend (with challenge intensity applied)
       buffs, // Add monster buffs (initial + random, they stack!)
-      specialAttacks: filteredSpecialAttacks, // Boss special attacks (filtered by tier)
+      specialAttacks: modifiedSpecialAttacks, // Boss special attacks (with challenge cooldown applied)
       bossPhases: monsterTemplate.bossPhases, // Boss phase system
       createdAt: new Date()
     };

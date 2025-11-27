@@ -13,6 +13,7 @@ import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import { usePlayerSpell } from '@/hooks/usePlayerSpell';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
+import ChallengeWidget from '@/components/battle/ChallengeWidget';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
 import EquipmentSelectionModal from '@/components/battle/EquipmentSelectionModal';
@@ -80,6 +81,9 @@ export default function BattlePage() {
 
   // Ref to MonsterBattleSection's healing tracker
   const healingReportHandlerRef = useRef<((amount: number) => void) | null>(null);
+
+  // Ref to MonsterBattleSection's buff tracker
+  const buffReportHandlerRef = useRef<((buffType: string, buffValue: number) => void) | null>(null);
 
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
@@ -150,6 +154,10 @@ export default function BattlePage() {
         name: consumableItem.name,
         icon: consumableItem.icon
       });
+      // Report buff for cheat detection
+      if (buffReportHandlerRef.current) {
+        buffReportHandlerRef.current(buffType, buffValue);
+      }
 
       // Show appropriate toast message based on buff type
       if (buffType.includes('resistance')) {
@@ -212,6 +220,10 @@ export default function BattlePage() {
         name: result.spellName,
         icon: '✨'
       });
+      // Report buff for cheat detection
+      if (buffReportHandlerRef.current) {
+        buffReportHandlerRef.current(result.buffType, result.buffValue);
+      }
     }
 
     // Pass spell data to MonsterBattleSection for damage application and visual effects
@@ -269,6 +281,9 @@ export default function BattlePage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
       {/* Player Stats - Top Left (Always visible on desktop, top on mobile) */}
       <PlayerStatsDisplay activeDebuffs={activeDebuffs} activeBuffs={activeBuffs} />
+
+      {/* Challenge Widget - Below Player Stats */}
+      <ChallengeWidget />
 
       {/* Biome Map Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
@@ -367,6 +382,7 @@ export default function BattlePage() {
         activeBuffs={activeBuffs}
         damageShield={damageShield}
         healingReportHandler={healingReportHandlerRef}
+        buffReportHandler={buffReportHandlerRef}
       />
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}
