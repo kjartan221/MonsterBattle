@@ -159,6 +159,40 @@ export function getStreakRareDropBonus(streak: number): number {
 }
 
 /**
+ * Calculate tier-based reward multiplier for coins/XP
+ * Higher tiers = MUCH more rewards to incentivize progression
+ *
+ * Tier multipliers:
+ * - Tier 1: 1.0x (base rewards)
+ * - Tier 2: 3.0x (3x rewards)
+ * - Tier 3: 8.0x (8x rewards)
+ * - Tier 4: 20.0x (20x rewards)
+ * - Tier 5: 50.0x (50x rewards)
+ *
+ * Why exponential scaling?
+ * - Makes higher tier progression feel meaningful
+ * - Compensates for increased difficulty (monster stats scale exponentially)
+ * - Encourages players to push to higher tiers instead of farming low tiers
+ * - T5 monsters are much harder, so rewards should match
+ */
+export function getTierRewardMultiplier(tier: 1 | 2 | 3 | 4 | 5): number {
+  switch (tier) {
+    case 1:
+      return 1.0;
+    case 2:
+      return 3.0;
+    case 3:
+      return 8.0;
+    case 4:
+      return 20.0;
+    case 5:
+      return 50.0;
+    default:
+      return 1.0;
+  }
+}
+
+/**
  * Calculate corrupted monster spawn rate based on streak
  * Higher streaks = more corrupted spawns = more challenge + more empowered loot
  *

@@ -369,7 +369,7 @@ function formatStatName(key: string): string {
 function getStatUnit(key: string): string {
   const unitMap: Record<string, string> = {
     critChance: '%',
-    defense: '%',
+    defense: '',
     attackSpeed: '%',
     coinBonus: '%'
   };

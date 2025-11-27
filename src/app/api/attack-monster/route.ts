@@ -4,7 +4,7 @@ import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
-import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier } from '@/utils/playerProgression';
+import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier, getTierRewardMultiplier } from '@/utils/playerProgression';
 import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
 import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
@@ -220,9 +220,14 @@ export async function POST(request: NextRequest) {
     // Step 8: Apply shield absorption
     const damageAfterShield = Math.max(0, expectedDamage - shieldHP);
 
+    // Calculate actual reduction percentage for logging (using same formula as calculateMonsterDamage)
+    const K = 67;
+    const MAX_REDUCTION = 80;
+    const actualReductionPercent = Math.round((equipmentStats.defense / (equipmentStats.defense + K)) * MAX_REDUCTION * 10) / 10;
+
     console.log(`Damage calculation:`);
     console.log(`  Time: ${timeInSeconds.toFixed(2)}s total, ${invulnerabilityMs}ms invulnerable, ${(activeAttackTimeMs / 1000).toFixed(2)}s active`);
-    console.log(`  Monster: ${damagePerHit} dmg/hit (${equipmentStats.defense}% armor), ${attackInterval}ms interval, ${numberOfAttacks} attacks = ${monsterDamage} damage`);
+    console.log(`  Monster: ${damagePerHit} dmg/hit (${equipmentStats.defense} defense → ${actualReductionPercent}% reduction), ${attackInterval}ms interval, ${numberOfAttacks} attacks = ${monsterDamage} damage`);
     console.log(`  Summons: ${reportedSummonDamage} damage (not reduced by armor)`);
     console.log(`  Total base: ${totalBaseDamage} damage`);
     if (damageReduction > 0) {
@@ -257,9 +262,10 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
       console.warn(`   Total Max HP: ${totalMaxHP} (base: ${playerStats.maxHealth} + equipment: ${equipmentStats.maxHpBonus})`);
       console.warn(`   Active time: ${(activeAttackTimeMs / 1000).toFixed(2)}s (${invulnerabilityMs}ms invulnerable)`);
+      console.warn(`   Defense: ${equipmentStats.defense} (→ ${actualReductionPercent}% damage reduction)`);
       console.warn(`   Monster damage: ${numberOfAttacks} attacks × ${damagePerHit} dmg/hit = ${monsterDamage}`);
-      console.warn(`   Summon damage: ${reportedSummonDamage} (not reduced by armor)`);
-      console.warn(`   Total damage: ${expectedDamage} (after ${shieldHP} shield, ${damageReduction}% reduction)`);
+      console.warn(`   Summon damage: ${reportedSummonDamage} (not reduced by defense)`);
+      console.warn(`   Total damage: ${expectedDamage} (after ${shieldHP} shield, ${damageReduction}% reduction buff)`);
       console.warn(`   Healing used: ${totalHealing}`);
 
       // End the battle session (mark as defeated, no loot)
@@ -433,17 +439,25 @@ export async function POST(request: NextRequest) {
 
     // Apply streak multiplier to rewards (higher streaks = more rewards)
     // Use the per-zone streak we already calculated above
-    const rewardMultiplier = getStreakRewardMultiplier(winStreak);
+    const rewardStreakMultiplier = getStreakRewardMultiplier(winStreak);
 
-    console.log(`🎯 [STREAK DEBUG] Reward Multiplier: ${rewardMultiplier}x for streak ${winStreak}`);
-    console.log(`🎯 [STREAK DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins`);
+    // Apply tier multiplier to rewards (higher tiers = MUCH more rewards)
+    const tierMultiplier = getTierRewardMultiplier(currentTier);
+
+    // Combined multiplier (streak * tier)
+    const totalRewardMultiplier = rewardStreakMultiplier * tierMultiplier;
+
+    console.log(`🎯 [REWARD DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins (${monster.rarity})`);
+    console.log(`🎯 [REWARD DEBUG] Streak Multiplier: ${rewardStreakMultiplier}x (streak ${winStreak})`);
+    console.log(`🎯 [REWARD DEBUG] Tier Multiplier: ${tierMultiplier}x (Tier ${currentTier})`);
+    console.log(`🎯 [REWARD DEBUG] Total Multiplier: ${totalRewardMultiplier}x`);
 
     const rewards = {
-      xp: Math.ceil(baseRewards.xp * rewardMultiplier),
-      coins: Math.ceil(baseRewards.coins * rewardMultiplier)
+      xp: Math.ceil(baseRewards.xp * totalRewardMultiplier),
+      coins: Math.ceil(baseRewards.coins * totalRewardMultiplier)
     };
 
-    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, ${rewardMultiplier}x streak bonus)`);
+    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, Tier ${currentTier}, streak ${winStreak})`);
 
     // Calculate new XP and coins
     const newXP = playerStats.experience + rewards.xp;

@@ -117,17 +117,42 @@ export function calculateClickDamage(
 
 /**
  * Calculate effective monster attack damage after armor reduction
+ * Uses diminishing returns formula to prevent defense from becoming too powerful at high tiers
+ *
+ * Formula: actualReduction% = (defense / (defense + K)) * maxReduction
+ * - K = 67 (diminishing returns constant)
+ * - maxReduction = 80% (hard cap, ensures 20% minimum damage always gets through)
+ *
+ * Examples:
+ * - 0 defense → 0% reduction
+ * - 10 defense → 10.4% reduction
+ * - 25 defense → 21.8% reduction
+ * - 50 defense → 34.3% reduction
+ * - 100 defense → 47.9% reduction
+ * - 200 defense → 60% reduction
+ * - ∞ defense → approaches 80% reduction
+ *
  * @param baseAttackDamage - Monster's base attack damage
- * @param defense - Defense from armor (percentage damage reduction)
- * @returns Reduced damage amount
+ * @param defense - Defense stat from equipment (not directly a percentage)
+ * @returns Reduced damage amount (minimum 1)
  */
 export function calculateMonsterDamage(
   baseAttackDamage: number,
   defense: number
 ): number {
-  // defense is a percentage (e.g., 10 = 10% reduction)
-  const reductionMultiplier = 1 - (defense / 100);
-  return Math.max(1, Math.round(baseAttackDamage * reductionMultiplier));
+  // Diminishing returns formula constants
+  const K = 67; // Diminishing returns constant
+  const MAX_REDUCTION = 80; // Hard cap at 80% reduction
+
+  // Calculate actual damage reduction percentage with diminishing returns
+  const actualReductionPercent = (defense / (defense + K)) * MAX_REDUCTION;
+
+  // Apply reduction to base damage
+  const reductionMultiplier = 1 - (actualReductionPercent / 100);
+  const reducedDamage = baseAttackDamage * reductionMultiplier;
+
+  // Always deal at least 1 damage
+  return Math.max(1, Math.round(reducedDamage));
 }
 
 /**

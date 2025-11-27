@@ -116,7 +116,7 @@ export default function CraftedItemModal({ item, statRoll, rolledStats, isEmpowe
               {rolledStats.defense !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-gray-400">Defense:</span>
-                  <span className="text-green-400 font-bold">{rolledStats.defense}%</span>
+                  <span className="text-green-400 font-bold">+{rolledStats.defense}</span>
                 </div>
               )}
               {rolledStats.maxHpBonus !== undefined && (

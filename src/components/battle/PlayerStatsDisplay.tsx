@@ -23,6 +23,13 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
 
   if (!playerStats) return null;
 
+  // Helper function to calculate actual damage reduction from defense stat
+  const calculateActualReduction = (defense: number): number => {
+    const K = 67;
+    const MAX_REDUCTION = 80;
+    return Math.round((defense / (defense + K)) * MAX_REDUCTION * 10) / 10;
+  };
+
   // Calculate total equipment bonuses first (needed for HP calculation)
   const equipmentStats = calculateTotalEquipmentStats(
     equippedWeapon,
@@ -212,9 +219,13 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
         )}
         <div className="text-white/80">
           <span className="text-white/60">🛡️ Defense:</span>{' '}
-          <span className={(Number(equipmentStats.defense) || 0) > 0 ? 'text-blue-400 font-semibold' : 'text-white/60'}>
-            {Number(equipmentStats.defense) || 0}%
-          </span>
+          {(Number(equipmentStats.defense) || 0) > 0 ? (
+            <span className="text-blue-400 font-semibold">
+              {Number(equipmentStats.defense) || 0} <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">({calculateActualReduction(Number(equipmentStats.defense) || 0)}%)</span>
+            </span>
+          ) : (
+            <span className="text-white/60">0</span>
+          )}
         </div>
         <div className="text-white/80">
           <span className="text-white/60">🐌 Slow:</span>{' '}
