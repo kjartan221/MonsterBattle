@@ -10,6 +10,26 @@ import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 import { scaleItemStats } from '@/utils/itemTierScaling';
 import type { Tier } from '@/lib/biome-config';
+import { getInscribedItemName } from '@/utils/itemNameHelpers';
+import type { Inscription, InscriptionType } from '@/lib/types';
+
+/**
+ * Maps inscription types to equipment stat keys
+ */
+function getInscriptionStatKey(inscriptionType: InscriptionType): string | null {
+  const mapping: Record<InscriptionType, string> = {
+    damage: 'damageBonus',
+    critical: 'critChance',
+    protection: 'hpReduction', // defense
+    vitality: 'maxHpBonus',
+    haste: 'attackSpeed',
+    fortune: 'coinBonus',
+    healing: 'healBonus',
+    lifesteal: 'lifesteal',
+    autoclick: 'autoClickRate'
+  };
+  return mapping[inscriptionType] || null;
+}
 
 interface UserInventoryItem {
   _id: string;
@@ -20,6 +40,8 @@ interface UserInventoryItem {
   crafted?: boolean;
   statRoll?: number;
   isEmpowered?: boolean;
+  prefix?: Inscription;
+  suffix?: Inscription;
 }
 
 interface EquipmentSelectionModalProps {
@@ -104,7 +126,9 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
         acquiredAt: item.acquiredAt,
         crafted: item.crafted,
         statRoll: item.statRoll,
-        isEmpowered: item.isEmpowered
+        isEmpowered: item.isEmpowered,
+        prefix: item.prefix,
+        suffix: item.suffix
       }));
 
       setItems(mappedItems);
@@ -205,7 +229,7 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                 <span className="text-3xl">{currentlyEquipped.lootItem.icon}</span>
                 <div>
                   <div className={`text-base font-semibold ${getRarityColor(currentlyEquipped.lootItem.rarity)}`}>
-                    {currentlyEquipped.lootItem.name}
+                    {getInscribedItemName(currentlyEquipped.lootItem.name, currentlyEquipped.prefix, currentlyEquipped.suffix)}
                   </div>
                   {currentlyEquipped.lootItem.equipmentStats && (
                     <div className="text-xs text-gray-500 mt-1">
@@ -275,6 +299,30 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                   displayStats = scaleItemStats(baseStats, item.tier as Tier);
                 }
 
+                // Apply inscription bonuses (add after tier + empowered)
+                if (displayStats && (item.prefix || item.suffix)) {
+                  const statsRecord = displayStats as Record<string, number>;
+                  displayStats = { ...statsRecord }; // Clone to avoid mutation
+
+                  // Add prefix inscription bonus
+                  if (item.prefix) {
+                    const statKey = getInscriptionStatKey(item.prefix.type);
+                    if (statKey && displayStats) {
+                      const statsWithInscriptions = displayStats as Record<string, number>;
+                      statsWithInscriptions[statKey] = (statsWithInscriptions[statKey] || 0) + item.prefix.value;
+                    }
+                  }
+
+                  // Add suffix inscription bonus
+                  if (item.suffix) {
+                    const statKey = getInscriptionStatKey(item.suffix.type);
+                    if (statKey && displayStats) {
+                      const statsWithInscriptions = displayStats as Record<string, number>;
+                      statsWithInscriptions[statKey] = (statsWithInscriptions[statKey] || 0) + item.suffix.value;
+                    }
+                  }
+                }
+
                 return (
                   <button
                     key={item._id}
@@ -300,7 +348,7 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                       <span className="text-3xl">{lootItem.icon}</span>
                       <div className="flex-1">
                         <div className={`text-base font-semibold ${getRarityColor(lootItem.rarity)}`}>
-                          {lootItem.name}
+                          {getInscribedItemName(lootItem.name, item.prefix, item.suffix)}
                         </div>
                         <div className="text-xs text-gray-500">{lootItem.description}</div>
                       </div>

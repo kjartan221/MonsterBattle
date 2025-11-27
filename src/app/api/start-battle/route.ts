@@ -104,12 +104,7 @@ export async function POST(request: NextRequest) {
       tier = parseInt(parts[1], 10) as Tier;
     }
 
-    // Create monster for this biome/tier
-    const monsterTemplate = getRandomMonsterTemplateForBiome(biome, tier);
-    const clicksRequired = getRandomClicksRequired(monsterTemplate.baseClicksRange, tier);
-    const attackDamage = getScaledAttackDamage(monsterTemplate.baseAttackDamage, tier);
-
-    // Load challenge config to check for forced buffs (before generating random buffs)
+    // Load challenge config to check for forced buffs (before monster generation)
     const challengeConfig = playerStats.battleChallengeConfig || {
       forceShield: false,
       forceSpeed: false,
@@ -119,8 +114,14 @@ export async function POST(request: NextRequest) {
       corruptionRate: 0,
       escapeTimerSpeed: 1.0,
       buffStrength: 1.0,
-      bossAttackSpeed: 1.0
+      bossAttackSpeed: 1.0,
+      bossSpawnRate: 1.0
     };
+
+    // Create monster for this biome/tier (pass bossSpawnRate for 5x boss spawns)
+    const monsterTemplate = getRandomMonsterTemplateForBiome(biome, tier, challengeConfig.bossSpawnRate);
+    const clicksRequired = getRandomClicksRequired(monsterTemplate.baseClicksRange, tier);
+    const attackDamage = getScaledAttackDamage(monsterTemplate.baseAttackDamage, tier);
 
     // Determine which buff types to exclude from random generation
     const excludeBuffTypes: MonsterBuffType[] = [];
@@ -182,6 +183,15 @@ export async function POST(request: NextRequest) {
       const dmgBefore = finalAttackDamage;
       finalAttackDamage = Math.round(finalAttackDamage * challengeConfig.damageMultiplier);
       console.log(`⚔️ [CHALLENGE] Damage multiplier applied: ${dmgBefore} → ${finalAttackDamage} (${challengeConfig.damageMultiplier}x)`);
+    }
+
+    // Apply boss spawn rate bonus (+10% HP/DMG for bosses when enabled)
+    if (challengeConfig.bossSpawnRate === 5.0 && monsterTemplate.isBoss) {
+      const hpBefore = finalClicksRequired;
+      const dmgBefore = finalAttackDamage;
+      finalClicksRequired = Math.round(finalClicksRequired * 1.1);
+      finalAttackDamage = Math.round(finalAttackDamage * 1.1);
+      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: Boss HP/DMG +10%: ${hpBefore} HP → ${finalClicksRequired} HP, ${dmgBefore} DMG → ${finalAttackDamage} DMG`);
     }
 
     // Apply forced buffs from challenge config (with buff strength multiplier)

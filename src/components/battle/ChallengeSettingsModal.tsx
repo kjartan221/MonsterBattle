@@ -133,6 +133,11 @@ export default function ChallengeSettingsModal({ isOpen, onClose }: ChallengeSet
       rareDropBonus += Math.floor(bossSteps) * 5;
     }
 
+    // Boss spawn rate penalty (-3 loot cards when enabled)
+    if (config.bossSpawnRate === 5.0) {
+      extraLootCards -= 4;
+    }
+
     return { extraLootCards, xpCoinMultiplier, rareDropBonus };
   };
 
@@ -379,6 +384,30 @@ export default function ChallengeSettingsModal({ isOpen, onClose }: ChallengeSet
                   }}
                   style={{
                     background: `linear-gradient(to right, #ea580c 0%, #dc2626 ${([1.0, 0.75, 0.5, 0.33, 0.25].indexOf(config.bossAttackSpeed) / 4) * 100}%, #4b5563 ${([1.0, 0.75, 0.5, 0.33, 0.25].indexOf(config.bossAttackSpeed) / 4) * 100}%, #4b5563 100%)`
+                  }}
+                  className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Boss Spawn Rate */}
+              <div className="bg-gray-700/30 rounded-lg p-2 border-2 border-gray-600">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-lg">👹</span>
+                  <h4 className="text-sm font-semibold text-white">Boss Rate</h4>
+                  <span className="ml-auto text-sm font-bold text-orange-400">{config.bossSpawnRate}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="1"
+                  value={[1.0, 5.0].indexOf(config.bossSpawnRate)}
+                  onChange={(e) => {
+                    const values = [1.0, 5.0];
+                    setConfig({ ...config, bossSpawnRate: values[parseInt(e.target.value)] });
+                  }}
+                  style={{
+                    background: `linear-gradient(to right, #ea580c 0%, #dc2626 ${([1.0, 5.0].indexOf(config.bossSpawnRate) / 1) * 100}%, #4b5563 ${([1.0, 5.0].indexOf(config.bossSpawnRate) / 1) * 100}%, #4b5563 100%)`
                   }}
                   className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
                 />

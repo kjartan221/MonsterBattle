@@ -402,7 +402,8 @@ export async function POST(request: NextRequest) {
       corruptionRate: 0,
       escapeTimerSpeed: 1.0,
       buffStrength: 1.0,
-      bossAttackSpeed: 1.0
+      bossAttackSpeed: 1.0,
+      bossSpawnRate: 1.0
     };
 
     let extraLootCards = 0;
@@ -480,7 +481,13 @@ export async function POST(request: NextRequest) {
       console.log(`⚔️ [CHALLENGE] Boss attack ${challengeConfig.bossAttackSpeed}x: +${Math.round(bossSteps * 50)}% rewards`);
     }
 
-    const totalLootCards = 5 + extraLootCards;
+    // Boss spawn rate penalty (-3 loot cards)
+    if (challengeConfig.bossSpawnRate === 5.0) {
+      extraLootCards -= 4;
+      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: -4 loot cards penalty`);
+    }
+
+    const totalLootCards = Math.max(1, 5 + extraLootCards); // Ensure at least 1 loot card
     console.log(`⚔️ [CHALLENGE] Total loot cards: ${totalLootCards} (base 5 + ${extraLootCards} challenge bonus)`);
     console.log(`⚔️ [CHALLENGE] Total XP/Coin multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
 

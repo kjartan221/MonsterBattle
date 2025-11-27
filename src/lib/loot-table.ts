@@ -19,9 +19,10 @@ export interface LootItem {
   icon: string;
   description: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
   equipmentStats?: EquipmentStats; // Optional stats for equippable items
   spellData?: SpellData; // Optional spell data for spell scrolls
+  inscriptionData?: import('@/lib/types').InscriptionData; // Optional inscription data for inscription scrolls
   cooldown?: number; // Optional cooldown for consumables
   healing?: number; // Optional healing amount for consumables (HP restored)
   buffData?: ConsumableBuffData; // Optional buff data for consumables (temporary buffs)
@@ -66,6 +67,10 @@ const COMMON_LOOT: LootItem[] = [
   { lootId: 'spell_scroll_light_heal', name: 'Light Heal Scroll', icon: '✨', description: 'Unlocks Light Heal spell - Basic restoration', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'light_heal', spellName: 'Light Heal', cooldown: 12, healing: 8 } },
   { lootId: 'spell_scroll_poison_dart', name: 'Poison Dart Scroll', icon: '🎯', description: 'Unlocks Poison Dart - Inflicts poison DoT', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'poison_dart', spellName: 'Poison Dart', cooldown: 15, debuffType: 'poison', debuffValue: 5, debuffDamageType: 'flat', duration: 5, effect: 'Poison DoT' } },
   { lootId: 'spell_scroll_minor_shield', name: 'Minor Shield Scroll', icon: '🛡️', description: 'Unlocks Minor Shield - Absorbs damage', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'minor_shield', spellName: 'Minor Shield', cooldown: 15, buffType: 'shield', buffValue: 20, duration: 10, effect: 'Damage absorption' } },
+  // Phase 3.4: Inscription scrolls (common tier) - Basic prefix/suffix upgrades
+  { lootId: 'prefix_damage_common', name: 'Savage Prefix Scroll', icon: '📜', description: 'Adds "Savage" prefix: +3 damage', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 3, slot: 'prefix', name: 'Savage', description: 'Adds +3 damage to equipment' } },
+  { lootId: 'suffix_damage_common', name: 'Suffix of Fury Scroll', icon: '📜', description: 'Adds "of Fury" suffix: +3 damage', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 3, slot: 'suffix', name: 'of Fury', description: 'Adds +3 damage to equipment' } },
+  { lootId: 'prefix_critical_common', name: 'Keen Prefix Scroll', icon: '📜', description: 'Adds "Keen" prefix: +3% crit chance', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 3, slot: 'prefix', name: 'Keen', description: 'Adds +3% crit chance to equipment' } },
 ];
 
 // Rare Loot (shared across all monsters, but less common than COMMON_LOOT)
@@ -85,6 +90,11 @@ const RARE_LOOT: LootItem[] = [
   { lootId: 'spell_scroll_flame_strike', name: 'Flame Strike Scroll', icon: '🔥', description: 'Unlocks Flame Strike - Burns target over time', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'flame_strike', spellName: 'Flame Strike', cooldown: 22, debuffType: 'burn', debuffValue: 8, debuffDamageType: 'flat', duration: 6, effect: 'Burn DoT' } },
   { lootId: 'spell_scroll_battle_fury', name: 'Battle Fury Scroll', icon: '⚔️', description: 'Unlocks Battle Fury - Increases damage output', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'battle_fury', spellName: 'Battle Fury', cooldown: 20, buffType: 'damage_boost', buffValue: 15, duration: 8, effect: 'Damage boost' } },
   { lootId: 'spell_scroll_greater_shield', name: 'Greater Shield Scroll', icon: '🛡️', description: 'Unlocks Greater Shield - Strong damage absorption', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_shield', spellName: 'Greater Shield', cooldown: 20, buffType: 'shield', buffValue: 40, duration: 12, effect: 'Damage absorption' } },
+  // Phase 3.4: Inscription scrolls (rare tier) - Improved prefix/suffix upgrades
+  { lootId: 'prefix_damage_rare', name: 'Fierce Prefix Scroll', icon: '📜', description: 'Adds "Fierce" prefix: +5 damage', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 5, slot: 'prefix', name: 'Fierce', description: 'Adds +5 damage to equipment' } },
+  { lootId: 'suffix_damage_rare', name: 'Suffix of Rage Scroll', icon: '📜', description: 'Adds "of Rage" suffix: +5 damage', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 5, slot: 'suffix', name: 'of Rage', description: 'Adds +5 damage to equipment' } },
+  { lootId: 'prefix_protection_rare', name: 'Steadfast Prefix Scroll', icon: '📜', description: 'Adds "Steadfast" prefix: +5% damage reduction', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 5, slot: 'prefix', name: 'Steadfast', description: 'Adds +5% damage reduction to equipment' } },
+  { lootId: 'suffix_vitality_rare', name: 'Suffix of Life Scroll', icon: '📜', description: 'Adds "of Life" suffix: +5 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 5, slot: 'suffix', name: 'of Life', description: 'Adds +5 max HP to equipment' } },
 ];
 
 // Monster-Specific Loot (only drops from specific monsters)
@@ -135,6 +145,11 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   { lootId: 'wing_fragment', name: 'Dragon Wing Fragment', icon: '🪽', description: 'Enables short flight', rarity: 'legendary', type: 'material' },
   { lootId: 'elixir_immortality', name: 'Elixir of Immortality', icon: '🧬', description: 'Restores 100 HP', rarity: 'legendary', type: 'consumable', cooldown: 20, healing: 100 },
   { lootId: 'crimson_crown', name: 'Crimson Crown', icon: '👑', description: 'Symbol of vampiric royalty', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 15, coinBonus: 50 } },
+  // Phase 3.4: Epic inscription scrolls (mini-boss drops)
+  { lootId: 'prefix_damage_epic', name: 'Vicious Prefix Scroll', icon: '📜', description: 'Adds "Vicious" prefix: +8 damage', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 8, slot: 'prefix', name: 'Vicious', description: 'Adds +8 damage to equipment' } },
+  { lootId: 'suffix_critical_epic', name: 'Suffix of Execution Scroll', icon: '📜', description: 'Adds "of Execution" suffix: +8% crit chance', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 8, slot: 'suffix', name: 'of Execution', description: 'Adds +8% crit chance to equipment' } },
+  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'prefix', name: 'Robust', description: 'Adds +8 maximum HP to equipment' } },
+  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'suffix', name: 'of Warding', description: 'Adds +8 HP reduction to equipment' } },
 ];
 
 // Demon Specific Loot (Legendary Monster)
@@ -149,6 +164,14 @@ const DEMON_SPECIFIC: LootItem[] = [
   { lootId: 'chaos_orb', name: 'Chaos Orb', icon: '🔮', description: 'Reality bends around it', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, coinBonus: 100 } },
   { lootId: 'dark_halo', name: 'Dark Halo', icon: '⭕', description: 'Corrupts all who wear it', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 30, defense: 10 } },
   { lootId: 'phoenix_feather', name: 'Phoenix Feather', icon: '🪶', description: 'Grants resurrection', rarity: 'legendary', type: 'material' },
+  // Phase 3.4: Legendary inscription scrolls (boss drops)
+  { lootId: 'prefix_damage_legendary', name: 'Deadly Prefix Scroll', icon: '📜', description: 'Adds "Deadly" prefix: +12 damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 12, slot: 'prefix', name: 'Deadly', description: 'Adds +12 damage to equipment' } },
+  { lootId: 'suffix_critical_legendary', name: 'Suffix of Piercing Scroll', icon: '📜', description: 'Adds "of Piercing" suffix: +12% crit chance', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 12, slot: 'suffix', name: 'of Piercing', description: 'Adds +12% crit chance to equipment' } },
+  { lootId: 'prefix_haste_legendary', name: 'Lightning Prefix Scroll', icon: '📜', description: 'Adds "Lightning" prefix: +12 attack speed', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 12, slot: 'prefix', name: 'Lightning', description: 'Adds +12 attack speed to equipment' } },
+  { lootId: 'suffix_fortune_legendary', name: 'Suffix of Prosperity Scroll', icon: '📜', description: 'Adds "of Prosperity" suffix: +12% coin bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 12, slot: 'suffix', name: 'of Prosperity', description: 'Adds +12% coin bonus to equipment' } },
+  // Phase 3.4: Special legendary inscriptions (lifesteal & autoclick) - Extremely rare
+  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +3% lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'prefix', name: 'Vampiric', description: 'Adds +3% lifesteal to equipment (heals for 3% of damage dealt)' } },
+  { lootId: 'suffix_autoclick_legendary', name: 'Suffix of Eternity Scroll', icon: '📜', description: 'Adds "of Eternity" suffix: +0.5 auto-hits/sec', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.5, slot: 'suffix', name: 'of Eternity', description: 'Adds +0.5 auto-hits per second to equipment' } },
 ];
 
 // === BIOME-SPECIFIC LOOT (Phase 1.5 & 1.6) ===
@@ -194,6 +217,9 @@ const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
   { lootId: 'medics_robe', name: 'Medic\'s Robe', icon: '🧥', description: 'Blessed by forest healers (+6% heal)', rarity: 'epic', type: 'armor', equipmentStats: { defense: 8, maxHpBonus: 12, healBonus: 6 } },
   { lootId: 'amulet_of_life', name: 'Amulet of Life', icon: '🌿', description: 'Channels nature\'s vitality (+8% heal)', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, healBonus: 8 } },
   { lootId: 'spell_scroll_heal', name: 'Nature\'s Blessing Scroll', icon: '📜', description: 'Unlocks Nature\'s Blessing spell - Powerful heal + shield', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Nature\'s Blessing', cooldown: 25, healing: 50, buffType: 'shield', buffValue: 60, duration: 15, effect: 'Heal + shield' } },
+  // Phase 3.4: Epic inscription scrolls (mini-boss drops)
+  { lootId: 'prefix_healing_epic', name: 'Renewing Prefix Scroll', icon: '📜', description: 'Adds "Renewing" prefix: +8% heal bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 8, slot: 'prefix', name: 'Renewing', description: 'Adds +8% heal bonus to equipment' } },
+  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'suffix', name: 'of Endurance', description: 'Adds +8 maximum HP to equipment' } },
 ];
 
 // Dire Wolf Alpha Specific Loot (Forest Tier 1+, Epic Mini-Boss)
@@ -253,6 +279,9 @@ const SAND_DJINN_SPECIFIC: LootItem[] = [
   { lootId: 'sand_armor', name: 'Djinn\'s Sand Armor', icon: '🛡️', description: 'Flows like sand', rarity: 'epic', type: 'armor', equipmentStats: { defense: 12, maxHpBonus: 15 } },
   { lootId: 'mirage_cloak', name: 'Mirage Cloak', icon: '🧥', description: 'Bends light around wearer', rarity: 'epic', type: 'artifact', equipmentStats: { coinBonus: 15 } },
   { lootId: 'spell_scroll_fireball', name: 'Fireball Scroll', icon: '📜', description: 'Unlocks Fireball spell - Explosive fire damage + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'fireball', spellName: 'Fireball', cooldown: 30, damage: 80, debuffType: 'burn', debuffValue: 12, debuffDamageType: 'flat', duration: 8, effect: 'Fire damage + burn DoT' } },
+  // Phase 3.4: Epic inscription scrolls (mini-boss drops)
+  { lootId: 'prefix_haste_epic', name: 'Nimble Prefix Scroll', icon: '📜', description: 'Adds "Nimble" prefix: +8 attack speed', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 8, slot: 'prefix', name: 'Nimble', description: 'Adds +8 attack speed to equipment' } },
+  { lootId: 'suffix_fortune_epic', name: 'Suffix of Greed Scroll', icon: '📜', description: 'Adds "of Greed" suffix: +8% coin bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 8, slot: 'suffix', name: 'of Greed', description: 'Adds +8% coin bonus to equipment' } },
 ];
 
 // Sandstone Golem Specific Loot (Desert Tier 2+, Epic Mini-Boss)
@@ -578,6 +607,127 @@ const MONSTER_SPECIFIC_LOOT: Record<string, LootItem[]> = {
   'Lich King': LICH_KING_SPECIFIC,
 };
 
+// ========== INSCRIPTION SCROLLS (Equipment Customization Phase 1) ==========
+// 56 total scrolls: 7 inscription types × 4 rarities × 2 slots (prefix/suffix)
+
+// Damage Inscription Scrolls (+damageBonus)
+const INSCRIPTION_DAMAGE: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_damage_common', name: 'Savage Prefix Scroll', icon: '📜', description: 'Adds "Savage" prefix: +3 damage', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 3, slot: 'prefix', name: 'Savage', description: 'Adds +3 damage to equipment' } },
+  { lootId: 'prefix_damage_rare', name: 'Brutal Prefix Scroll', icon: '📜', description: 'Adds "Brutal" prefix: +5 damage', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 5, slot: 'prefix', name: 'Brutal', description: 'Adds +5 damage to equipment' } },
+  { lootId: 'prefix_damage_epic', name: 'Rending Prefix Scroll', icon: '📜', description: 'Adds "Rending" prefix: +8 damage', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 8, slot: 'prefix', name: 'Rending', description: 'Adds +8 damage to equipment' } },
+  { lootId: 'prefix_damage_legendary', name: 'Fierce Prefix Scroll', icon: '📜', description: 'Adds "Fierce" prefix: +12 damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 12, slot: 'prefix', name: 'Fierce', description: 'Adds +12 damage to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_damage_common', name: 'Suffix of Fury Scroll', icon: '📜', description: 'Adds "of Fury" suffix: +3 damage', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 3, slot: 'suffix', name: 'of Fury', description: 'Adds +3 damage to equipment' } },
+  { lootId: 'suffix_damage_rare', name: 'Suffix of Violence Scroll', icon: '📜', description: 'Adds "of Violence" suffix: +5 damage', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 5, slot: 'suffix', name: 'of Violence', description: 'Adds +5 damage to equipment' } },
+  { lootId: 'suffix_damage_epic', name: 'Suffix of Power Scroll', icon: '📜', description: 'Adds "of Power" suffix: +8 damage', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 8, slot: 'suffix', name: 'of Power', description: 'Adds +8 damage to equipment' } },
+  { lootId: 'suffix_damage_legendary', name: 'Suffix of Ruin Scroll', icon: '📜', description: 'Adds "of Ruin" suffix: +12 damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 12, slot: 'suffix', name: 'of Ruin', description: 'Adds +12 damage to equipment' } },
+];
+
+// Critical Inscription Scrolls (+critChance)
+const INSCRIPTION_CRITICAL: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_critical_common', name: 'Keen Prefix Scroll', icon: '📜', description: 'Adds "Keen" prefix: +3% crit', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 3, slot: 'prefix', name: 'Keen', description: 'Adds +3% critical chance to equipment' } },
+  { lootId: 'prefix_critical_rare', name: 'Deadly Prefix Scroll', icon: '📜', description: 'Adds "Deadly" prefix: +5% crit', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 5, slot: 'prefix', name: 'Deadly', description: 'Adds +5% critical chance to equipment' } },
+  { lootId: 'prefix_critical_epic', name: 'Piercing Prefix Scroll', icon: '📜', description: 'Adds "Piercing" prefix: +8% crit', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 8, slot: 'prefix', name: 'Piercing', description: 'Adds +8% critical chance to equipment' } },
+  { lootId: 'prefix_critical_legendary', name: 'Sharpened Prefix Scroll', icon: '📜', description: 'Adds "Sharpened" prefix: +12% crit', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 12, slot: 'prefix', name: 'Sharpened', description: 'Adds +12% critical chance to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_critical_common', name: 'Suffix of Precision Scroll', icon: '📜', description: 'Adds "of Precision" suffix: +3% crit', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 3, slot: 'suffix', name: 'of Precision', description: 'Adds +3% critical chance to equipment' } },
+  { lootId: 'suffix_critical_rare', name: 'Suffix of Striking Scroll', icon: '📜', description: 'Adds "of Striking" suffix: +5% crit', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 5, slot: 'suffix', name: 'of Striking', description: 'Adds +5% critical chance to equipment' } },
+  { lootId: 'suffix_critical_epic', name: 'Suffix of Execution Scroll', icon: '📜', description: 'Adds "of Execution" suffix: +8% crit', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 8, slot: 'suffix', name: 'of Execution', description: 'Adds +8% critical chance to equipment' } },
+  { lootId: 'suffix_critical_legendary', name: 'Suffix of Piercing Scroll', icon: '📜', description: 'Adds "of Piercing" suffix: +12% crit', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 12, slot: 'suffix', name: 'of Piercing', description: 'Adds +12% critical chance to equipment' } },
+];
+
+// Protection Inscription Scrolls (+hpReduction/defense)
+const INSCRIPTION_PROTECTION: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_protection_common', name: 'Guarded Prefix Scroll', icon: '📜', description: 'Adds "Guarded" prefix: +3 HP reduction', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 3, slot: 'prefix', name: 'Guarded', description: 'Adds +3 HP reduction to equipment' } },
+  { lootId: 'prefix_protection_rare', name: 'Steadfast Prefix Scroll', icon: '📜', description: 'Adds "Steadfast" prefix: +5 HP reduction', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 5, slot: 'prefix', name: 'Steadfast', description: 'Adds +5 HP reduction to equipment' } },
+  { lootId: 'prefix_protection_epic', name: 'Bulwark Prefix Scroll', icon: '📜', description: 'Adds "Bulwark" prefix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'prefix', name: 'Bulwark', description: 'Adds +8 HP reduction to equipment' } },
+  { lootId: 'prefix_protection_legendary', name: 'Fortified Prefix Scroll', icon: '📜', description: 'Adds "Fortified" prefix: +12 HP reduction', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 12, slot: 'prefix', name: 'Fortified', description: 'Adds +12 HP reduction to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_protection_common', name: 'Suffix of Protection Scroll', icon: '📜', description: 'Adds "of Protection" suffix: +3 HP reduction', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 3, slot: 'suffix', name: 'of Protection', description: 'Adds +3 HP reduction to equipment' } },
+  { lootId: 'suffix_protection_rare', name: 'Suffix of Resilience Scroll', icon: '📜', description: 'Adds "of Resilience" suffix: +5 HP reduction', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 5, slot: 'suffix', name: 'of Resilience', description: 'Adds +5 HP reduction to equipment' } },
+  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'suffix', name: 'of Warding', description: 'Adds +8 HP reduction to equipment' } },
+  { lootId: 'suffix_protection_legendary', name: 'Suffix of Safeguarding Scroll', icon: '📜', description: 'Adds "of Safeguarding" suffix: +12 HP reduction', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 12, slot: 'suffix', name: 'of Safeguarding', description: 'Adds +12 HP reduction to equipment' } },
+];
+
+// Vitality Inscription Scrolls (+maxHpBonus)
+const INSCRIPTION_VITALITY: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_vitality_common', name: 'Vigorous Prefix Scroll', icon: '📜', description: 'Adds "Vigorous" prefix: +3 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 3, slot: 'prefix', name: 'Vigorous', description: 'Adds +3 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_rare', name: 'Stout Prefix Scroll', icon: '📜', description: 'Adds "Stout" prefix: +5 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 5, slot: 'prefix', name: 'Stout', description: 'Adds +5 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'prefix', name: 'Robust', description: 'Adds +8 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_legendary', name: 'Hardy Prefix Scroll', icon: '📜', description: 'Adds "Hardy" prefix: +12 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'prefix', name: 'Hardy', description: 'Adds +12 maximum HP to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_vitality_common', name: 'Suffix of Vitality Scroll', icon: '📜', description: 'Adds "of Vitality" suffix: +3 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 3, slot: 'suffix', name: 'of Vitality', description: 'Adds +3 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_rare', name: 'Suffix of Life Scroll', icon: '📜', description: 'Adds "of Life" suffix: +5 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 5, slot: 'suffix', name: 'of Life', description: 'Adds +5 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'suffix', name: 'of Endurance', description: 'Adds +8 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_legendary', name: 'Suffix of the Titan Scroll', icon: '📜', description: 'Adds "of the Titan" suffix: +12 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'suffix', name: 'of the Titan', description: 'Adds +12 maximum HP to equipment' } },
+];
+
+// Haste Inscription Scrolls (+attackSpeed)
+const INSCRIPTION_HASTE: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_haste_common', name: 'Swift Prefix Scroll', icon: '📜', description: 'Adds "Swift" prefix: +3 attack speed', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 3, slot: 'prefix', name: 'Swift', description: 'Adds +3 attack speed to equipment' } },
+  { lootId: 'prefix_haste_rare', name: 'Rapid Prefix Scroll', icon: '📜', description: 'Adds "Rapid" prefix: +5 attack speed', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 5, slot: 'prefix', name: 'Rapid', description: 'Adds +5 attack speed to equipment' } },
+  { lootId: 'prefix_haste_epic', name: 'Nimble Prefix Scroll', icon: '📜', description: 'Adds "Nimble" prefix: +8 attack speed', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 8, slot: 'prefix', name: 'Nimble', description: 'Adds +8 attack speed to equipment' } },
+  { lootId: 'prefix_haste_legendary', name: 'Lightning Prefix Scroll', icon: '📜', description: 'Adds "Lightning" prefix: +12 attack speed', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 12, slot: 'prefix', name: 'Lightning', description: 'Adds +12 attack speed to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_haste_common', name: 'Suffix of Haste Scroll', icon: '📜', description: 'Adds "of Haste" suffix: +3 attack speed', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 3, slot: 'suffix', name: 'of Haste', description: 'Adds +3 attack speed to equipment' } },
+  { lootId: 'suffix_haste_rare', name: 'Suffix of Quickness Scroll', icon: '📜', description: 'Adds "of Quickness" suffix: +5 attack speed', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 5, slot: 'suffix', name: 'of Quickness', description: 'Adds +5 attack speed to equipment' } },
+  { lootId: 'suffix_haste_epic', name: 'Suffix of Agility Scroll', icon: '📜', description: 'Adds "of Agility" suffix: +8 attack speed', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 8, slot: 'suffix', name: 'of Agility', description: 'Adds +8 attack speed to equipment' } },
+  { lootId: 'suffix_haste_legendary', name: 'Suffix of the Zephyr Scroll', icon: '📜', description: 'Adds "of the Zephyr" suffix: +12 attack speed', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 12, slot: 'suffix', name: 'of the Zephyr', description: 'Adds +12 attack speed to equipment' } },
+];
+
+// Fortune Inscription Scrolls (+coinBonus)
+const INSCRIPTION_FORTUNE: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_fortune_common', name: 'Prosperous Prefix Scroll', icon: '📜', description: 'Adds "Prosperous" prefix: +3% coin bonus', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 3, slot: 'prefix', name: 'Prosperous', description: 'Adds +3% coin bonus to equipment' } },
+  { lootId: 'prefix_fortune_rare', name: 'Lucky Prefix Scroll', icon: '📜', description: 'Adds "Lucky" prefix: +5% coin bonus', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 5, slot: 'prefix', name: 'Lucky', description: 'Adds +5% coin bonus to equipment' } },
+  { lootId: 'prefix_fortune_epic', name: 'Golden Prefix Scroll', icon: '📜', description: 'Adds "Golden" prefix: +8% coin bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 8, slot: 'prefix', name: 'Golden', description: 'Adds +8% coin bonus to equipment' } },
+  { lootId: 'prefix_fortune_legendary', name: "Opportunist's Prefix Scroll", icon: '📜', description: 'Adds "Opportunist\'s" prefix: +12% coin bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 12, slot: 'prefix', name: "Opportunist's", description: 'Adds +12% coin bonus to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_fortune_common', name: 'Suffix of Fortune Scroll', icon: '📜', description: 'Adds "of Fortune" suffix: +3% coin bonus', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 3, slot: 'suffix', name: 'of Fortune', description: 'Adds +3% coin bonus to equipment' } },
+  { lootId: 'suffix_fortune_rare', name: 'Suffix of Wealth Scroll', icon: '📜', description: 'Adds "of Wealth" suffix: +5% coin bonus', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 5, slot: 'suffix', name: 'of Wealth', description: 'Adds +5% coin bonus to equipment' } },
+  { lootId: 'suffix_fortune_epic', name: 'Suffix of Greed Scroll', icon: '📜', description: 'Adds "of Greed" suffix: +8% coin bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 8, slot: 'suffix', name: 'of Greed', description: 'Adds +8% coin bonus to equipment' } },
+  { lootId: 'suffix_fortune_legendary', name: 'Suffix of Prosperity Scroll', icon: '📜', description: 'Adds "of Prosperity" suffix: +12% coin bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 12, slot: 'suffix', name: 'of Prosperity', description: 'Adds +12% coin bonus to equipment' } },
+];
+
+// Healing Inscription Scrolls (+healBonus)
+const INSCRIPTION_HEALING: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_healing_common', name: 'Sacred Prefix Scroll', icon: '📜', description: 'Adds "Sacred" prefix: +3% heal bonus', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 3, slot: 'prefix', name: 'Sacred', description: 'Adds +3% heal bonus to equipment' } },
+  { lootId: 'prefix_healing_rare', name: 'Blessed Prefix Scroll', icon: '📜', description: 'Adds "Blessed" prefix: +5% heal bonus', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 5, slot: 'prefix', name: 'Blessed', description: 'Adds +5% heal bonus to equipment' } },
+  { lootId: 'prefix_healing_epic', name: 'Renewing Prefix Scroll', icon: '📜', description: 'Adds "Renewing" prefix: +8% heal bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 8, slot: 'prefix', name: 'Renewing', description: 'Adds +8% heal bonus to equipment' } },
+  { lootId: 'prefix_healing_legendary', name: 'Mending Prefix Scroll', icon: '📜', description: 'Adds "Mending" prefix: +12% heal bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 12, slot: 'prefix', name: 'Mending', description: 'Adds +12% heal bonus to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_healing_common', name: 'Suffix of Healing Scroll', icon: '📜', description: 'Adds "of Healing" suffix: +3% heal bonus', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 3, slot: 'suffix', name: 'of Healing', description: 'Adds +3% heal bonus to equipment' } },
+  { lootId: 'suffix_healing_rare', name: 'Suffix of Restoration Scroll', icon: '📜', description: 'Adds "of Restoration" suffix: +5% heal bonus', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 5, slot: 'suffix', name: 'of Restoration', description: 'Adds +5% heal bonus to equipment' } },
+  { lootId: 'suffix_healing_epic', name: 'Suffix of Renewal Scroll', icon: '📜', description: 'Adds "of Renewal" suffix: +8% heal bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 8, slot: 'suffix', name: 'of Renewal', description: 'Adds +8% heal bonus to equipment' } },
+  { lootId: 'suffix_healing_legendary', name: 'Suffix of Grace Scroll', icon: '📜', description: 'Adds "of Grace" suffix: +12% heal bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 12, slot: 'suffix', name: 'of Grace', description: 'Adds +12% heal bonus to equipment' } },
+];
+
+// Lifesteal Inscription Scrolls (+lifesteal) - LEGENDARY ONLY (Boss drops)
+const INSCRIPTION_LIFESTEAL: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +3% lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'prefix', name: 'Vampiric', description: 'Adds +3% lifesteal to equipment (heals for 3% of damage dealt)' } },
+  { lootId: 'prefix_lifesteal_legendary_2', name: 'Bloodthirsty Prefix Scroll', icon: '📜', description: 'Adds "Bloodthirsty" prefix: +5% lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 5, slot: 'prefix', name: 'Bloodthirsty', description: 'Adds +5% lifesteal to equipment (heals for 5% of damage dealt)' } },
+  // Suffixes
+  { lootId: 'suffix_lifesteal_legendary', name: 'Suffix of the Vampire Scroll', icon: '📜', description: 'Adds "of the Vampire" suffix: +3% lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'suffix', name: 'of the Vampire', description: 'Adds +3% lifesteal to equipment (heals for 3% of damage dealt)' } },
+  { lootId: 'suffix_lifesteal_legendary_2', name: 'Suffix of Sanguine Scroll', icon: '📜', description: 'Adds "of Sanguine" suffix: +5% lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 5, slot: 'suffix', name: 'of Sanguine', description: 'Adds +5% lifesteal to equipment (heals for 5% of damage dealt)' } },
+];
+
+// Autoclick Inscription Scrolls (+autoClickRate) - LEGENDARY ONLY (Boss drops)
+const INSCRIPTION_AUTOCLICK: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_autoclick_legendary', name: 'Automated Prefix Scroll', icon: '📜', description: 'Adds "Automated" prefix: +0.25 auto-hits/sec', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.25, slot: 'prefix', name: 'Automated', description: 'Adds +0.25 auto-hits per second to equipment' } },
+  { lootId: 'prefix_autoclick_legendary_2', name: 'Relentless Prefix Scroll', icon: '📜', description: 'Adds "Relentless" prefix: +0.5 auto-hits/sec', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.5, slot: 'prefix', name: 'Relentless', description: 'Adds +0.5 auto-hits per second to equipment' } },
+  // Suffixes
+  { lootId: 'suffix_autoclick_legendary', name: 'Suffix of Perpetuity Scroll', icon: '📜', description: 'Adds "of Perpetuity" suffix: +0.25 auto-hits/sec', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.25, slot: 'suffix', name: 'of Perpetuity', description: 'Adds +0.25 auto-hits per second to equipment' } },
+  { lootId: 'suffix_autoclick_legendary_2', name: 'Suffix of Eternity Scroll', icon: '📜', description: 'Adds "of Eternity" suffix: +0.5 auto-hits/sec', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.5, slot: 'suffix', name: 'of Eternity', description: 'Adds +0.5 auto-hits per second to equipment' } },
+];
+
 // Create a map of all loot items for easy lookup by lootId
 const ALL_LOOT_ITEMS_MAP = new Map<string, LootItem>();
 
@@ -630,6 +780,16 @@ const ALL_LOOT_ITEMS_MAP = new Map<string, LootItem>();
   ...CRAFT_ONLY_ARMOR,
   ...CRAFT_ONLY_CONSUMABLES,
   ...CRAFT_ONLY_ARTIFACTS,
+  // Phase 3.4: Inscription scrolls (all scrolls)
+  ...INSCRIPTION_DAMAGE,
+  ...INSCRIPTION_CRITICAL,
+  ...INSCRIPTION_PROTECTION,
+  ...INSCRIPTION_VITALITY,
+  ...INSCRIPTION_HASTE,
+  ...INSCRIPTION_FORTUNE,
+  ...INSCRIPTION_HEALING,
+  ...INSCRIPTION_LIFESTEAL,  // Special legendary (boss drops)
+  ...INSCRIPTION_AUTOCLICK,  // Special legendary (boss drops)
 ].forEach(item => {
   ALL_LOOT_ITEMS_MAP.set(item.lootId, item);
 });

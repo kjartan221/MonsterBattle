@@ -59,7 +59,9 @@ export async function GET(request: NextRequest) {
         crafted: inventoryItem.crafted, // True if item was crafted
         statRoll: inventoryItem.statRoll, // Stat roll multiplier (0.8 to 1.2) for crafted items
         isEmpowered: inventoryItem.isEmpowered, // True if from corrupted monster (+20% stats)
-        equipmentStats: lootTemplate.equipmentStats // Include equipment stats for display
+        equipmentStats: lootTemplate.equipmentStats, // Include equipment stats for display
+        prefix: inventoryItem.prefix, // Phase 3.4: Prefix inscription
+        suffix: inventoryItem.suffix // Phase 3.4: Suffix inscription
       };
     }).filter(item => item !== null); // Filter out any items not found
 

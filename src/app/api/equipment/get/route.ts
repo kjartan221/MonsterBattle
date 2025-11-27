@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
 
     // Build response object with slot mapping
     const equippedItems: {
-      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
-      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
-      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
-      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number };
+      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
     } = {};
 
     // Map items back to their slots
@@ -64,7 +64,9 @@ export async function GET(request: NextRequest) {
         tier: item.tier || 1,
         isEmpowered: item.isEmpowered || false,
         crafted: item.crafted,
-        statRoll: item.statRoll
+        statRoll: item.statRoll,
+        prefix: item.prefix, // Phase 3.4: Prefix inscription
+        suffix: item.suffix  // Phase 3.4: Suffix inscription
       };
 
       if (playerStats.equippedItems!.weapon?.equals(item._id)) {

@@ -40,13 +40,43 @@ export interface NFTLoot {
   description: string;
   icon: string;         // Emoji icon
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
   attributes?: Record<string, any>; // Custom NFT attributes (supports nested objects like borderGradient)
   mintTransactionId?: string; // BSV transaction ID when minted to blockchain
   createdAt: Date;
 }
 
-export type ItemType = 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll';
+export type ItemType = 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
+
+// ========== Inscription System (Equipment Customization Phase 1) ==========
+
+// Inscription types map to equipment stats
+export type InscriptionType =
+  | 'damage'      // +damageBonus
+  | 'critical'    // +critChance
+  | 'protection'  // +hpReduction
+  | 'vitality'    // +maxHpBonus
+  | 'haste'       // +attackSpeed
+  | 'fortune'     // +coinBonus
+  | 'healing'     // +healBonus
+  | 'lifesteal'   // +lifesteal (legendary only, boss drops)
+  | 'autoclick';  // +autoClickRate (legendary only, boss drops)
+
+// Inscription data structure (stored in loot-table.ts for inscription scrolls)
+export interface InscriptionData {
+  inscriptionType: InscriptionType;
+  statValue: number; // 3, 5, 8, 12 (normal), or special values for lifesteal/autoclick
+  slot: 'prefix' | 'suffix';
+  name: string; // "Savage", "of Fury", etc.
+  description: string; // "Adds +5 damage to equipment"
+}
+
+// Inscription applied to equipment (stored in UserInventory)
+export interface Inscription {
+  type: InscriptionType;
+  value: number;
+  name: string;
+}
 
 // User Inventory document
 export interface UserInventory {
@@ -71,6 +101,10 @@ export interface UserInventory {
     coinBonus?: number;
   };
   isEmpowered?: boolean;    // True if dropped by a corrupted monster (+20% to all stats)
+
+  // Equipment Customization (Phase 1: Inscriptions)
+  prefix?: Inscription;     // Prefix inscription (e.g., "Savage" +5 damage)
+  suffix?: Inscription;     // Suffix inscription (e.g., "of Haste" +5 attack speed)
 }
 
 // Player Stats document (RPG progression)
@@ -141,6 +175,7 @@ export interface PlayerStats {
     escapeTimerSpeed: number;   // Escape timer speed multiplier (1.0, 1.5, 2.0, 3.0, 4.0) - 10s minimum
     buffStrength: number;       // Monster buff strength multiplier (1.0, 1.5, 2.0, 3.0, 5.0)
     bossAttackSpeed: number;    // Boss attack cooldown multiplier (1.0, 0.75, 0.5, 0.33, 0.25)
+    bossSpawnRate: number;      // Boss spawn rate multiplier (1.0 = normal, 5.0 = 5x bosses, -4 loot cards, +10% boss HP/DMG)
   };
 
   createdAt: Date;

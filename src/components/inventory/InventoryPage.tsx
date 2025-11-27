@@ -9,6 +9,8 @@ import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
+import { getInscribedItemName } from '@/utils/itemNameHelpers';
+import type { Inscription } from '@/lib/types';
 
 interface InventoryItem extends LootItem {
   tier: number; // Which tier this item dropped from (1-5)
@@ -22,6 +24,8 @@ interface InventoryItem extends LootItem {
   crafted?: boolean; // Whether the item was crafted
   statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
   isEmpowered?: boolean; // Whether the item was dropped by a corrupted monster (+20% stats)
+  prefix?: Inscription; // Phase 3.4: Prefix inscription
+  suffix?: Inscription; // Phase 3.4: Suffix inscription
 }
 
 interface StackedInventoryItem extends InventoryItem {
@@ -155,10 +159,16 @@ export default function InventoryPage() {
           </div>
           <div className="flex gap-4">
             <button
+              onClick={() => router.push('/blacksmith')}
+              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              🔨 Blacksmith
+            </button>
+            <button
               onClick={() => router.push('/crafting')}
               className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >
-              🔨 Crafting
+              ⚒️ Crafting
             </button>
             <button
               onClick={() => router.push('/battle')}
@@ -230,7 +240,7 @@ export default function InventoryPage() {
 
                     {/* Item name */}
                     <div className="text-white font-bold text-sm text-center mb-1 line-clamp-2 min-h-[2.5rem] relative z-10">
-                      {item.name}
+                      {getInscribedItemName(item.name, item.prefix, item.suffix)}
                     </div>
 
                     {/* Rarity badge */}

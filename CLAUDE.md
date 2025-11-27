@@ -83,11 +83,70 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-11-26 (Phase 2.5: Advanced Legendary Items)
+**Last Updated**: 2025-11-27 (Phase 1.7: Equipment Customization - Blacksmith Page)
 
-**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1253-1255 (Phase 2.5)
+**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1080-1087 (Phase 1.7)
 
 ### ✅ Recently Completed (This Session)
+
+#### **Phase 1.7: Equipment Customization - Blacksmith Page**
+- **Blacksmith Page Component** (src/components/blacksmith/BlacksmithPage.tsx):
+  - Three-panel layout: Equipment selection | Scroll selection | Application preview
+  - Equipment filtering: Weapons, armor, and artifacts only
+  - Scroll filtering: Inscription scrolls only
+  - Current inscription display on equipment cards (prefix/suffix)
+  - Application preview panel showing stat changes
+  - Overwrite warning modal when slot already occupied
+- **Route Creation** (src/app/blacksmith/page.tsx):
+  - New `/blacksmith` route accessible from inventory and crafting pages
+- **Navigation Updates**:
+  - Added 🔨 Blacksmith button to InventoryPage.tsx (lines 161-166)
+  - Added 🔨 Blacksmith button to CraftingPage.tsx (lines 230-235)
+- **API Integration**:
+  - Uses `/api/inscriptions/apply` endpoint with 409 conflict handling
+  - Scroll consumption on successful application
+  - Auto-refresh inventory after inscription applied
+- **UI Features**:
+  - Rarity-colored borders for equipment and scrolls
+  - Stat value color-coding by inscription rarity
+  - Responsive grid layout for item selection
+  - Toast notifications for success/error states
+  - Overwrite confirmation dialog with existing inscription details
+
+#### **Challenge Mode: Boss Spawn Rate Multiplier**
+- **8th Challenge Slider** (ChallengeSettingsModal.tsx:387-409):
+  - Icon: 👹 Boss Rate
+  - Values: 1.0x (normal) or 5.0x (5x increased boss spawns)
+  - Penalties: -4 loot cards when enabled
+  - Bonuses: +10% HP and +10% damage to boss monsters
+- **Type System Updates**:
+  - Added `bossSpawnRate: number` to battleChallengeConfig (types.ts:178)
+  - Added to ChallengeConfig interface (ChallengeContext.tsx:15)
+  - Default value: 1.0
+- **Weighted Boss Selection** (monster-table.ts:120-162):
+  - 20% chance: Any monster (normal spawn logic)
+  - 60% chance: Epic mini-boss
+  - 20% chance: Legendary boss
+  - Fallback logic if no bosses of required rarity exist
+- **Boss Stat Bonuses** (start-battle/route.ts:188-195):
+  - +10% HP applied when enabled and monster is boss
+  - +10% damage applied when enabled and monster is boss
+  - Applied after corruption and challenge multipliers
+- **Loot Penalty** (attack-monster/route.ts:483-490):
+  - Reduces loot cards by 4 when enabled
+  - Ensures minimum 1 loot card with `Math.max(1, 5 + extraLootCards)`
+- **Reward Calculation** (ChallengeSettingsModal.tsx:136-139):
+  - Displays -4 loot cards penalty in reward preview
+
+#### **UX Improvement: Global Scrollbar Hiding**
+- **CSS Implementation** (src/app/globals.css:28-47):
+  - Webkit browsers: `*::-webkit-scrollbar { display: none; }`
+  - Firefox: `* { scrollbar-width: none; }`
+  - IE/Edge: `* { -ms-overflow-style: none; }`
+  - Preserved scroll functionality: `html, body { overflow-y: auto; }`
+  - Cross-browser compatibility for clean UI
+
+### ✅ Previously Completed
 
 #### **Phase 2.5: Advanced Legendary Items with Special Effects**
 - **Backend: Equipment Stats Extension** (loot-table.ts:1-11):

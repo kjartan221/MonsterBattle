@@ -4,6 +4,8 @@ import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
 import { useState } from 'react';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
+import { getInscribedItemName } from '@/utils/itemNameHelpers';
+import type { Inscription } from '@/lib/types';
 
 interface EquipmentWidgetProps {
   onSlotClick: (slot: EquipmentSlot) => void;
@@ -19,7 +21,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
         return {
           label: 'Weapon',
           icon: equippedWeapon?.lootItem.icon || '⚔️',
-          name: equippedWeapon?.lootItem.name || 'Empty',
+          name: equippedWeapon ? getInscribedItemName(equippedWeapon.lootItem.name, equippedWeapon.prefix, equippedWeapon.suffix) : 'Empty',
           isEmpty: !equippedWeapon,
           rarity: equippedWeapon?.lootItem.rarity,
           tier: equippedWeapon?.tier,
@@ -31,7 +33,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
         return {
           label: 'Armor',
           icon: equippedArmor?.lootItem.icon || '🛡️',
-          name: equippedArmor?.lootItem.name || 'Empty',
+          name: equippedArmor ? getInscribedItemName(equippedArmor.lootItem.name, equippedArmor.prefix, equippedArmor.suffix) : 'Empty',
           isEmpty: !equippedArmor,
           rarity: equippedArmor?.lootItem.rarity,
           tier: equippedArmor?.tier,
@@ -43,7 +45,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
         return {
           label: 'Accessory 1',
           icon: equippedAccessory1?.lootItem.icon || '💍',
-          name: equippedAccessory1?.lootItem.name || 'Empty',
+          name: equippedAccessory1 ? getInscribedItemName(equippedAccessory1.lootItem.name, equippedAccessory1.prefix, equippedAccessory1.suffix) : 'Empty',
           isEmpty: !equippedAccessory1,
           rarity: equippedAccessory1?.lootItem.rarity,
           tier: equippedAccessory1?.tier,
@@ -55,7 +57,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
         return {
           label: 'Accessory 2',
           icon: equippedAccessory2?.lootItem.icon || '📿',
-          name: equippedAccessory2?.lootItem.name || 'Empty',
+          name: equippedAccessory2 ? getInscribedItemName(equippedAccessory2.lootItem.name, equippedAccessory2.prefix, equippedAccessory2.suffix) : 'Empty',
           isEmpty: !equippedAccessory2,
           rarity: equippedAccessory2?.lootItem.rarity,
           tier: equippedAccessory2?.tier,

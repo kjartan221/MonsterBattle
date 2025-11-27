@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getLootItemById, LootItem } from '@/lib/loot-table';
+import type { Inscription } from '@/lib/types';
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
 
@@ -14,6 +15,8 @@ export interface EquippedItem {
   crafted?: boolean; // Whether the item was crafted
   statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
   isEmpowered?: boolean; // Dropped from corrupted monster (+20% to all stats)
+  prefix?: Inscription; // Phase 3.4: Prefix inscription
+  suffix?: Inscription; // Phase 3.4: Suffix inscription
 }
 
 interface EquipmentContextType {
@@ -61,7 +64,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootItem,
             crafted: data.equippedWeapon.crafted,
             statRoll: data.equippedWeapon.statRoll,
-            isEmpowered: data.equippedWeapon.isEmpowered
+            isEmpowered: data.equippedWeapon.isEmpowered,
+            prefix: data.equippedWeapon.prefix,
+            suffix: data.equippedWeapon.suffix
           });
         }
       } else {
@@ -79,7 +84,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootItem,
             crafted: data.equippedArmor.crafted,
             statRoll: data.equippedArmor.statRoll,
-            isEmpowered: data.equippedArmor.isEmpowered
+            isEmpowered: data.equippedArmor.isEmpowered,
+            prefix: data.equippedArmor.prefix,
+            suffix: data.equippedArmor.suffix
           });
         }
       } else {
@@ -97,7 +104,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootItem,
             crafted: data.equippedAccessory1.crafted,
             statRoll: data.equippedAccessory1.statRoll,
-            isEmpowered: data.equippedAccessory1.isEmpowered
+            isEmpowered: data.equippedAccessory1.isEmpowered,
+            prefix: data.equippedAccessory1.prefix,
+            suffix: data.equippedAccessory1.suffix
           });
         }
       } else {
@@ -115,7 +124,9 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             lootItem,
             crafted: data.equippedAccessory2.crafted,
             statRoll: data.equippedAccessory2.statRoll,
-            isEmpowered: data.equippedAccessory2.isEmpowered
+            isEmpowered: data.equippedAccessory2.isEmpowered,
+            prefix: data.equippedAccessory2.prefix,
+            suffix: data.equippedAccessory2.suffix
           });
         }
       } else {

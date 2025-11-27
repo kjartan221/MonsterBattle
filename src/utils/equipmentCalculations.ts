@@ -1,6 +1,7 @@
 import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { scaleItemStats } from '@/utils/itemTierScaling';
 import type { Tier } from '@/lib/biome-config';
+import type { Inscription } from '@/lib/types';
 
 export interface TotalEquipmentStats {
   damageBonus: number;
@@ -62,31 +63,114 @@ export function calculateTotalEquipmentStats(
 
     // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
     // Always round UP for empowered stats to avoid float numbers
+    let currentStats = { ...scaledStats };
     if (item.isEmpowered) {
-      stats.damageBonus += Math.ceil(scaledStats.damageBonus * 1.2);
-      stats.critChance += Math.ceil(scaledStats.critChance * 1.2);
-      stats.defense += Math.ceil(scaledStats.defense * 1.2);
-      stats.maxHpBonus += Math.ceil(scaledStats.maxHpBonus * 1.2);
-      stats.attackSpeed += Math.ceil(scaledStats.attackSpeed * 1.2);
-      stats.coinBonus += Math.ceil(scaledStats.coinBonus * 1.2);
-      stats.healBonus += Math.ceil(scaledStats.healBonus * 1.2);
-      stats.lifesteal += Math.ceil(scaledStats.lifesteal * 1.2);
-      stats.autoClickRate += Math.ceil(scaledStats.autoClickRate * 1.2);
-    } else {
-      // No empowered bonus, just sum the scaled stats
-      stats.damageBonus += scaledStats.damageBonus;
-      stats.critChance += scaledStats.critChance;
-      stats.defense += scaledStats.defense;
-      stats.maxHpBonus += scaledStats.maxHpBonus;
-      stats.attackSpeed += scaledStats.attackSpeed;
-      stats.coinBonus += scaledStats.coinBonus;
-      stats.healBonus += scaledStats.healBonus;
-      stats.lifesteal += scaledStats.lifesteal;
-      stats.autoClickRate += scaledStats.autoClickRate;
+      currentStats = {
+        damageBonus: Math.ceil(scaledStats.damageBonus * 1.2),
+        critChance: Math.ceil(scaledStats.critChance * 1.2),
+        defense: Math.ceil(scaledStats.defense * 1.2),
+        maxHpBonus: Math.ceil(scaledStats.maxHpBonus * 1.2),
+        attackSpeed: Math.ceil(scaledStats.attackSpeed * 1.2),
+        coinBonus: Math.ceil(scaledStats.coinBonus * 1.2),
+        healBonus: Math.ceil(scaledStats.healBonus * 1.2),
+        lifesteal: Math.ceil(scaledStats.lifesteal * 1.2),
+        autoClickRate: Math.ceil(scaledStats.autoClickRate * 1.2)
+      };
     }
+
+    // Apply inscription bonuses (Phase 3.4: Equipment Customization)
+    // Inscriptions add flat bonuses AFTER tier scaling and empowered multipliers
+    const inscriptionBonuses = applyInscriptionBonuses(item.prefix, item.suffix);
+
+    // Sum all bonuses to total stats
+    stats.damageBonus += currentStats.damageBonus + inscriptionBonuses.damageBonus;
+    stats.critChance += currentStats.critChance + inscriptionBonuses.critChance;
+    stats.defense += currentStats.defense + inscriptionBonuses.defense;
+    stats.maxHpBonus += currentStats.maxHpBonus + inscriptionBonuses.maxHpBonus;
+    stats.attackSpeed += currentStats.attackSpeed + inscriptionBonuses.attackSpeed;
+    stats.coinBonus += currentStats.coinBonus + inscriptionBonuses.coinBonus;
+    stats.healBonus += currentStats.healBonus + inscriptionBonuses.healBonus;
+    stats.lifesteal += currentStats.lifesteal; // No inscription type for lifesteal yet
+    stats.autoClickRate += currentStats.autoClickRate; // No inscription type for autoClickRate yet
   }
 
   return stats;
+}
+
+/**
+ * Apply inscription bonuses from prefix and suffix
+ * Phase 3.4: Equipment Customization - Prefix & Suffix System
+ *
+ * Inscription bonuses are flat additions that stack with equipment stats
+ * Order of application: Base → Tier Scaling → Empowered → Inscriptions
+ */
+function applyInscriptionBonuses(
+  prefix?: Inscription,
+  suffix?: Inscription
+): TotalEquipmentStats {
+  const bonuses: TotalEquipmentStats = {
+    damageBonus: 0,
+    critChance: 0,
+    defense: 0,
+    maxHpBonus: 0,
+    attackSpeed: 0,
+    coinBonus: 0,
+    healBonus: 0,
+    lifesteal: 0,
+    autoClickRate: 0
+  };
+
+  // Apply prefix inscription bonus
+  if (prefix) {
+    addInscriptionBonus(bonuses, prefix);
+  }
+
+  // Apply suffix inscription bonus
+  if (suffix) {
+    addInscriptionBonus(bonuses, suffix);
+  }
+
+  return bonuses;
+}
+
+/**
+ * Add a single inscription's bonus to the stats object
+ */
+function addInscriptionBonus(
+  stats: TotalEquipmentStats,
+  inscription: Inscription
+): void {
+  switch (inscription.type) {
+    case 'damage':
+      stats.damageBonus += inscription.value;
+      break;
+    case 'critical':
+      stats.critChance += inscription.value;
+      break;
+    case 'protection':
+      stats.defense += inscription.value;
+      break;
+    case 'vitality':
+      stats.maxHpBonus += inscription.value;
+      break;
+    case 'haste':
+      stats.attackSpeed += inscription.value;
+      break;
+    case 'fortune':
+      stats.coinBonus += inscription.value;
+      break;
+    case 'healing':
+      stats.healBonus += inscription.value;
+      break;
+    case 'lifesteal':
+      stats.lifesteal += inscription.value;
+      break;
+    case 'autoclick':
+      stats.autoClickRate += inscription.value;
+      break;
+    default:
+      console.warn(`Unknown inscription type: ${inscription.type}`);
+  }
 }
 
 /**

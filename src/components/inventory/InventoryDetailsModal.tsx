@@ -5,6 +5,8 @@ import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import { tierToRoman } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
+import { getInscribedItemName } from '@/utils/itemNameHelpers';
+import type { Inscription } from '@/lib/types';
 
 interface InventoryDetailsModalProps {
   item: LootItem & {
@@ -20,6 +22,8 @@ interface InventoryDetailsModalProps {
     crafted?: boolean; // Whether item was crafted
     statRoll?: number; // Stat roll for crafted items
     isEmpowered?: boolean; // Whether item was dropped by corrupted monster
+    prefix?: Inscription; // Prefix inscription
+    suffix?: Inscription; // Suffix inscription
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
@@ -82,7 +86,8 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     consumable: 'Consumable',
     material: 'Material',
     artifact: 'Artifact',
-    spell_scroll: 'Spell Scroll'
+    spell_scroll: 'Spell Scroll',
+    inscription_scroll: 'Inscription Scroll'
   };
 
   // Use custom gradient border if available
@@ -112,7 +117,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
         <div className="text-center mb-6">
           <div className="text-7xl mb-3">{item.icon}</div>
           <h2 className={`text-2xl font-bold ${rarityColors[item.rarity].split(' ')[0]}`}>
-            {item.name}
+            {getInscribedItemName(item.name, item.prefix, item.suffix)}
           </h2>
           {item.count && item.count > 1 && (
             <div className="mt-2 inline-block bg-gray-800 border-2 border-white text-white text-sm font-bold px-3 py-1 rounded-full">

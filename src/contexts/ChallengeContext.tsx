@@ -12,6 +12,7 @@ export interface ChallengeConfig {
   escapeTimerSpeed: number;     // 1.0, 1.5, 2.0, 3.0, 4.0 (divides 30s timer, minimum 10s)
   buffStrength: number;         // 1.0, 1.5, 2.0, 3.0, 5.0 (multiplies shield HP)
   bossAttackSpeed: number;      // 1.0, 0.75, 0.5, 0.33, 0.25 (multiplies cooldown)
+  bossSpawnRate: number;        // 1.0, 5.0 (5x boss spawns, -4 loot cards, +10% boss HP/DMG)
 }
 
 interface ChallengeContextType {
@@ -32,7 +33,8 @@ const DEFAULT_CONFIG: ChallengeConfig = {
   corruptionRate: 0,
   escapeTimerSpeed: 1.0,
   buffStrength: 1.0,
-  bossAttackSpeed: 1.0
+  bossAttackSpeed: 1.0,
+  bossSpawnRate: 1.0
 };
 
 export function ChallengeProvider({ children }: { children: ReactNode }) {

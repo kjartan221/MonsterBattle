@@ -228,6 +228,12 @@ export default function CraftingPage() {
           </div>
           <div className="flex gap-4">
             <button
+              onClick={() => router.push('/blacksmith')}
+              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              🔨 Blacksmith
+            </button>
+            <button
               onClick={() => router.push('/battle')}
               className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
             >
