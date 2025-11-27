@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
 import type { LootItem } from '@/lib/loot-table';
@@ -53,9 +53,10 @@ interface MonsterBattleSectionProps {
   spellDamageHandler?: React.MutableRefObject<((spellData: SpellCastData) => void) | null>; // Phase 2.6: Ref to spell damage handler
   activeBuffs?: import('@/types/buffs').Buff[]; // Phase 2.6: Active player buffs for crit multiplier calculation
   damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
+  healingReportHandler?: React.MutableRefObject<((amount: number) => void) | null>; // Report healing for cheat detection
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -63,6 +64,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Local battle progress state
   const [totalDamage, setTotalDamage] = useState(0);
+  const [totalHealing, setTotalHealing] = useState(0); // Track all healing for cheat detection
+  const [invulnerabilityTime, setInvulnerabilityTime] = useState(0); // Track boss invulnerability time (ms)
+  const [summonDamage, setSummonDamage] = useState(0); // Track damage from summons (not reduced by armor)
   const [clickCount, setClickCount] = useState(0);
   const [lastSavedClickCount, setLastSavedClickCount] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
@@ -87,6 +91,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Phase 2.6: Monster debuffs from player spells
   const [monsterDebuffs, setMonsterDebuffs] = useState<MonsterDebuff[]>([]);
+  const debuffIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -184,6 +189,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   }, [takeDamage, addSummons, spawnAttack, gameState.monster]);
 
+  // Expose healing tracking function via ref (for BattlePage to report consumable/spell healing)
+  useEffect(() => {
+    if (healingReportHandler) {
+      healingReportHandler.current = (amount: number) => {
+        setTotalHealing(prev => prev + amount);
+        console.log(`💚 [Healing Report] +${amount} HP, total: ${totalHealing + amount}`);
+      };
+    }
+    return () => {
+      if (healingReportHandler) {
+        healingReportHandler.current = null;
+      }
+    };
+  }, [healingReportHandler, totalHealing]);
+
   // Determine if this is a boss monster (before calling hooks)
   const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
 
@@ -196,6 +216,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     onBattleComplete: () => {
       console.log(`[MonsterBattleSection] onBattleComplete triggered`);
       // Will handle in useEffect below to access latest damage/click values
+    },
+    onInvulnerabilityStart: (duration) => {
+      setInvulnerabilityTime(prev => prev + duration);
+      console.log(`💤 [Invulnerability] +${duration}ms, total: ${invulnerabilityTime + duration}ms`);
     }
   });
 
@@ -228,6 +252,25 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   }, [currentPhaseHP, phasesRemaining, maxPhaseHP, gameState.monster, gameState.canAttackMonster, clickCount, totalDamage, gameState.gameState]);
 
+  // Handle regular monster defeat (from DoT, auto-hits, or manual clicks)
+  useEffect(() => {
+    // Skip if boss or no monster
+    const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
+    if (isBoss || !gameState.monster) return;
+
+    // Check if regular monster is defeated
+    const isDefeated = totalDamage >= gameState.monster.clicksRequired;
+
+    // Only trigger if:
+    // 1. Monster is defeated
+    // 2. Battle is in progress (not already completing)
+    // 3. Can attack (battle is active)
+    if (isDefeated && gameState.gameState === 'BATTLE_IN_PROGRESS' && gameState.canAttackMonster()) {
+      console.log(`[MonsterBattleSection] useEffect detected regular monster defeat from DoT/auto-hits, calling submitBattleCompletion with ${clickCount} clicks, ${totalDamage} damage`);
+      submitBattleCompletion(clickCount, totalDamage);
+    }
+  }, [totalDamage, gameState.monster, gameState.gameState, gameState.canAttackMonster, clickCount]);
+
   const { lastAttack } = useSpecialAttacks({
     monster: gameState.monster,
     battleStarted: gameState.canAttackMonster(),
@@ -257,7 +300,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     takeDamage: takeDamageWithShield,
     equipmentStats,
     applyDebuff,
-    additionalDamage: getTotalSummonDamage()
+    additionalDamage: getTotalSummonDamage(),
+    onSummonDamage: (amount) => {
+      setSummonDamage(prev => prev + amount);
+    }
   });
 
   // Auto-start initial battle when player stats load
@@ -481,6 +527,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (!gameState.monster || !gameState.session || !gameState.session.startedAt) return;
     if (gameState.gameState === 'BATTLE_COMPLETING') return;
 
+    // Stop all attack sources IMMEDIATELY before state transition
+    // This prevents race conditions where attacks land after victory is detected
+    clearDebuffs();
+    clearInteractiveAttacks();
+
+    // Calculate current buff protection for cheat detection
+    const totalShieldHP = activeBuffs
+      .filter(buff => buff.buffType === BuffType.SHIELD)
+      .reduce((sum, buff) => sum + buff.value, 0);
+
+    const totalDamageReduction = activeBuffs
+      .filter(buff => buff.buffType === BuffType.DAMAGE_REDUCTION)
+      .reduce((sum, buff) => sum + buff.value, 0);
+
     gameState.setBattleCompleting();
 
     try {
@@ -491,7 +551,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           sessionId: gameState.session._id,
           clickCount: finalClickCount,
           totalDamage: finalTotalDamage,
-          usedItems: []
+          usedItems: [],
+          currentShieldHP: totalShieldHP,
+          damageReductionPercent: totalDamageReduction,
+          actualHealing: totalHealing,
+          invulnerabilityTimeMs: invulnerabilityTime,
+          summonDamage: summonDamage
         }),
       });
 
@@ -514,7 +579,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         setClickCount(0);
         setLastSavedClickCount(0);
         setTotalDamage(0);
+        setTotalHealing(0); // Reset healing tracker on cheat reset
+        setInvulnerabilityTime(0); // Reset invulnerability tracker
+        setSummonDamage(0); // Reset summon damage tracker
         setMonsterDebuffs([]); // Clear debuffs on cheat reset
+        clearInteractiveAttacks(); // Clear interactive attacks on cheat reset
         gameState.setBattleInProgress();
         return;
       }
@@ -664,10 +733,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       return; // Shield absorbs all damage, excess is ignored
     }
 
-    // Phase 2.5: Apply lifesteal healing (5% of damage dealt)
+    // Phase 2.5: Apply lifesteal healing (% of damage dealt)
     if (equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
       healHealth(healAmount);
+      // Track healing for cheat detection
+      setTotalHealing(prev => prev + healAmount);
     }
 
     // For bosses: use phase HP system via useBossPhases hook
@@ -773,7 +844,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         tickInterval: 1000 // DoT ticks every second
       };
       setMonsterDebuffs(prev => [...prev, newDebuff]);
-      console.log('🔴 [SPELL] Applied debuff to monster:', spellData.debuffType, spellData.debuffValue);
+      console.log('🔴 [SPELL] Applied debuff to monster:', {
+        type: spellData.debuffType,
+        damageAmount: spellData.debuffValue,
+        damageType: spellData.debuffDamageType,
+        duration: spellData.duration,
+        spellName: spellData.spellName
+      });
     }
 
     // Healing is handled by parent (BattlePage) via healHealth
@@ -793,9 +870,16 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Phase 2.6: Monster debuff management (auto-removal and DoT ticking)
   useEffect(() => {
+    // Clear any existing interval first (prevents double-tick in React StrictMode)
+    if (debuffIntervalRef.current) {
+      clearInterval(debuffIntervalRef.current);
+      debuffIntervalRef.current = null;
+    }
+
     if (monsterDebuffs.length === 0) return;
 
-    const interval = setInterval(() => {
+    // Create new interval and store reference
+    debuffIntervalRef.current = setInterval(() => {
       const now = Date.now();
 
       // Remove expired debuffs and apply DoT damage
@@ -809,10 +893,16 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
             const shouldTick = Math.floor(elapsed / (debuff.tickInterval || 1000)) > Math.floor((elapsed - 500) / (debuff.tickInterval || 1000));
             if (shouldTick) {
               // Apply debuff damage to monster (bypasses shield)
+              // DoT damage should NEVER crit - it's flat damage based on debuff.damageAmount
               const damage = debuff.damageAmount; // Store to satisfy TypeScript
               damagePhase(damage);
               setTotalDamage(prev => prev + damage);
-              console.log(`💥 [DoT] ${debuff.type} dealt ${damage} damage`);
+              console.log(`💥 [DoT Tick] ${debuff.type} dealt ${damage} flat damage (no crit)`, {
+                debuffId: debuff.id,
+                damageAmount: debuff.damageAmount,
+                damageType: debuff.damageType,
+                elapsed: (elapsed / 1000).toFixed(1) + 's'
+              });
             }
           }
 
@@ -822,7 +912,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       });
     }, 500); // Check every 500ms
 
-    return () => clearInterval(interval);
+    // Cleanup: clear interval on unmount or when dependencies change
+    return () => {
+      if (debuffIntervalRef.current) {
+        clearInterval(debuffIntervalRef.current);
+        debuffIntervalRef.current = null;
+      }
+    };
   }, [monsterDebuffs.length, damagePhase]);
 
   // Phase 2.5: Auto-hit interval based on equipment autoClickRate
@@ -899,6 +995,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   const handleMonsterEscape = async () => {
     if (!gameState.session) return;
+
+    // Clear all active debuffs and interactive attacks
+    clearDebuffs();
+    clearInteractiveAttacks();
 
     toast.error('The monster escaped!', { duration: 3000 });
 
@@ -986,6 +1086,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setClickCount(0);
     setLastSavedClickCount(0);
     setTotalDamage(0);
+    setTotalHealing(0); // Reset healing tracker on new monster
+    setInvulnerabilityTime(0); // Reset invulnerability tracker
+    setSummonDamage(0); // Reset summon damage tracker
     setShieldHP(0);
     setEscapeTimer(null);
     setMonsterDebuffs([]); // Clear debuffs on new monster

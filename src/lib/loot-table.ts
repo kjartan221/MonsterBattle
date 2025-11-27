@@ -1,13 +1,16 @@
 export interface EquipmentStats {
   damageBonus?: number;     // For weapons - adds to player damage (clicks per attack)
   critChance?: number;       // For weapons - increases crit chance %
-  hpReduction?: number;      // For armor - reduces monster damage %
+  defense?: number;          // For armor - reduces monster damage %
   maxHpBonus?: number;       // For armor - increases max HP
   attackSpeed?: number;      // For accessories - increases attack speed %
   coinBonus?: number;        // For accessories - increases coin drops %
   healBonus?: number;        // For artifacts/armor - increases HP healing % (after battle victories)
   lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on manual & auto-clicks)
   autoClickRate?: number;    // For weapons/artifacts - auto-clicks per second (stacks across items)
+  fireResistance?: number;   // For armor/artifacts - reduces burn DoT damage %
+  poisonResistance?: number; // For armor/artifacts - reduces poison DoT damage %
+  bleedResistance?: number;  // For armor/artifacts - reduces bleed DoT damage %
 }
 
 export interface LootItem {
@@ -21,6 +24,13 @@ export interface LootItem {
   spellData?: SpellData; // Optional spell data for spell scrolls
   cooldown?: number; // Optional cooldown for consumables
   healing?: number; // Optional healing amount for consumables (HP restored)
+  buffData?: ConsumableBuffData; // Optional buff data for consumables (temporary buffs)
+}
+
+export interface ConsumableBuffData {
+  buffType: 'shield' | 'damage_boost' | 'damage_mult' | 'crit_boost' | 'attack_speed' | 'cooldown_reduction' | 'coin_boost' | 'xp_boost' | 'heal_boost' | 'fire_resistance' | 'poison_resistance' | 'bleed_resistance';
+  buffValue: number; // Value of the buff (HP for shield, percentage for resistances/boosts)
+  duration: number; // Duration in seconds
 }
 
 export interface SpellData {
@@ -102,7 +112,7 @@ const TROLL_GHOST_SPECIFIC: LootItem[] = [
   { lootId: 'spirit_crystal', name: 'Spirit Crystal', icon: '💎', description: 'Contains trapped souls', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 10 } },
   { lootId: 'enchanted_ring', name: 'Enchanted Ring', icon: '💍', description: 'Hums with magical energy', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 25, critChance: 3 } },
   { lootId: 'mana_potion', name: 'Mana Potion', icon: '⚗️', description: 'Restores 25 HP', rarity: 'rare', type: 'consumable', cooldown: 8, healing: 25 },
-  { lootId: 'spectral_cloak', name: 'Spectral Cloak', icon: '🧥', description: 'Grants temporary invisibility', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 15 } },
+  { lootId: 'spectral_cloak', name: 'Spectral Cloak', icon: '🧥', description: 'Grants temporary invisibility', rarity: 'epic', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 15 } },
   { lootId: 'troll_hide', name: 'Troll Hide', icon: '🛡️', description: 'Tough and durable leather', rarity: 'rare', type: 'material' },
 ];
 
@@ -114,7 +124,7 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   { lootId: 'dragon_heart', name: 'Dragon Heart', icon: '❤️', description: 'Still warm and beating', rarity: 'epic', type: 'material' },
   { lootId: 'flame_sword', name: 'Flame Sword', icon: '🔥', description: 'Blade wreathed in eternal fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
   { lootId: 'blood_chalice', name: 'Blood Chalice', icon: '🏆', description: 'An ancient vampiric relic', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 25, coinBonus: 30 } },
-  { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 30 } },
+  { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense', rarity: 'epic', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 30 } },
   // Phase 2.6: Advanced spell scrolls (epic tier)
   { lootId: 'spell_scroll_lightning_bolt', name: 'Lightning Bolt Scroll', icon: '⚡', description: 'Unlocks Lightning Bolt spell - Devastating electric strike', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'lightning_bolt', spellName: 'Lightning Bolt', cooldown: 35, damage: 100, effect: 'Electric damage' } },
   { lootId: 'spell_scroll_mass_heal', name: 'Mass Heal Scroll', icon: '🌟', description: 'Unlocks Mass Heal spell - Powerful restoration', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'mass_heal', spellName: 'Mass Heal', cooldown: 40, healing: 60 } },
@@ -134,10 +144,10 @@ const DEMON_SPECIFIC: LootItem[] = [
   { lootId: 'infernal_blade', name: 'Infernal Blade', icon: '🗡️', description: 'Forged in the fires of hell', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 20 } },
   { lootId: 'demon_eye', name: 'Demon Eye', icon: '👁️', description: 'Sees through all illusions', rarity: 'legendary', type: 'material' },
   { lootId: 'hellfire_staff', name: 'Hellfire Staff', icon: '🪄', description: 'Commands the flames of perdition', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 10, attackSpeed: 20 } },
-  { lootId: 'void_armor', name: 'Void Armor', icon: '🛡️', description: 'Forged from pure darkness', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 25, maxHpBonus: 75 } },
+  { lootId: 'void_armor', name: 'Void Armor', icon: '🛡️', description: 'Forged from pure darkness', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 75 } },
   { lootId: 'demonic_tome', name: 'Demonic Tome', icon: '📖', description: 'Contains forbidden knowledge', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 25, attackSpeed: 15 } },
   { lootId: 'chaos_orb', name: 'Chaos Orb', icon: '🔮', description: 'Reality bends around it', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, coinBonus: 100 } },
-  { lootId: 'dark_halo', name: 'Dark Halo', icon: '⭕', description: 'Corrupts all who wear it', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 30, hpReduction: 10 } },
+  { lootId: 'dark_halo', name: 'Dark Halo', icon: '⭕', description: 'Corrupts all who wear it', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 30, defense: 10 } },
   { lootId: 'phoenix_feather', name: 'Phoenix Feather', icon: '🪶', description: 'Grants resurrection', rarity: 'legendary', type: 'material' },
 ];
 
@@ -147,7 +157,7 @@ const DEMON_SPECIFIC: LootItem[] = [
 const FOREST_WOLF_SPECIFIC: LootItem[] = [
   { lootId: 'wolf_pelt', name: 'Wolf Pelt', icon: '🐺', description: 'Soft and warm fur', rarity: 'common', type: 'material' },
   { lootId: 'wolf_fang', name: 'Wolf Fang', icon: '🦷', description: 'Sharp canine tooth', rarity: 'common', type: 'material' },
-  { lootId: 'leather_vest', name: 'Leather Vest', icon: '🧥', description: 'Basic protective gear', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 5 } },
+  { lootId: 'leather_vest', name: 'Leather Vest', icon: '🧥', description: 'Basic protective gear', rarity: 'common', type: 'armor', equipmentStats: { defense: 5 } },
   { lootId: 'hunter_dagger', name: 'Hunter\'s Dagger', icon: '🗡️', description: 'A reliable hunting blade', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 3 } },
   { lootId: 'stolen_coin', name: 'Stolen Gold', icon: '🪙', description: 'Ill-gotten gains', rarity: 'common', type: 'material' },
   { lootId: 'bandana', name: 'Bandit Bandana', icon: '🏴', description: 'Worn by forest outlaws', rarity: 'rare', type: 'artifact', equipmentStats: { coinBonus: 10 } },
@@ -158,7 +168,7 @@ const FOREST_WOLF_SPECIFIC: LootItem[] = [
 const WILD_BOAR_SPECIFIC: LootItem[] = [
   { lootId: 'boar_hide', name: 'Boar Hide', icon: '🐗', description: 'Thick and tough leather', rarity: 'rare', type: 'material' },
   { lootId: 'boar_tusk', name: 'Boar Tusk', icon: '🦷', description: 'Curved ivory horn', rarity: 'rare', type: 'material' },
-  { lootId: 'heavy_armor', name: 'Heavy Leather Armor', icon: '🛡️', description: 'Reinforced protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 10 } },
+  { lootId: 'heavy_armor', name: 'Heavy Leather Armor', icon: '🛡️', description: 'Reinforced protection', rarity: 'rare', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 10 } },
   { lootId: 'charging_boots', name: 'Charging Boots', icon: '👢', description: 'Enables quick strikes', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 5 } },
   { lootId: 'health_potion_forest', name: 'Forest Potion', icon: '🧪', description: 'Restore 30 HP', rarity: 'rare', type: 'consumable', cooldown: 7, healing: 30 },
 ];
@@ -177,11 +187,11 @@ const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
   { lootId: 'ancient_bark', name: 'Ancient Bark', icon: '🌳', description: 'Infused with life energy', rarity: 'epic', type: 'material' },
   { lootId: 'living_wood', name: 'Living Wood', icon: '🪵', description: 'Pulses with vitality', rarity: 'epic', type: 'material' },
   { lootId: 'treant_heart', name: 'Treant Heart', icon: '❤️', description: 'Still beating with nature magic', rarity: 'epic', type: 'material' },
-  { lootId: 'guardian_armor', name: 'Guardian\'s Bark Armor', icon: '🛡️', description: 'Nature\'s protection', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 20 } },
+  { lootId: 'guardian_armor', name: 'Guardian\'s Bark Armor', icon: '🛡️', description: 'Nature\'s protection', rarity: 'epic', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 20 } },
   { lootId: 'nature_blade', name: 'Nature\'s Wrath', icon: '🗡️', description: 'Living weapon', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 8 } },
   { lootId: 'forest_crown', name: 'Crown of the Forest', icon: '👑', description: 'Blessed by the ancients', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, coinBonus: 10 } },
   // Heal-focused items (nature healing theme)
-  { lootId: 'medics_robe', name: 'Medic\'s Robe', icon: '🧥', description: 'Blessed by forest healers (+6% heal)', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 8, maxHpBonus: 12, healBonus: 6 } },
+  { lootId: 'medics_robe', name: 'Medic\'s Robe', icon: '🧥', description: 'Blessed by forest healers (+6% heal)', rarity: 'epic', type: 'armor', equipmentStats: { defense: 8, maxHpBonus: 12, healBonus: 6 } },
   { lootId: 'amulet_of_life', name: 'Amulet of Life', icon: '🌿', description: 'Channels nature\'s vitality (+8% heal)', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, healBonus: 8 } },
   { lootId: 'spell_scroll_heal', name: 'Nature\'s Blessing Scroll', icon: '📜', description: 'Unlocks Nature\'s Blessing spell - Powerful heal + shield', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Nature\'s Blessing', cooldown: 25, healing: 50, buffType: 'shield', buffValue: 60, duration: 15, effect: 'Heal + shield' } },
 ];
@@ -192,7 +202,7 @@ const DIRE_WOLF_ALPHA_SPECIFIC: LootItem[] = [
   { lootId: 'alpha_fang', name: 'Alpha Wolf Fang', icon: '🦷', description: 'Legendary canine tooth', rarity: 'epic', type: 'material' },
   { lootId: 'pack_emblem', name: 'Pack Leader Emblem', icon: '🐺', description: 'Symbol of wolf pack dominance', rarity: 'epic', type: 'material' },
   { lootId: 'alpha_blade', name: 'Alpha Fang Sword', icon: '⚔️', description: 'Forged from the alpha\'s fang', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 11, attackSpeed: 8 } },
-  { lootId: 'alpha_armor', name: 'Alpha Pelt Armor', icon: '🛡️', description: 'Legendary wolf hide protection', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 14, maxHpBonus: 18 } },
+  { lootId: 'alpha_armor', name: 'Alpha Pelt Armor', icon: '🛡️', description: 'Legendary wolf hide protection', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 18 } },
   { lootId: 'pack_totem', name: 'Pack Leader\'s Totem', icon: '🗿', description: 'Commands respect from all beasts', rarity: 'epic', type: 'artifact', equipmentStats: { damageBonus: 3, critChance: 9, coinBonus: 15 } },
 ];
 
@@ -202,11 +212,11 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
   { lootId: 'ancient_sap', name: 'Ancient Sap', icon: '💧', description: 'Millennium-old tree sap', rarity: 'legendary', type: 'material' },
   { lootId: 'millennium_root', name: 'Millennium Root', icon: '🌿', description: 'Root from the oldest tree', rarity: 'legendary', type: 'material' },
   { lootId: 'natures_judgment', name: 'Nature\'s Judgment', icon: '🪄', description: 'Ancient staff of the forest', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 9, critChance: 18, attackSpeed: 10 } },
-  { lootId: 'ancient_bark_plate', name: 'Ancient Bark Plate', icon: '🛡️', description: 'Millennium-old protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 24, maxHpBonus: 55 } },
+  { lootId: 'ancient_bark_plate', name: 'Ancient Bark Plate', icon: '🛡️', description: 'Millennium-old protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 24, maxHpBonus: 55 } },
   { lootId: 'heart_of_forest', name: 'Heart of the Forest', icon: '💚', description: 'Essence of all nature', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 45, critChance: 14, coinBonus: 65 } },
   // Legendary heal-focused items (ultimate sustainability)
   { lootId: 'heart_crystal', name: 'Heart Crystal', icon: '💎', description: 'Ancient crystal pulsing with life (+12% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, healBonus: 12 } },
-  { lootId: 'lifebringers_crown', name: 'Lifebringer\'s Crown', icon: '👑', description: 'Crown of the eternal healer (+15% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, healBonus: 15, hpReduction: 10 } },
+  { lootId: 'lifebringers_crown', name: 'Lifebringer\'s Crown', icon: '👑', description: 'Crown of the eternal healer (+15% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, healBonus: 15, defense: 10 } },
   { lootId: 'spell_scroll_earthquake', name: 'Earthquake Scroll', icon: '📜', description: 'Unlocks Earthquake spell - Massive earth damage + stun', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'earthquake', spellName: 'Earthquake', cooldown: 45, damage: 140, debuffType: 'stun', debuffValue: 100, duration: 4, effect: 'Massive earth damage + stun' } },
 ];
 
@@ -214,7 +224,7 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
 const SAND_SCORPION_SPECIFIC: LootItem[] = [
   { lootId: 'scorpion_tail', name: 'Scorpion Tail', icon: '🦂', description: 'Contains venom sac', rarity: 'common', type: 'material' },
   { lootId: 'chitin_shard', name: 'Chitin Shard', icon: '🪨', description: 'Hard exoskeleton piece', rarity: 'common', type: 'material' },
-  { lootId: 'desert_cloth', name: 'Desert Wraps', icon: '🧣', description: 'Protects from heat and venom', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 6 } },
+  { lootId: 'desert_cloth', name: 'Desert Wraps', icon: '🧣', description: 'Protects from heat and venom', rarity: 'common', type: 'armor', equipmentStats: { defense: 6 } },
   { lootId: 'venom_dagger', name: 'Venom Blade', icon: '🗡️', description: 'Coated with poison', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2 } },
 ];
 
@@ -231,8 +241,8 @@ const FIRE_ELEMENTAL_SPECIFIC: LootItem[] = [
   { lootId: 'fire_essence', name: 'Fire Essence', icon: '🔥', description: 'Captured flame', rarity: 'rare', type: 'material' },
   { lootId: 'ember_core', name: 'Ember Core', icon: '⚫', description: 'Heart of a fire spirit', rarity: 'rare', type: 'material' },
   { lootId: 'flame_sword_desert', name: 'Flame Sword', icon: '🗡️', description: 'Blade wreathed in fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
-  { lootId: 'fire_resist_charm', name: 'Flame Ward Amulet', icon: '📿', description: 'Protects from fire', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 5 } },
-  { lootId: 'fire_potion', name: 'Fire Resistance Potion', icon: '🧪', description: 'Immune to burn for 30s', rarity: 'rare', type: 'consumable', cooldown: 12 },
+  { lootId: 'fire_resist_charm', name: 'Flame Ward Amulet', icon: '📿', description: 'Protects from fire (+50% fire resist)', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 5, fireResistance: 50 } },
+  { lootId: 'fire_potion', name: 'Fire Resistance Potion', icon: '🧪', description: 'Immune to burn for 30s (+100% fire resist)', rarity: 'rare', type: 'consumable', cooldown: 12, buffData: { buffType: 'fire_resistance', buffValue: 100, duration: 30 } },
 ];
 
 // Sand Djinn Specific Loot (Desert Tier 1, Epic Mini-Boss)
@@ -240,7 +250,7 @@ const SAND_DJINN_SPECIFIC: LootItem[] = [
   { lootId: 'djinn_essence', name: 'Djinn Essence', icon: '🧞', description: 'Bottled magic', rarity: 'epic', type: 'material' },
   { lootId: 'desert_gem', name: 'Desert Sapphire', icon: '💎', description: 'Shimmers with heat', rarity: 'epic', type: 'material' },
   { lootId: 'djinn_scimitar', name: 'Djinn\'s Scimitar', icon: '⚔️', description: 'Curved blade of legend', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 12, attackSpeed: 5 } },
-  { lootId: 'sand_armor', name: 'Djinn\'s Sand Armor', icon: '🛡️', description: 'Flows like sand', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 15 } },
+  { lootId: 'sand_armor', name: 'Djinn\'s Sand Armor', icon: '🛡️', description: 'Flows like sand', rarity: 'epic', type: 'armor', equipmentStats: { defense: 12, maxHpBonus: 15 } },
   { lootId: 'mirage_cloak', name: 'Mirage Cloak', icon: '🧥', description: 'Bends light around wearer', rarity: 'epic', type: 'artifact', equipmentStats: { coinBonus: 15 } },
   { lootId: 'spell_scroll_fireball', name: 'Fireball Scroll', icon: '📜', description: 'Unlocks Fireball spell - Explosive fire damage + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'fireball', spellName: 'Fireball', cooldown: 30, damage: 80, debuffType: 'burn', debuffValue: 12, debuffDamageType: 'flat', duration: 8, effect: 'Fire damage + burn DoT' } },
 ];
@@ -251,8 +261,8 @@ const SANDSTONE_GOLEM_SPECIFIC: LootItem[] = [
   { lootId: 'hardened_sand', name: 'Hardened Sand', icon: '🪨', description: 'Compressed over millennia', rarity: 'epic', type: 'material' },
   { lootId: 'stone_fist', name: 'Stone Fist Fragment', icon: '✊', description: 'Piece of the golem\'s weapon', rarity: 'epic', type: 'material' },
   { lootId: 'golem_hammer', name: 'Golem\'s Wrath Hammer', icon: '🔨', description: 'Crushes with ancient power', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 10, maxHpBonus: 15 } },
-  { lootId: 'sandstone_armor', name: 'Sandstone Plate', icon: '🛡️', description: 'Impenetrable stone armor', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 16, maxHpBonus: 25 } },
-  { lootId: 'desert_stone_amulet', name: 'Desert Stone Amulet', icon: '📿', description: 'Grants earth\'s endurance', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 20, hpReduction: 8 } },
+  { lootId: 'sandstone_armor', name: 'Sandstone Plate', icon: '🛡️', description: 'Impenetrable stone armor', rarity: 'epic', type: 'armor', equipmentStats: { defense: 16, maxHpBonus: 25 } },
+  { lootId: 'desert_stone_amulet', name: 'Desert Stone Amulet', icon: '📿', description: 'Grants earth\'s endurance', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 20, defense: 8 } },
 ];
 
 // Desert Phoenix Specific Loot (Desert Tier 3+, Legendary Boss)
@@ -261,7 +271,7 @@ const DESERT_PHOENIX_SPECIFIC: LootItem[] = [
   { lootId: 'rebirth_flame', name: 'Rebirth Flame', icon: '🔥', description: 'Never-ending fire', rarity: 'legendary', type: 'material' },
   { lootId: 'phoenix_plume', name: 'Phoenix Plume', icon: '🪶', description: 'Feather of resurrection', rarity: 'legendary', type: 'material' },
   { lootId: 'phoenix_talon', name: 'Phoenix Talon Blade', icon: '⚔️', description: 'Forged from eternal flames', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 11, critChance: 22, attackSpeed: 14 } },
-  { lootId: 'phoenix_plate', name: 'Phoenix Flame Plate', icon: '🛡️', description: 'Armor of rebirth', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 26, maxHpBonus: 65 } },
+  { lootId: 'phoenix_plate', name: 'Phoenix Flame Plate', icon: '🛡️', description: 'Armor of rebirth', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 65 } },
   { lootId: 'eternal_flame_orb', name: 'Eternal Flame Orb', icon: '🔮', description: 'Contains the phoenix\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, critChance: 18, coinBonus: 75 } },
   { lootId: 'spell_scroll_phoenix_fire', name: 'Phoenix Fire Scroll', icon: '📜', description: 'Unlocks Phoenix Fire spell - Massive fire damage + burn + self-heal', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'phoenix_fire', spellName: 'Phoenix Fire', cooldown: 50, damage: 180, healing: 40, debuffType: 'burn', debuffValue: 15, debuffDamageType: 'flat', duration: 10, effect: 'Massive fire damage + burn + heal' } },
 ];
@@ -273,7 +283,7 @@ const CORAL_CRAB_SPECIFIC: LootItem[] = [
   { lootId: 'coral_fragment', name: 'Coral Fragment', icon: '🪸', description: 'Hardened sea coral', rarity: 'common', type: 'material' },
   { lootId: 'crab_shell', name: 'Crab Shell', icon: '🦀', description: 'Natural armor', rarity: 'common', type: 'material' },
   { lootId: 'crab_claw', name: 'Crab Claw', icon: '🦀', description: 'Pincer weapon', rarity: 'common', type: 'material' },
-  { lootId: 'shell_armor', name: 'Shell Armor', icon: '🛡️', description: 'Reinforced with crab shell', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 7, maxHpBonus: 5 } },
+  { lootId: 'shell_armor', name: 'Shell Armor', icon: '🛡️', description: 'Reinforced with crab shell', rarity: 'common', type: 'armor', equipmentStats: { defense: 7, maxHpBonus: 5 } },
   { lootId: 'coral_dagger', name: 'Coral Dagger', icon: '🗡️', description: 'Sharp as a reef', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 3 } },
 ];
 
@@ -282,7 +292,7 @@ const GIANT_JELLYFISH_SPECIFIC: LootItem[] = [
   { lootId: 'jellyfish_tentacle', name: 'Jellyfish Tentacle', icon: '🪼', description: 'Stings on contact', rarity: 'common', type: 'material' },
   { lootId: 'bioluminescent_gel', name: 'Bioluminescent Gel', icon: '💧', description: 'Glows in the dark', rarity: 'common', type: 'material' },
   { lootId: 'sea_potion', name: 'Sea Potion', icon: '🧪', description: 'Restores 25 HP', rarity: 'common', type: 'consumable', cooldown: 6, healing: 25 },
-  { lootId: 'jelly_armor', name: 'Jellyfish Membrane', icon: '🛡️', description: 'Flexible protection', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 5, maxHpBonus: 8 } },
+  { lootId: 'jelly_armor', name: 'Jellyfish Membrane', icon: '🛡️', description: 'Flexible protection', rarity: 'common', type: 'armor', equipmentStats: { defense: 5, maxHpBonus: 8 } },
   { lootId: 'stinger_whip', name: 'Stinger Whip', icon: '🪢', description: 'Paralyzing strikes', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 1, attackSpeed: 8 } },
 ];
 
@@ -292,7 +302,7 @@ const FROST_SHARK_SPECIFIC: LootItem[] = [
   { lootId: 'frozen_scale', name: 'Frozen Scale', icon: '❄️', description: 'Never melts', rarity: 'rare', type: 'material' },
   { lootId: 'shark_fin', name: 'Shark Fin', icon: '🦈', description: 'Razor sharp', rarity: 'rare', type: 'material' },
   { lootId: 'frost_blade', name: 'Frost Blade', icon: '🗡️', description: 'Freezes enemies', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 3, critChance: 7 } },
-  { lootId: 'ice_armor', name: 'Frost Guard Armor', icon: '🛡️', description: 'Chills attackers', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 11, maxHpBonus: 12 } },
+  { lootId: 'ice_armor', name: 'Frost Guard Armor', icon: '🛡️', description: 'Chills attackers', rarity: 'rare', type: 'armor', equipmentStats: { defense: 11, maxHpBonus: 12 } },
   { lootId: 'frozen_heart', name: 'Frozen Heart', icon: '💙', description: 'Cold to the touch', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 10, critChance: 5 } },
 ];
 
@@ -310,7 +320,7 @@ const SEA_SERPENT_SPECIFIC: LootItem[] = [
   { lootId: 'serpent_scale', name: 'Serpent Scale', icon: '🐍', description: 'Iridescent and tough', rarity: 'epic', type: 'material' },
   { lootId: 'lightning_core', name: 'Lightning Core', icon: '⚡', description: 'Condensed electricity', rarity: 'epic', type: 'material' },
   { lootId: 'storm_blade', name: 'Storm Blade', icon: '⚔️', description: 'Channels lightning', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 10, attackSpeed: 8 } },
-  { lootId: 'tidal_armor', name: 'Tidal Scale Armor', icon: '🛡️', description: 'Flows like water', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 14, maxHpBonus: 18 } },
+  { lootId: 'tidal_armor', name: 'Tidal Scale Armor', icon: '🛡️', description: 'Flows like water', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 18 } },
   { lootId: 'ocean_crown', name: 'Crown of the Deep', icon: '👑', description: 'Commands the seas', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 20, coinBonus: 15 } },
 ];
 
@@ -320,7 +330,7 @@ const KRAKEN_SPECIFIC: LootItem[] = [
   { lootId: 'abyssal_ink', name: 'Abyssal Ink', icon: '💧', description: 'Darkness incarnate', rarity: 'epic', type: 'material' },
   { lootId: 'deep_sea_pearl', name: 'Deep Sea Pearl', icon: '💎', description: 'From the ocean depths', rarity: 'epic', type: 'material' },
   { lootId: 'tentacle_whip', name: 'Kraken\'s Whip', icon: '🪢', description: 'Crushes with tentacle power', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 11, maxHpBonus: 12 } },
-  { lootId: 'kraken_armor', name: 'Kraken Scale Armor', icon: '🛡️', description: 'Forged from kraken hide', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 16, maxHpBonus: 22 } },
+  { lootId: 'kraken_armor', name: 'Kraken Scale Armor', icon: '🛡️', description: 'Forged from kraken hide', rarity: 'epic', type: 'armor', equipmentStats: { defense: 16, maxHpBonus: 22 } },
   { lootId: 'abyssal_amulet', name: 'Abyssal Amulet', icon: '📿', description: 'Commands the deep ocean', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 18, critChance: 8, coinBonus: 18 } },
 ];
 
@@ -329,7 +339,7 @@ const LEVIATHAN_SPECIFIC: LootItem[] = [
   { lootId: 'leviathan_scale', name: 'Leviathan Scale', icon: '🐋', description: 'Massive and ancient', rarity: 'legendary', type: 'material' },
   { lootId: 'ocean_heart', name: 'Heart of the Ocean', icon: '💙', description: 'Pulses with the sea\'s power', rarity: 'legendary', type: 'material' },
   { lootId: 'trident', name: 'Poseidon\'s Trident', icon: '🔱', description: 'Legendary three-pronged spear', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 18, attackSpeed: 10 } },
-  { lootId: 'leviathan_armor', name: 'Leviathan Plate', icon: '🛡️', description: 'Unbreakable defense', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 22, maxHpBonus: 50 } },
+  { lootId: 'leviathan_armor', name: 'Leviathan Plate', icon: '🛡️', description: 'Unbreakable defense', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 22, maxHpBonus: 50 } },
   { lootId: 'tidal_orb', name: 'Tidal Orb', icon: '🔮', description: 'Controls water itself', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, critChance: 15, coinBonus: 60 } },
   { lootId: 'spell_scroll_tsunami', name: 'Tsunami Scroll', icon: '📜', description: 'Unlocks Tsunami spell - Massive water damage + slow', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'tsunami', spellName: 'Tsunami', cooldown: 45, damage: 120, debuffType: 'slow', debuffValue: 75, duration: 10, effect: 'Massive water damage + slow' } },
 ];
@@ -341,7 +351,7 @@ const LAVA_SALAMANDER_SPECIFIC: LootItem[] = [
   { lootId: 'molten_scale', name: 'Molten Scale', icon: '🦎', description: 'Still hot to touch', rarity: 'common', type: 'material' },
   { lootId: 'salamander_tail', name: 'Salamander Tail', icon: '🦎', description: 'Regrows when cut', rarity: 'common', type: 'material' },
   { lootId: 'lava_stone', name: 'Lava Stone', icon: '🪨', description: 'Glows with inner heat', rarity: 'common', type: 'material' },
-  { lootId: 'flame_cloak', name: 'Flame Cloak', icon: '🧥', description: 'Resists fire', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 6 } },
+  { lootId: 'flame_cloak', name: 'Flame Cloak', icon: '🧥', description: 'Resists fire (+30% fire resist)', rarity: 'common', type: 'armor', equipmentStats: { defense: 6, fireResistance: 30 } },
   { lootId: 'molten_dagger', name: 'Molten Dagger', icon: '🗡️', description: 'Drips with lava', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 4 } },
 ];
 
@@ -359,8 +369,8 @@ const MAGMA_GOLEM_SPECIFIC: LootItem[] = [
   { lootId: 'golem_core', name: 'Golem Core', icon: '⚫', description: 'Solid obsidian heart', rarity: 'rare', type: 'material' },
   { lootId: 'obsidian_shard', name: 'Obsidian Shard', icon: '🪨', description: 'Sharp volcanic glass', rarity: 'rare', type: 'material' },
   { lootId: 'magma_hammer', name: 'Magma Hammer', icon: '🔨', description: 'Crushes with fiery force', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 6 } },
-  { lootId: 'obsidian_armor', name: 'Obsidian Plate', icon: '🛡️', description: 'Volcanic glass armor', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 10 } },
-  { lootId: 'lava_potion', name: 'Lava Potion', icon: '🧪', description: 'Fire resistance, restores 30 HP', rarity: 'rare', type: 'consumable', cooldown: 9, healing: 30 },
+  { lootId: 'obsidian_armor', name: 'Obsidian Plate', icon: '🛡️', description: 'Volcanic glass armor', rarity: 'rare', type: 'armor', equipmentStats: { defense: 12, maxHpBonus: 10 } },
+  { lootId: 'lava_potion', name: 'Lava Potion', icon: '🧪', description: 'Fire resistance + restores 30 HP (+75% fire resist for 20s)', rarity: 'rare', type: 'consumable', cooldown: 9, healing: 30, buffData: { buffType: 'fire_resistance', buffValue: 75, duration: 20 } },
 ];
 
 // Inferno Imp Specific Loot (Volcano Tier 1-2, Rare Monster)
@@ -369,7 +379,7 @@ const INFERNO_IMP_SPECIFIC: LootItem[] = [
   { lootId: 'imp_claw', name: 'Imp Claw', icon: '👹', description: 'Wickedly sharp', rarity: 'rare', type: 'material' },
   { lootId: 'hellfire_dagger', name: 'Hellfire Dagger', icon: '🗡️', description: 'Cursed flames', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 3, critChance: 9 } },
   { lootId: 'inferno_ring', name: 'Ring of Inferno', icon: '💍', description: 'Enhances fire attacks', rarity: 'rare', type: 'artifact', equipmentStats: { damageBonus: 2, critChance: 8 } },
-  { lootId: 'brimstone_armor', name: 'Brimstone Armor', icon: '🛡️', description: 'Demonic protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 8 } },
+  { lootId: 'brimstone_armor', name: 'Brimstone Armor', icon: '🛡️', description: 'Demonic protection', rarity: 'rare', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 8 } },
 ];
 
 // Fire Drake Specific Loot (Volcano Tier 1+, Epic Mini-Boss)
@@ -377,7 +387,7 @@ const FIRE_DRAKE_SPECIFIC: LootItem[] = [
   { lootId: 'drake_scale', name: 'Fire Drake Scale', icon: '🐲', description: 'Impervious to flames', rarity: 'epic', type: 'material' },
   { lootId: 'drake_claw', name: 'Drake Claw', icon: '🦅', description: 'Sharp and scorching', rarity: 'epic', type: 'material' },
   { lootId: 'dragonfire_sword', name: 'Dragonfire Sword', icon: '⚔️', description: 'Blazing with dragonfire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 12, attackSpeed: 6 } },
-  { lootId: 'drake_armor', name: 'Drake Scale Armor', icon: '🛡️', description: 'Forged from drake scales', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 22 } },
+  { lootId: 'drake_armor', name: 'Drake Scale Armor', icon: '🛡️', description: 'Forged from drake scales', rarity: 'epic', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 22 } },
   { lootId: 'flame_pendant', name: 'Flame Pendant', icon: '📿', description: 'Burns eternally', rarity: 'epic', type: 'artifact', equipmentStats: { critChance: 10, coinBonus: 18 } },
 ];
 
@@ -387,7 +397,7 @@ const VOLCANIC_TITAN_SPECIFIC: LootItem[] = [
   { lootId: 'molten_stone', name: 'Molten Stone', icon: '🪨', description: 'Forever burning rock', rarity: 'epic', type: 'material' },
   { lootId: 'lava_crystal', name: 'Lava Crystal', icon: '💎', description: 'Crystallized lava', rarity: 'epic', type: 'material' },
   { lootId: 'titan_fist', name: 'Titan Fist Gauntlet', icon: '✊', description: 'Strikes with volcanic fury', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 7, critChance: 10, maxHpBonus: 15 } },
-  { lootId: 'molten_plate', name: 'Molten Titan Plate', icon: '🛡️', description: 'Volcanic armor of legends', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 17, maxHpBonus: 28 } },
+  { lootId: 'molten_plate', name: 'Molten Titan Plate', icon: '🛡️', description: 'Volcanic armor of legends', rarity: 'epic', type: 'armor', equipmentStats: { defense: 17, maxHpBonus: 28 } },
   { lootId: 'eruption_ring', name: 'Ring of Eruption', icon: '💍', description: 'Harnesses volcanic power', rarity: 'epic', type: 'artifact', equipmentStats: { damageBonus: 4, critChance: 9, coinBonus: 16 } },
 ];
 
@@ -396,7 +406,7 @@ const ANCIENT_DRAGON_SPECIFIC: LootItem[] = [
   { lootId: 'ancient_dragon_scale', name: 'Ancient Dragon Scale', icon: '🐉', description: 'Legendary protection', rarity: 'legendary', type: 'material' },
   { lootId: 'dragon_soul', name: 'Dragon Soul', icon: '🔥', description: 'Essence of dragonkind', rarity: 'legendary', type: 'material' },
   { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 10, critChance: 20, attackSpeed: 12 } },
-  { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 25, maxHpBonus: 60 } },
+  { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 60 } },
   { lootId: 'dragon_amulet', name: 'Dragon Amulet', icon: '💎', description: 'Grants dragon\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, maxHpBonus: 45, critChance: 16 } },
   { lootId: 'spell_scroll_meteor', name: 'Meteor Scroll', icon: '📜', description: 'Unlocks Meteor spell - Devastating impact + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'meteor', spellName: 'Meteor Strike', cooldown: 40, damage: 150, debuffType: 'burn', debuffValue: 20, debuffDamageType: 'flat', duration: 12, effect: 'Massive fire damage + burn' } },
 ];
@@ -408,7 +418,7 @@ const SKELETON_WARRIOR_SPECIFIC: LootItem[] = [
   { lootId: 'bone_shard', name: 'Bone Shard', icon: '🦴', description: 'Brittle but sharp', rarity: 'common', type: 'material' },
   { lootId: 'warrior_skull', name: 'Warrior Skull', icon: '💀', description: 'Ancient and weathered', rarity: 'common', type: 'material' },
   { lootId: 'rusty_sword', name: 'Rusty Sword', icon: '⚔️', description: 'Aged but deadly', rarity: 'common', type: 'weapon', equipmentStats: { damageBonus: 2 } },
-  { lootId: 'bone_armor', name: 'Bone Armor', icon: '🛡️', description: 'Assembled from skeletons', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 7, maxHpBonus: 5 } },
+  { lootId: 'bone_armor', name: 'Bone Armor', icon: '🛡️', description: 'Assembled from skeletons', rarity: 'common', type: 'armor', equipmentStats: { defense: 7, maxHpBonus: 5 } },
   { lootId: 'bone_dagger', name: 'Bone Dagger', icon: '🗡️', description: 'Sharpened rib', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 2, critChance: 6 } },
 ];
 
@@ -417,7 +427,7 @@ const CURSED_SPIRIT_SPECIFIC: LootItem[] = [
   { lootId: 'cursed_cloth', name: 'Cursed Cloth', icon: '👻', description: 'Tattered and haunted', rarity: 'common', type: 'material' },
   { lootId: 'ectoplasm_vial', name: 'Ectoplasm Vial', icon: '💧', description: 'Ghostly essence', rarity: 'common', type: 'material' },
   { lootId: 'spirit_vial', name: 'Spirit Vial', icon: '🧪', description: 'Contains spectral energy, restores 20 HP', rarity: 'common', type: 'consumable', cooldown: 7, healing: 20 },
-  { lootId: 'spectral_robes', name: 'Spectral Robes', icon: '🧥', description: 'Ethereal protection', rarity: 'common', type: 'armor', equipmentStats: { hpReduction: 5, maxHpBonus: 8 } },
+  { lootId: 'spectral_robes', name: 'Spectral Robes', icon: '🧥', description: 'Ethereal protection', rarity: 'common', type: 'armor', equipmentStats: { defense: 5, maxHpBonus: 8 } },
   { lootId: 'haunted_pendant', name: 'Haunted Pendant', icon: '📿', description: 'Whispers dark secrets', rarity: 'rare', type: 'artifact', equipmentStats: { maxHpBonus: 5, coinBonus: 8 } },
 ];
 
@@ -426,7 +436,7 @@ const VAMPIRE_LORD_SPECIFIC: LootItem[] = [
   { lootId: 'vampire_fang', name: 'Vampire Fang', icon: '🦷', description: 'Drains life force', rarity: 'rare', type: 'material' },
   { lootId: 'blood_vial', name: 'Blood Vial', icon: '🩸', description: 'Contains vampiric blood', rarity: 'rare', type: 'material' },
   { lootId: 'blood_sword', name: 'Blood Sword', icon: '🗡️', description: 'Thirsts for blood', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 3, critChance: 8, maxHpBonus: 5 } },
-  { lootId: 'vampire_cape', name: 'Vampire Cape', icon: '🧛', description: 'Grants night power', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 12 } },
+  { lootId: 'vampire_cape', name: 'Vampire Cape', icon: '🧛', description: 'Grants night power', rarity: 'rare', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 12 } },
   { lootId: 'crimson_ring', name: 'Crimson Ring', icon: '💍', description: 'Drains enemies', rarity: 'epic', type: 'artifact', equipmentStats: { critChance: 10, maxHpBonus: 8 } },
 ];
 
@@ -435,7 +445,7 @@ const DEATH_KNIGHT_SPECIFIC: LootItem[] = [
   { lootId: 'dark_steel', name: 'Dark Steel', icon: '⚫', description: 'Forged in darkness', rarity: 'rare', type: 'material' },
   { lootId: 'cursed_blade_fragment', name: 'Cursed Blade Fragment', icon: '⚔️', description: 'Piece of a legendary sword', rarity: 'rare', type: 'material' },
   { lootId: 'necrotic_sword', name: 'Necrotic Sword', icon: '⚔️', description: 'Drains life on hit', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 7 } },
-  { lootId: 'death_armor', name: 'Death Knight Armor', icon: '🛡️', description: 'Forged for the undead', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 13, maxHpBonus: 15 } },
+  { lootId: 'death_armor', name: 'Death Knight Armor', icon: '🛡️', description: 'Forged for the undead', rarity: 'rare', type: 'armor', equipmentStats: { defense: 13, maxHpBonus: 15 } },
   { lootId: 'shadow_ring', name: 'Shadow Ring', icon: '💍', description: 'Hides in darkness', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 12, coinBonus: 10 } },
 ];
 
@@ -444,7 +454,7 @@ const NECROMANCER_SPECIFIC: LootItem[] = [
   { lootId: 'necrotic_essence', name: 'Necrotic Essence', icon: '🧙', description: 'Pure death magic', rarity: 'epic', type: 'material' },
   { lootId: 'dark_crystal', name: 'Dark Crystal', icon: '🔮', description: 'Channels necromancy', rarity: 'epic', type: 'material' },
   { lootId: 'staff_of_souls', name: 'Staff of Souls', icon: '🪄', description: 'Commands the dead', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 11, attackSpeed: 10 } },
-  { lootId: 'necro_robes', name: 'Necromancer\'s Robes', icon: '🧥', description: 'Radiates dark power', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 10, maxHpBonus: 25 } },
+  { lootId: 'necro_robes', name: 'Necromancer\'s Robes', icon: '🧥', description: 'Radiates dark power', rarity: 'epic', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 25 } },
   { lootId: 'phylactery', name: 'Phylactery', icon: '⚱️', description: 'Stores a soul', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 30, coinBonus: 20 } },
 ];
 
@@ -454,7 +464,7 @@ const WRAITH_LORD_SPECIFIC: LootItem[] = [
   { lootId: 'shadow_crystal', name: 'Shadow Crystal', icon: '🔮', description: 'Crystallized darkness', rarity: 'epic', type: 'material' },
   { lootId: 'spectral_shard', name: 'Spectral Shard', icon: '💎', description: 'Fragment of the afterlife', rarity: 'epic', type: 'material' },
   { lootId: 'wraith_blade', name: 'Wraith Lord\'s Blade', icon: '⚔️', description: 'Phases through armor', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 13, attackSpeed: 10 } },
-  { lootId: 'shadow_armor', name: 'Shadow Lord Armor', icon: '🛡️', description: 'Ethereal protection', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 14, maxHpBonus: 26 } },
+  { lootId: 'shadow_armor', name: 'Shadow Lord Armor', icon: '🛡️', description: 'Ethereal protection', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 26 } },
   { lootId: 'wraith_crown', name: 'Crown of Shadows', icon: '👑', description: 'Rules over the dead', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 22, critChance: 10, coinBonus: 20 } },
 ];
 
@@ -463,7 +473,7 @@ const LICH_KING_SPECIFIC: LootItem[] = [
   { lootId: 'lich_crown', name: 'Crown of the Lich King', icon: '👑', description: 'Ultimate undead power', rarity: 'legendary', type: 'material' },
   { lootId: 'void_essence', name: 'Void Essence', icon: '⚫', description: 'Pure nothingness', rarity: 'legendary', type: 'material' },
   { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'The endgame weapon', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 12, critChance: 25, attackSpeed: 15 } },
-  { lootId: 'lich_plate', name: 'Lich King\'s Plate', icon: '🛡️', description: 'Eternal protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 28, maxHpBonus: 70 } },
+  { lootId: 'lich_plate', name: 'Lich King\'s Plate', icon: '🛡️', description: 'Eternal protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70 } },
   { lootId: 'death_orb', name: 'Orb of Eternal Death', icon: '🔮', description: 'Controls life and death', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 20, coinBonus: 80 } },
   { lootId: 'spell_scroll_death', name: 'Death Comet Scroll', icon: '📜', description: 'Unlocks Death Comet spell - Ultimate dark damage + bleed + self-empower', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'death_comet', spellName: 'Death Comet', cooldown: 50, damage: 200, buffType: 'damage_boost', buffValue: 25, duration: 15, debuffType: 'bleed', debuffValue: 18, debuffDamageType: 'flat', effect: 'Massive dark damage + bleed + damage boost' } },
 ];
@@ -486,14 +496,14 @@ const CRAFT_ONLY_WEAPONS: LootItem[] = [
 ];
 
 const CRAFT_ONLY_ARMOR: LootItem[] = [
-  { lootId: 'reinforced_steel_plate', name: 'Reinforced Steel Plate', icon: '🛡️', description: 'Heavy armor with exceptional protection', rarity: 'rare', type: 'armor', equipmentStats: { hpReduction: 15, maxHpBonus: 20 } },
-  { lootId: 'enchanted_silk_robes', name: 'Enchanted Silk Robes', icon: '🧥', description: 'Light armor imbued with protective magic', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 35, attackSpeed: 10 } },
-  { lootId: 'healers_plate', name: 'Healer\'s Plate', icon: '🛡️', description: 'Armor infused with restoration magic (+10% heal)', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 14, maxHpBonus: 30, healBonus: 10 } },
-  { lootId: 'titans_armor', name: 'Titan\'s Armor', icon: '🛡️', description: 'Armor of the ancient giants', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 30, maxHpBonus: 100 } },
-  { lootId: 'abyssal_plate', name: 'Abyssal Plate', icon: '🛡️', description: 'Forged in the deepest trenches', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 28, maxHpBonus: 90, attackSpeed: -5 } },
-  { lootId: 'dragonlord_armor', name: 'Dragonlord Armor', icon: '🛡️', description: 'Ultimate volcanic protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 32, maxHpBonus: 110, critChance: 5 } },
-  { lootId: 'dreadlord_plate', name: 'Dreadlord Plate', icon: '🛡️', description: 'Eternal undead protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 30, maxHpBonus: 95, damageBonus: 5 } },
-  { lootId: 'sacred_guardian_armor', name: 'Sacred Guardian Armor', icon: '🛡️', description: 'Divine protection with regenerative power (+12% heal)', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 26, maxHpBonus: 80, healBonus: 12 } },
+  { lootId: 'reinforced_steel_plate', name: 'Reinforced Steel Plate', icon: '🛡️', description: 'Heavy armor with exceptional protection', rarity: 'rare', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 20 } },
+  { lootId: 'enchanted_silk_robes', name: 'Enchanted Silk Robes', icon: '🧥', description: 'Light armor imbued with protective magic', rarity: 'epic', type: 'armor', equipmentStats: { defense: 12, maxHpBonus: 35, attackSpeed: 10 } },
+  { lootId: 'healers_plate', name: 'Healer\'s Plate', icon: '🛡️', description: 'Armor infused with restoration magic (+10% heal)', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 30, healBonus: 10 } },
+  { lootId: 'titans_armor', name: 'Titan\'s Armor', icon: '🛡️', description: 'Armor of the ancient giants', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 30, maxHpBonus: 100 } },
+  { lootId: 'abyssal_plate', name: 'Abyssal Plate', icon: '🛡️', description: 'Forged in the deepest trenches', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 90, attackSpeed: -5 } },
+  { lootId: 'dragonlord_armor', name: 'Dragonlord Armor', icon: '🛡️', description: 'Ultimate volcanic protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 32, maxHpBonus: 110, critChance: 5 } },
+  { lootId: 'dreadlord_plate', name: 'Dreadlord Plate', icon: '🛡️', description: 'Eternal undead protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 30, maxHpBonus: 95, damageBonus: 5 } },
+  { lootId: 'sacred_guardian_armor', name: 'Sacred Guardian Armor', icon: '🛡️', description: 'Divine protection with regenerative power (+12% heal)', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 80, healBonus: 12 } },
 ];
 
 const CRAFT_ONLY_CONSUMABLES: LootItem[] = [

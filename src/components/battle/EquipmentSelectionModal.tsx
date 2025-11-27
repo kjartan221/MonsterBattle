@@ -358,7 +358,7 @@ function formatStatName(key: string): string {
   const nameMap: Record<string, string> = {
     damageBonus: 'Damage',
     critChance: 'Crit Chance',
-    hpReduction: 'HP Reduction',
+    defense: 'Defense',
     maxHpBonus: 'Max HP',
     attackSpeed: 'Attack Speed',
     coinBonus: 'Coin Bonus'
@@ -369,7 +369,7 @@ function formatStatName(key: string): string {
 function getStatUnit(key: string): string {
   const unitMap: Record<string, string> = {
     critChance: '%',
-    hpReduction: '%',
+    defense: '%',
     attackSpeed: '%',
     coinBonus: '%'
   };

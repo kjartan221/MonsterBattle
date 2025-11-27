@@ -135,7 +135,7 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 - **Backend Stat Roll Implementation** (src/app/api/crafting/craft/route.ts):
   - Generate random stat roll (0.8 to 1.2 multiplier) for equipment and artifacts
   - Only applies to weapons, armor, and artifacts (not consumables or materials)
-  - Applies stat roll to all equipment stats: damageBonus, critChance, hpReduction, maxHpBonus, attackSpeed, coinBonus
+  - Applies stat roll to all equipment stats: damageBonus, critChance, defense, maxHpBonus, attackSpeed, coinBonus
   - Adds `crafted: true`, `statRoll: number`, and `rolledStats: object` to UserInventory documents
   - Returns stat roll and final stats in API response
 - **Frontend Stat Roll Display** (src/components/crafting/CraftingPage.tsx):
@@ -428,7 +428,7 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
     - equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2
     - Store ObjectId references to UserInventory items
   - Backend: EquipmentStats interface in loot-table.ts
-    - damageBonus, critChance, hpReduction, maxHpBonus, attackSpeed, coinBonus
+    - damageBonus, critChance, defense, maxHpBonus, attackSpeed, coinBonus
     - Added equipmentStats to 20+ equippable items across all rarities
   - Backend: API routes for equipment management
     - GET /api/equipment/get - Fetch equipped items

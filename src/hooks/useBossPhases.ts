@@ -8,6 +8,7 @@ interface UseBossPhasesProps {
   isSubmitting: boolean;
   onPhaseAttack?: (attack: SpecialAttack) => void;
   onBattleComplete?: () => void; // Callback when all phases defeated
+  onInvulnerabilityStart?: (duration: number) => void; // Callback when boss becomes invulnerable
 }
 
 interface PhaseData {
@@ -44,7 +45,8 @@ export function useBossPhases({
   battleStarted,
   isSubmitting,
   onPhaseAttack,
-  onBattleComplete
+  onBattleComplete,
+  onInvulnerabilityStart
 }: UseBossPhasesProps): PhaseData {
   // Phase HP state
   const [currentPhaseHP, setCurrentPhaseHP] = useState<number>(0);
@@ -149,7 +151,13 @@ export function useBossPhases({
 
       // Start invulnerability
       setIsInvulnerable(true);
-      console.log(`[useBossPhases] Boss is now INVULNERABLE for ${phaseDefinition.invulnerabilityDuration}ms`);
+      const invulnDuration = phaseDefinition.invulnerabilityDuration || 2000;
+      console.log(`[useBossPhases] Boss is now INVULNERABLE for ${invulnDuration}ms`);
+
+      // Report invulnerability duration for cheat detection
+      if (onInvulnerabilityStart) {
+        onInvulnerabilityStart(invulnDuration);
+      }
 
       // Show phase message
       if (phaseDefinition.message) {

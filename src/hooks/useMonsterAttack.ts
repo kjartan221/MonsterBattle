@@ -15,6 +15,7 @@ interface UseMonsterAttackProps {
   equipmentStats: TotalEquipmentStats;
   applyDebuff?: (effect: DebuffEffect, appliedBy?: string) => boolean;
   additionalDamage?: number; // Additional damage from summons, etc.
+  onSummonDamage?: (amount: number) => void; // Report summon damage for cheat detection
 }
 
 /**
@@ -32,7 +33,8 @@ export function useMonsterAttack({
   takeDamage,
   equipmentStats,
   applyDebuff,
-  additionalDamage = 0
+  additionalDamage = 0,
+  onSummonDamage
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -53,10 +55,10 @@ export function useMonsterAttack({
       return;
     }
 
-    // Calculate reduced damage based on armor (hpReduction)
+    // Calculate reduced damage based on armor (defense)
     const effectiveDamage = calculateMonsterDamage(
       monster.attackDamage,
-      equipmentStats.hpReduction
+      equipmentStats.defense
     );
 
     // Add additional damage from summons (not reduced by armor)
@@ -65,7 +67,7 @@ export function useMonsterAttack({
     // Calculate attack interval based on attack speed bonuses
     const interval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
 
-    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.hpReduction}%, summons: +${additionalDamage})`);
+    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.defense}%, summons: +${additionalDamage})`);
 
     // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
@@ -74,6 +76,11 @@ export function useMonsterAttack({
 
       // Deal total damage to player (monster + summons)
       await takeDamage(totalDamage);
+
+      // Report summon damage separately for cheat detection (not reduced by armor)
+      if (additionalDamage > 0 && onSummonDamage) {
+        onSummonDamage(additionalDamage);
+      }
 
       // Apply DoT effect if monster has one
       if (monster.dotEffect && applyDebuff) {

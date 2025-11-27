@@ -154,8 +154,8 @@ export async function POST(request: NextRequest) {
             critChance: outputLootItem.equipmentStats.critChance !== undefined
               ? Math.round(outputLootItem.equipmentStats.critChance * statRoll)
               : undefined,
-            hpReduction: outputLootItem.equipmentStats.hpReduction !== undefined
-              ? Math.round(outputLootItem.equipmentStats.hpReduction * statRoll)
+            defense: outputLootItem.equipmentStats.defense !== undefined
+              ? Math.round(outputLootItem.equipmentStats.defense * statRoll)
               : undefined,
             maxHpBonus: outputLootItem.equipmentStats.maxHpBonus !== undefined
               ? Math.round(outputLootItem.equipmentStats.maxHpBonus * statRoll)

@@ -65,7 +65,7 @@ export interface UserInventory {
   rolledStats?: {           // Final stats after applying stat roll
     damageBonus?: number;
     critChance?: number;
-    hpReduction?: number;
+    defense?: number;
     maxHpBonus?: number;
     attackSpeed?: number;
     coinBonus?: number;

@@ -14,6 +14,11 @@ export enum BuffType {
   SHIELD = 'shield',                    // Absorbs damage (value = HP amount)
   DAMAGE_REDUCTION = 'damage_reduction', // Reduces incoming damage (value = percentage)
 
+  // DoT Resistance buffs (reduce DoT damage by percentage)
+  FIRE_RESISTANCE = 'fire_resistance',   // Reduces burn DoT damage (value = percentage)
+  POISON_RESISTANCE = 'poison_resistance', // Reduces poison DoT damage (value = percentage)
+  BLEED_RESISTANCE = 'bleed_resistance', // Reduces bleed DoT damage (value = percentage)
+
   // Offensive buffs
   DAMAGE_BOOST = 'damage_boost',         // Increases player damage (value = flat amount)
   DAMAGE_MULT = 'damage_mult',           // Multiplies player damage (value = percentage)

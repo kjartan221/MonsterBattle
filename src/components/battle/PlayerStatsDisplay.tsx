@@ -212,8 +212,8 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
         )}
         <div className="text-white/80">
           <span className="text-white/60">🛡️ Defense:</span>{' '}
-          <span className={(Number(equipmentStats.hpReduction) || 0) > 0 ? 'text-blue-400 font-semibold' : 'text-white/60'}>
-            {Number(equipmentStats.hpReduction) || 0}%
+          <span className={(Number(equipmentStats.defense) || 0) > 0 ? 'text-blue-400 font-semibold' : 'text-white/60'}>
+            {Number(equipmentStats.defense) || 0}%
           </span>
         </div>
         <div className="text-white/80">

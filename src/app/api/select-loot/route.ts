@@ -142,6 +142,11 @@ export async function POST(request: NextRequest) {
     // The userId IS the public key in BSV
     const { color1, color2 } = publicKeyToGradient(userId);
 
+    // Determine item tier based on type
+    // ONLY spell scrolls are locked to Tier 1 (must be upgraded with duplicates)
+    // All other items (equipment, materials, consumables) scale with zone tier
+    const itemTier = lootItem.type === 'spell_scroll' ? 1 : session.tier;
+
     // Add item to user's inventory WITHOUT creating NFT yet
     // User will decide later if they want to mint it as an NFT (and pay for it)
     const inventoryResult = await userInventoryCollection.insertOne({
@@ -149,7 +154,7 @@ export async function POST(request: NextRequest) {
       lootTableId: lootItem.lootId, // Reference to loot-table template
       itemType: lootItem.type,
       nftLootId: undefined, // Will be set when user mints the NFT
-      tier: session.tier, // Track which tier this item dropped from
+      tier: itemTier, // Spell scrolls always Tier 1, everything else scales with zone tier
       borderGradient: { color1, color2 }, // Store gradient here
       acquiredAt: new Date(),
       fromMonsterId: session.monsterId,
@@ -157,7 +162,12 @@ export async function POST(request: NextRequest) {
       isEmpowered, // Mark item as empowered if dropped by corrupted monster (+20% stats)
     });
 
-    console.log(`📦 Added ${isEmpowered ? '⚡ EMPOWERED' : ''} ${lootItem.name} to ${userId}'s inventory (not minted yet)`);
+    const tierInfo = lootItem.type === 'spell_scroll'
+      ? ' (Tier 1 - requires upgrade)'
+      : itemTier > 1
+        ? ` (Tier ${itemTier})`
+        : '';
+    console.log(`📦 Added ${isEmpowered ? '⚡ EMPOWERED' : ''} ${lootItem.name}${tierInfo} to ${userId}'s inventory (not minted yet)`);
 
     return NextResponse.json({
       success: true,

@@ -125,7 +125,8 @@ function getBuffTooltip(buff: Buff, config: { name: string }): string {
   } else if (buff.buffType === 'damage_mult' || buff.buffType === 'crit_boost' ||
              buff.buffType === 'attack_speed' || buff.buffType === 'cooldown_reduction' ||
              buff.buffType === 'coin_boost' || buff.buffType === 'xp_boost' ||
-             buff.buffType === 'heal_boost') {
+             buff.buffType === 'heal_boost' || buff.buffType === 'fire_resistance' ||
+             buff.buffType === 'poison_resistance' || buff.buffType === 'bleed_resistance') {
     tooltip += `: +${buff.value}%`;
   }
 
@@ -157,6 +158,21 @@ function getBuffConfig(type: BuffType): {
       name: 'Damage Reduction',
       icon: '🛡️',
       color: '#8B5CF6' // Purple
+    },
+    fire_resistance: {
+      name: 'Fire Resistance',
+      icon: '🔥',
+      color: '#EF4444' // Red
+    },
+    poison_resistance: {
+      name: 'Poison Resistance',
+      icon: '☠️',
+      color: '#22C55E' // Green
+    },
+    bleed_resistance: {
+      name: 'Bleed Resistance',
+      icon: '🩸',
+      color: '#DC2626' // Dark Red
     },
     damage_boost: {
       name: 'Damage Boost',

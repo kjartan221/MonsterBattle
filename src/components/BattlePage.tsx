@@ -65,7 +65,8 @@ export default function BattlePage() {
   const { activeDebuffs, applyDebuff, clearDebuffs } = useDebuffs({
     maxHP: playerStats?.maxHealth || 100,
     takeDamage: takeDamageWithShield,
-    isActive: gameState.canAttackMonster()
+    isActive: gameState.canAttackMonster(),
+    activeBuffs // Pass player buffs for DoT resistance calculation
   });
 
   // Consumable system (managed at page level)
@@ -76,6 +77,9 @@ export default function BattlePage() {
 
   // Ref to MonsterBattleSection's spell damage handler
   const spellDamageHandlerRef = useRef<((spellData: any) => void) | null>(null);
+
+  // Ref to MonsterBattleSection's healing tracker
+  const healingReportHandlerRef = useRef<((amount: number) => void) | null>(null);
 
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
@@ -121,6 +125,10 @@ export default function BattlePage() {
         equippedAccessory2
       );
       healHealth(consumableItem.healing, equipmentStats.maxHpBonus);
+      // Report healing for cheat detection
+      if (healingReportHandlerRef.current) {
+        healingReportHandlerRef.current(consumableItem.healing);
+      }
       toast.success(`Restored ${consumableItem.healing} HP!`, { icon: '💚', duration: 2000 });
     }
 
@@ -130,12 +138,30 @@ export default function BattlePage() {
       toast.success('Debuffs removed!', { icon: '✨', duration: 2000 });
     }
 
-    // Fire resistance (burn immunity) - would need additional state tracking
-    if (itemName.includes('fire resistance')) {
-      toast.success('Immune to burn for 30s!', { icon: '🔥', duration: 3000 });
-      // TODO: Implement burn immunity state
+    // Apply buff if consumable has buff data
+    if (consumableItem.buffData) {
+      const { buffType, buffValue, duration } = consumableItem.buffData;
+      applyBuff({
+        buffType: buffType as any,
+        value: buffValue,
+        duration,
+        source: BuffSource.CONSUMABLE,
+        sourceId: consumableItem.lootId,
+        name: consumableItem.name,
+        icon: consumableItem.icon
+      });
+
+      // Show appropriate toast message based on buff type
+      if (buffType.includes('resistance')) {
+        const resistanceType = buffType.replace('_resistance', '');
+        toast.success(`+${buffValue}% ${resistanceType} resistance for ${duration}s!`, { icon: '🛡️', duration: 3000 });
+      } else if (buffType === 'shield') {
+        toast.success(`+${buffValue} HP shield for ${duration}s!`, { icon: '🛡️', duration: 3000 });
+      } else {
+        toast.success(`${consumableItem.name} activated!`, { icon: '✨', duration: 2000 });
+      }
     }
-  }, [consumableSlots, useConsumable, healHealth, clearDebuffs, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
+  }, [consumableSlots, useConsumable, healHealth, clearDebuffs, applyBuff, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
 
   // Phase 2.6: Handle spell casting (wrapped in useCallback to prevent re-casting on re-renders)
   const handleSpellCast = useCallback(async () => {
@@ -169,6 +195,10 @@ export default function BattlePage() {
         equippedAccessory2
       );
       healHealth(result.healing, equipmentStats.maxHpBonus);
+      // Report healing for cheat detection
+      if (healingReportHandlerRef.current) {
+        healingReportHandlerRef.current(result.healing);
+      }
     }
 
     // Apply player buff if spell provides one
@@ -186,6 +216,17 @@ export default function BattlePage() {
 
     // Pass spell data to MonsterBattleSection for damage application and visual effects
     if (spellDamageHandlerRef.current) {
+      // Debug logging for spell data before passing to MonsterBattleSection
+      if (result.debuffType && result.debuffValue) {
+        console.log('[BattlePage] Passing spell debuff to MonsterBattleSection:', {
+          spellName: result.spellName,
+          debuffType: result.debuffType,
+          debuffValue: result.debuffValue,
+          debuffDamageType: result.debuffDamageType,
+          duration: result.duration
+        });
+      }
+
       spellDamageHandlerRef.current({
         spellName: result.spellName || 'Spell',
         damage: result.damage,
@@ -325,6 +366,7 @@ export default function BattlePage() {
         spellDamageHandler={spellDamageHandlerRef}
         activeBuffs={activeBuffs}
         damageShield={damageShield}
+        healingReportHandler={healingReportHandlerRef}
       />
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}

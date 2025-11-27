@@ -75,10 +75,10 @@ export default function CraftingItemDetailsModal({ item, onClose }: CraftingItem
                   <span className="text-green-400 font-bold">+{item.equipmentStats.critChance}%</span>
                 </div>
               )}
-              {item.equipmentStats.hpReduction !== undefined && (
+              {item.equipmentStats.defense !== undefined && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Damage Reduction:</span>
-                  <span className="text-green-400 font-bold">{item.equipmentStats.hpReduction}%</span>
+                  <span className="text-gray-400">Defense:</span>
+                  <span className="text-green-400 font-bold">{item.equipmentStats.defense}%</span>
                 </div>
               )}
               {item.equipmentStats.maxHpBonus !== undefined && (

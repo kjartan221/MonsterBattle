@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { DebuffEffect, ActiveDebuff, DebuffType } from '@/lib/types';
+import { Buff, BuffType } from '@/types/buffs';
 
 interface UseDebuffsProps {
   maxHP: number;                                    // Current max HP of the target
   takeDamage: (amount: number) => Promise<void>;   // Function to apply damage
   isActive: boolean;                                // Whether debuffs should tick (battle active)
+  activeBuffs?: Buff[];                             // Player buffs (for calculating resistances)
 }
 
 /**
@@ -25,7 +27,7 @@ interface UseDebuffsProps {
  *   isActive: !monster.isDefeated
  * });
  */
-export function useDebuffs({ maxHP, takeDamage, isActive }: UseDebuffsProps) {
+export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: UseDebuffsProps) {
   const [activeDebuffs, setActiveDebuffs] = useState<ActiveDebuff[]>([]);
 
   /**
@@ -100,18 +102,48 @@ export function useDebuffs({ maxHP, takeDamage, isActive }: UseDebuffsProps) {
   };
 
   /**
-   * Calculate actual damage from debuff
+   * Calculate actual damage from debuff (with resistance reduction)
    */
   const calculateDebuffDamage = useCallback((debuff: ActiveDebuff): number => {
+    // Calculate base damage
+    let damage: number;
     if (debuff.damageType === 'percentage') {
       // Percentage of target's max HP at time of application
-      const damage = Math.ceil((debuff.damageAmount / 100) * debuff.targetMaxHP);
-      return Math.max(1, damage); // Minimum 1 damage
+      damage = Math.ceil((debuff.damageAmount / 100) * debuff.targetMaxHP);
     } else {
       // Flat damage
-      return debuff.damageAmount;
+      damage = debuff.damageAmount;
     }
-  }, []);
+
+    // Apply DoT resistance from player buffs
+    let resistancePercent = 0;
+
+    // Map debuff types to resistance buff types
+    const resistanceMap: Record<string, BuffType> = {
+      'burn': BuffType.FIRE_RESISTANCE,
+      'poison': BuffType.POISON_RESISTANCE,
+      'bleed': BuffType.BLEED_RESISTANCE
+    };
+
+    const resistanceType = resistanceMap[debuff.type];
+    if (resistanceType) {
+      // Sum all resistance buffs of this type
+      resistancePercent = activeBuffs
+        .filter(buff => buff.buffType === resistanceType)
+        .reduce((sum, buff) => sum + buff.value, 0);
+
+      // Cap resistance at 100% (complete immunity)
+      resistancePercent = Math.min(100, resistancePercent);
+
+      if (resistancePercent > 0) {
+        const originalDamage = damage;
+        damage = Math.floor(damage * (1 - resistancePercent / 100));
+        console.log(`🛡️ ${debuff.type} resistance: ${resistancePercent}% (${originalDamage} → ${damage} damage)`);
+      }
+    }
+
+    return Math.max(1, damage); // Minimum 1 damage
+  }, [activeBuffs]);
 
   /**
    * Tick all active DoT debuffs

@@ -133,6 +133,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate tier-scaled debuff value
+    const tierScaledDebuffValue = spellData.debuffValue ? Math.round(spellData.debuffValue * statMultiplier) : undefined;
+
+    // Debug logging for debuff values
+    if (spellData.debuffValue) {
+      console.log('[API] Spell debuff calculation:', {
+        spellName: spellData.spellName,
+        baseDebuffValue: spellData.debuffValue,
+        tier: spellTier,
+        statMultiplier,
+        tierScaledDebuffValue,
+        debuffType: spellData.debuffType
+      });
+    }
+
     // Return spell results including buff/debuff data (tier-scaled)
     return NextResponse.json({
       success: true,
@@ -146,7 +161,7 @@ export async function POST(request: NextRequest) {
       duration: spellData.duration,
       // Debuff data (for monster debuffs) - tier-scaled
       debuffType: spellData.debuffType,
-      debuffValue: spellData.debuffValue ? Math.round(spellData.debuffValue * statMultiplier) : undefined,
+      debuffValue: tierScaledDebuffValue,
       debuffDamageType: spellData.debuffDamageType
     });
 

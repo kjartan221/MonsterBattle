@@ -11,7 +11,7 @@ interface CraftedItemModalProps {
   rolledStats?: {
     damageBonus?: number;
     critChance?: number;
-    hpReduction?: number;
+    defense?: number;
     maxHpBonus?: number;
     attackSpeed?: number;
     coinBonus?: number;
@@ -113,10 +113,10 @@ export default function CraftedItemModal({ item, statRoll, rolledStats, isEmpowe
                   <span className="text-green-400 font-bold">+{rolledStats.critChance}%</span>
                 </div>
               )}
-              {rolledStats.hpReduction !== undefined && (
+              {rolledStats.defense !== undefined && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Damage Reduction:</span>
-                  <span className="text-green-400 font-bold">{rolledStats.hpReduction}%</span>
+                  <span className="text-gray-400">Defense:</span>
+                  <span className="text-green-400 font-bold">{rolledStats.defense}%</span>
                 </div>
               )}
               {rolledStats.maxHpBonus !== undefined && (

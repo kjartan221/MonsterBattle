@@ -5,7 +5,7 @@ import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
 import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier } from '@/utils/playerProgression';
-import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
+import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
 import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { ObjectId } from 'mongodb';
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount, totalDamage, usedItems } = body;
+    const { sessionId, clickCount, totalDamage, usedItems, currentShieldHP, damageReductionPercent, actualHealing, invulnerabilityTimeMs, summonDamage } = body;
 
     // Validate input
     if (!sessionId || typeof clickCount !== 'number' || typeof totalDamage !== 'number') {
@@ -39,6 +39,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Extract buff protection values (defaults to 0 if not provided)
+    const shieldHP = typeof currentShieldHP === 'number' ? currentShieldHP : 0;
+    const damageReduction = typeof damageReductionPercent === 'number' ? damageReductionPercent : 0;
+    const reportedHealing = typeof actualHealing === 'number' ? actualHealing : 0;
+    const invulnerabilityMs = typeof invulnerabilityTimeMs === 'number' ? invulnerabilityTimeMs : 0;
+    const reportedSummonDamage = typeof summonDamage === 'number' ? summonDamage : 0;
 
     // Convert sessionId string to ObjectId
     let sessionObjectId: ObjectId;
@@ -183,65 +190,77 @@ export async function POST(request: NextRequest) {
       equippedAccessory2
     );
 
-    // Calculate expected damage from monster
-    const expectedDamage = Math.floor(timeInSeconds * monster.attackDamage);
+    // Calculate expected damage from monster (accounting for armor, attack speed, buffs, invulnerability, summons)
+    // Step 1: Calculate reduced damage per hit from armor (for MONSTER damage only)
+    const damagePerHit = calculateMonsterDamage(monster.attackDamage, equipmentStats.defense);
 
-    // Calculate healing from used items
-    let totalHealing = 0;
+    // Step 2: Calculate attack interval with speed bonuses (slower = less attacks per second)
+    const attackInterval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
+
+    // Step 3: Calculate active attack time (total time - invulnerability time)
+    const totalTimeMs = timeInSeconds * 1000;
+    const activeAttackTimeMs = totalTimeMs - invulnerabilityMs;
+
+    // Step 4: Calculate number of attacks that would have occurred (during active time only)
+    const numberOfAttacks = Math.floor(activeAttackTimeMs / attackInterval);
+
+    // Step 5: Calculate monster damage (reduced by armor)
+    let monsterDamage = numberOfAttacks * damagePerHit;
+
+    // Step 6: Add summon damage (NOT reduced by armor)
+    let totalBaseDamage = monsterDamage + reportedSummonDamage;
+
+    // Step 7: Apply damage reduction buff (if active)
+    let expectedDamage = totalBaseDamage;
+    if (damageReduction > 0) {
+      const reductionMultiplier = 1 - Math.min(100, damageReduction) / 100;
+      expectedDamage = Math.floor(expectedDamage * reductionMultiplier);
+    }
+
+    // Step 8: Apply shield absorption
+    const damageAfterShield = Math.max(0, expectedDamage - shieldHP);
+
+    console.log(`Damage calculation:`);
+    console.log(`  Time: ${timeInSeconds.toFixed(2)}s total, ${invulnerabilityMs}ms invulnerable, ${(activeAttackTimeMs / 1000).toFixed(2)}s active`);
+    console.log(`  Monster: ${damagePerHit} dmg/hit (${equipmentStats.defense}% armor), ${attackInterval}ms interval, ${numberOfAttacks} attacks = ${monsterDamage} damage`);
+    console.log(`  Summons: ${reportedSummonDamage} damage (not reduced by armor)`);
+    console.log(`  Total base: ${totalBaseDamage} damage`);
+    if (damageReduction > 0) {
+      console.log(`  → After ${damageReduction}% damage reduction: ${expectedDamage} damage`);
+    }
+    if (shieldHP > 0) {
+      console.log(`  → After ${shieldHP} shield absorption: ${damageAfterShield} damage`);
+    }
+
+    // Use damage after all protections for HP calculation
+    expectedDamage = damageAfterShield;
+
+    // Use actual healing reported from frontend (includes consumables, spells, lifesteal)
+    // Frontend tracks all healing as it happens, which is more accurate than estimating
+    const totalHealing = reportedHealing;
+    console.log(`Actual healing reported from frontend: ${totalHealing} HP`);
+
+    // Keep usedItems array for battle session tracking (even though we don't estimate healing from it)
     const usedItemsArray = Array.isArray(usedItems) ? usedItems : [];
 
-    for (const usedItem of usedItemsArray) {
-      const item = getLootItemById(usedItem.lootTableId);
-      if (item && item.type === 'consumable') {
-        // TODO: Add healing amount to item definitions
-        // For now, assume health potions heal 50 HP
-        if (item.name.toLowerCase().includes('potion') || item.name.toLowerCase().includes('elixir')) {
-          totalHealing += 50;
-        }
-      }
+    // Calculate expected HP after battle (including equipment max HP bonuses)
+    const totalMaxHP = playerStats.maxHealth + equipmentStats.maxHpBonus;
+    const expectedHP = totalMaxHP - expectedDamage + totalHealing;
+
+    console.log(`HP Verification - Base Max HP: ${playerStats.maxHealth}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
+    if (shieldHP > 0 || damageReduction > 0) {
+      console.log(`  Buff protection: ${shieldHP} shield HP, ${damageReduction}% damage reduction`);
     }
-
-    // Phase 2.5: Calculate lifesteal healing
-    // Lifesteal heals for % of damage dealt to monster
-    if (equipmentStats.lifesteal > 0 && totalDamage > 0) {
-      const lifestealHealing = Math.ceil(totalDamage * (equipmentStats.lifesteal / 100));
-      totalHealing += lifestealHealing;
-      console.log(`Lifesteal healing: ${lifestealHealing} HP (${equipmentStats.lifesteal}% of ${totalDamage} damage)`);
-    }
-
-    // Phase 2.6: Calculate spell healing (for healing spells)
-    // Calculate max possible spell casts based on time and cooldown
-    if (playerStats.equippedSpell && playerStats.equippedSpell !== 'empty') {
-      const equippedSpellDoc = await userInventoryCollection.findOne({
-        _id: new ObjectId(playerStats.equippedSpell),
-        userId
-      });
-
-      if (equippedSpellDoc) {
-        const spellItem = getLootItemById(equippedSpellDoc.lootTableId);
-        if (spellItem && spellItem.type === 'spell_scroll' && spellItem.spellData) {
-          const { healing: spellHealing, cooldown: spellCooldown } = spellItem.spellData;
-
-          if (spellHealing && spellHealing > 0 && spellCooldown > 0) {
-            // Calculate max possible spell casts (first cast at 0s, then every cooldown seconds)
-            const maxSpellCasts = Math.floor(timeInSeconds / spellCooldown) + 1; // +1 for initial cast
-            const maxSpellHealing = maxSpellCasts * spellHealing;
-            totalHealing += maxSpellHealing;
-            console.log(`Spell healing: ${maxSpellHealing} HP (${maxSpellCasts} casts × ${spellHealing} HP, ${spellCooldown}s cooldown)`);
-          }
-        }
-      }
-    }
-
-    // Calculate expected HP after battle
-    const expectedHP = playerStats.maxHealth - expectedDamage + totalHealing;
-
-    console.log(`HP Verification - Max HP: ${playerStats.maxHealth}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
 
     // If player should have died, they're cheating
     if (expectedHP <= 0) {
       console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
-      console.warn(`   Max HP: ${playerStats.maxHealth}, Damage taken: ${expectedDamage}, Healing used: ${totalHealing}`);
+      console.warn(`   Total Max HP: ${totalMaxHP} (base: ${playerStats.maxHealth} + equipment: ${equipmentStats.maxHpBonus})`);
+      console.warn(`   Active time: ${(activeAttackTimeMs / 1000).toFixed(2)}s (${invulnerabilityMs}ms invulnerable)`);
+      console.warn(`   Monster damage: ${numberOfAttacks} attacks × ${damagePerHit} dmg/hit = ${monsterDamage}`);
+      console.warn(`   Summon damage: ${reportedSummonDamage} (not reduced by armor)`);
+      console.warn(`   Total damage: ${expectedDamage} (after ${shieldHP} shield, ${damageReduction}% reduction)`);
+      console.warn(`   Healing used: ${totalHealing}`);
 
       // End the battle session (mark as defeated, no loot)
       const now = new Date();
