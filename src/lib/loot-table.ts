@@ -31,6 +31,13 @@ export interface SpellData {
   healing?: number;
   duration?: number; // in seconds (for buffs/debuffs)
   effect?: string; // description of special effects
+  // Buff data (for defensive/utility spells)
+  buffType?: 'shield' | 'damage_boost' | 'damage_mult' | 'crit_boost' | 'attack_speed' | 'cooldown_reduction' | 'coin_boost' | 'xp_boost' | 'heal_boost';
+  buffValue?: number; // Value of the buff (HP for shield, percentage for others)
+  // Debuff data (for offensive DoT/CC spells)
+  debuffType?: 'poison' | 'burn' | 'bleed' | 'stun' | 'slow';
+  debuffValue?: number; // Damage per tick for DoTs
+  debuffDamageType?: 'flat' | 'percentage'; // For DoTs
 }
 
 // Common Loot (shared across all monsters)
@@ -47,6 +54,8 @@ const COMMON_LOOT: LootItem[] = [
   // Phase 2.6: Basic spell scrolls (common tier) - Nerfed to balance with legendary spells
   { lootId: 'spell_scroll_spark', name: 'Spark Scroll', icon: '⚡', description: 'Unlocks Spark spell - Basic magic missile', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'spark', spellName: 'Spark', cooldown: 10, damage: 15, effect: 'Lightning damage' } },
   { lootId: 'spell_scroll_light_heal', name: 'Light Heal Scroll', icon: '✨', description: 'Unlocks Light Heal spell - Basic restoration', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'light_heal', spellName: 'Light Heal', cooldown: 12, healing: 8 } },
+  { lootId: 'spell_scroll_poison_dart', name: 'Poison Dart Scroll', icon: '🎯', description: 'Unlocks Poison Dart - Inflicts poison DoT', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'poison_dart', spellName: 'Poison Dart', cooldown: 15, debuffType: 'poison', debuffValue: 5, debuffDamageType: 'flat', duration: 5, effect: 'Poison DoT' } },
+  { lootId: 'spell_scroll_minor_shield', name: 'Minor Shield Scroll', icon: '🛡️', description: 'Unlocks Minor Shield - Absorbs damage', rarity: 'common', type: 'spell_scroll', spellData: { spellId: 'minor_shield', spellName: 'Minor Shield', cooldown: 15, buffType: 'shield', buffValue: 20, duration: 10, effect: 'Damage absorption' } },
 ];
 
 // Rare Loot (shared across all monsters, but less common than COMMON_LOOT)
@@ -63,6 +72,9 @@ const RARE_LOOT: LootItem[] = [
   // Phase 2.6: Intermediate spell scrolls (rare tier) - Nerfed to balance with legendary spells
   { lootId: 'spell_scroll_ice_shard', name: 'Ice Shard Scroll', icon: '❄️', description: 'Unlocks Ice Shard spell - Freezing projectile', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'ice_shard', spellName: 'Ice Shard', cooldown: 20, damage: 25, effect: 'Ice damage' } },
   { lootId: 'spell_scroll_greater_heal', name: 'Greater Heal Scroll', icon: '💫', description: 'Unlocks Greater Heal spell - Strong restoration', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_heal', spellName: 'Greater Heal', cooldown: 25, healing: 15 } },
+  { lootId: 'spell_scroll_flame_strike', name: 'Flame Strike Scroll', icon: '🔥', description: 'Unlocks Flame Strike - Burns target over time', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'flame_strike', spellName: 'Flame Strike', cooldown: 22, debuffType: 'burn', debuffValue: 8, debuffDamageType: 'flat', duration: 6, effect: 'Burn DoT' } },
+  { lootId: 'spell_scroll_battle_fury', name: 'Battle Fury Scroll', icon: '⚔️', description: 'Unlocks Battle Fury - Increases damage output', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'battle_fury', spellName: 'Battle Fury', cooldown: 20, buffType: 'damage_boost', buffValue: 15, duration: 8, effect: 'Damage boost' } },
+  { lootId: 'spell_scroll_greater_shield', name: 'Greater Shield Scroll', icon: '🛡️', description: 'Unlocks Greater Shield - Strong damage absorption', rarity: 'rare', type: 'spell_scroll', spellData: { spellId: 'greater_shield', spellName: 'Greater Shield', cooldown: 20, buffType: 'shield', buffValue: 40, duration: 12, effect: 'Damage absorption' } },
 ];
 
 // Monster-Specific Loot (only drops from specific monsters)
@@ -106,6 +118,10 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   // Phase 2.6: Advanced spell scrolls (epic tier)
   { lootId: 'spell_scroll_lightning_bolt', name: 'Lightning Bolt Scroll', icon: '⚡', description: 'Unlocks Lightning Bolt spell - Devastating electric strike', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'lightning_bolt', spellName: 'Lightning Bolt', cooldown: 35, damage: 100, effect: 'Electric damage' } },
   { lootId: 'spell_scroll_mass_heal', name: 'Mass Heal Scroll', icon: '🌟', description: 'Unlocks Mass Heal spell - Powerful restoration', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'mass_heal', spellName: 'Mass Heal', cooldown: 40, healing: 60 } },
+  { lootId: 'spell_scroll_blade_storm', name: 'Blade Storm Scroll', icon: '🌪️', description: 'Unlocks Blade Storm spell - AoE attack that slows enemies', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'blade_storm', spellName: 'Blade Storm', cooldown: 30, damage: 75, debuffType: 'slow', debuffValue: 50, duration: 8, effect: 'AoE damage + slow' } },
+  { lootId: 'spell_scroll_arcane_shield', name: 'Arcane Shield Scroll', icon: '🔮', description: 'Unlocks Arcane Shield spell - Powerful magical barrier', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'arcane_shield', spellName: 'Arcane Shield', cooldown: 35, buffType: 'shield', buffValue: 80, duration: 15, effect: 'Strong damage absorption' } },
+  { lootId: 'spell_scroll_berserker_rage', name: 'Berserker Rage Scroll', icon: '💢', description: 'Unlocks Berserker Rage spell - Massive damage boost', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'berserker_rage', spellName: 'Berserker Rage', cooldown: 40, buffType: 'damage_mult', buffValue: 50, duration: 10, effect: '+50% damage multiplier' } },
+  { lootId: 'spell_scroll_time_warp', name: 'Time Warp Scroll', icon: '⏰', description: 'Unlocks Time Warp spell - Accelerates attacks', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'time_warp', spellName: 'Time Warp', cooldown: 35, buffType: 'attack_speed', buffValue: 30, duration: 12, effect: '+30% attack speed' } },
   { lootId: 'wing_fragment', name: 'Dragon Wing Fragment', icon: '🪽', description: 'Enables short flight', rarity: 'legendary', type: 'material' },
   { lootId: 'elixir_immortality', name: 'Elixir of Immortality', icon: '🧬', description: 'Restores 100 HP', rarity: 'legendary', type: 'consumable', cooldown: 20, healing: 100 },
   { lootId: 'crimson_crown', name: 'Crimson Crown', icon: '👑', description: 'Symbol of vampiric royalty', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 15, coinBonus: 50 } },
@@ -167,7 +183,7 @@ const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
   // Heal-focused items (nature healing theme)
   { lootId: 'medics_robe', name: 'Medic\'s Robe', icon: '🧥', description: 'Blessed by forest healers (+6% heal)', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 8, maxHpBonus: 12, healBonus: 6 } },
   { lootId: 'amulet_of_life', name: 'Amulet of Life', icon: '🌿', description: 'Channels nature\'s vitality (+8% heal)', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 15, healBonus: 8 } },
-  { lootId: 'spell_scroll_heal', name: 'Minor Heal Scroll', icon: '📜', description: 'Unlocks Minor Heal spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Minor Heal', cooldown: 15, healing: 20 } },
+  { lootId: 'spell_scroll_heal', name: 'Nature\'s Blessing Scroll', icon: '📜', description: 'Unlocks Nature\'s Blessing spell - Powerful heal + shield', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Nature\'s Blessing', cooldown: 25, healing: 50, buffType: 'shield', buffValue: 60, duration: 15, effect: 'Heal + shield' } },
 ];
 
 // Dire Wolf Alpha Specific Loot (Forest Tier 1+, Epic Mini-Boss)
@@ -191,7 +207,7 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
   // Legendary heal-focused items (ultimate sustainability)
   { lootId: 'heart_crystal', name: 'Heart Crystal', icon: '💎', description: 'Ancient crystal pulsing with life (+12% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, healBonus: 12 } },
   { lootId: 'lifebringers_crown', name: 'Lifebringer\'s Crown', icon: '👑', description: 'Crown of the eternal healer (+15% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, healBonus: 15, hpReduction: 10 } },
-  { lootId: 'spell_scroll_earthquake', name: 'Earthquake Scroll', icon: '📜', description: 'Unlocks Earthquake spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'earthquake', spellName: 'Earthquake', cooldown: 45, damage: 140, effect: 'Massive earth damage' } },
+  { lootId: 'spell_scroll_earthquake', name: 'Earthquake Scroll', icon: '📜', description: 'Unlocks Earthquake spell - Massive earth damage + stun', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'earthquake', spellName: 'Earthquake', cooldown: 45, damage: 140, debuffType: 'stun', debuffValue: 100, duration: 4, effect: 'Massive earth damage + stun' } },
 ];
 
 // Sand Scorpion Specific Loot (Desert Tier 1, Common Monster)
@@ -226,7 +242,7 @@ const SAND_DJINN_SPECIFIC: LootItem[] = [
   { lootId: 'djinn_scimitar', name: 'Djinn\'s Scimitar', icon: '⚔️', description: 'Curved blade of legend', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 12, attackSpeed: 5 } },
   { lootId: 'sand_armor', name: 'Djinn\'s Sand Armor', icon: '🛡️', description: 'Flows like sand', rarity: 'epic', type: 'armor', equipmentStats: { hpReduction: 12, maxHpBonus: 15 } },
   { lootId: 'mirage_cloak', name: 'Mirage Cloak', icon: '🧥', description: 'Bends light around wearer', rarity: 'epic', type: 'artifact', equipmentStats: { coinBonus: 15 } },
-  { lootId: 'spell_scroll_fireball', name: 'Fireball Scroll', icon: '📜', description: 'Unlocks Fireball spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'fireball', spellName: 'Fireball', cooldown: 30, damage: 80, effect: 'Fire damage' } },
+  { lootId: 'spell_scroll_fireball', name: 'Fireball Scroll', icon: '📜', description: 'Unlocks Fireball spell - Explosive fire damage + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'fireball', spellName: 'Fireball', cooldown: 30, damage: 80, debuffType: 'burn', debuffValue: 12, debuffDamageType: 'flat', duration: 8, effect: 'Fire damage + burn DoT' } },
 ];
 
 // Sandstone Golem Specific Loot (Desert Tier 2+, Epic Mini-Boss)
@@ -247,7 +263,7 @@ const DESERT_PHOENIX_SPECIFIC: LootItem[] = [
   { lootId: 'phoenix_talon', name: 'Phoenix Talon Blade', icon: '⚔️', description: 'Forged from eternal flames', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 11, critChance: 22, attackSpeed: 14 } },
   { lootId: 'phoenix_plate', name: 'Phoenix Flame Plate', icon: '🛡️', description: 'Armor of rebirth', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 26, maxHpBonus: 65 } },
   { lootId: 'eternal_flame_orb', name: 'Eternal Flame Orb', icon: '🔮', description: 'Contains the phoenix\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, critChance: 18, coinBonus: 75 } },
-  { lootId: 'spell_scroll_phoenix_fire', name: 'Phoenix Fire Scroll', icon: '📜', description: 'Unlocks Phoenix Fire spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'phoenix_fire', spellName: 'Phoenix Fire', cooldown: 50, damage: 180, effect: 'Massive fire damage + burn' } },
+  { lootId: 'spell_scroll_phoenix_fire', name: 'Phoenix Fire Scroll', icon: '📜', description: 'Unlocks Phoenix Fire spell - Massive fire damage + burn + self-heal', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'phoenix_fire', spellName: 'Phoenix Fire', cooldown: 50, damage: 180, healing: 40, debuffType: 'burn', debuffValue: 15, debuffDamageType: 'flat', duration: 10, effect: 'Massive fire damage + burn + heal' } },
 ];
 
 // === OCEAN BIOME LOOT (Phase 2.4) ===
@@ -315,7 +331,7 @@ const LEVIATHAN_SPECIFIC: LootItem[] = [
   { lootId: 'trident', name: 'Poseidon\'s Trident', icon: '🔱', description: 'Legendary three-pronged spear', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 18, attackSpeed: 10 } },
   { lootId: 'leviathan_armor', name: 'Leviathan Plate', icon: '🛡️', description: 'Unbreakable defense', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 22, maxHpBonus: 50 } },
   { lootId: 'tidal_orb', name: 'Tidal Orb', icon: '🔮', description: 'Controls water itself', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, critChance: 15, coinBonus: 60 } },
-  { lootId: 'spell_scroll_tsunami', name: 'Tsunami Scroll', icon: '📜', description: 'Unlocks Tsunami spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'tsunami', spellName: 'Tsunami', cooldown: 45, damage: 120, effect: 'Massive water damage' } },
+  { lootId: 'spell_scroll_tsunami', name: 'Tsunami Scroll', icon: '📜', description: 'Unlocks Tsunami spell - Massive water damage + slow', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'tsunami', spellName: 'Tsunami', cooldown: 45, damage: 120, debuffType: 'slow', debuffValue: 75, duration: 10, effect: 'Massive water damage + slow' } },
 ];
 
 // === VOLCANO BIOME LOOT (Phase 2.4) ===
@@ -382,7 +398,7 @@ const ANCIENT_DRAGON_SPECIFIC: LootItem[] = [
   { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 10, critChance: 20, attackSpeed: 12 } },
   { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 25, maxHpBonus: 60 } },
   { lootId: 'dragon_amulet', name: 'Dragon Amulet', icon: '💎', description: 'Grants dragon\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, maxHpBonus: 45, critChance: 16 } },
-  { lootId: 'spell_scroll_meteor', name: 'Meteor Scroll', icon: '📜', description: 'Unlocks Meteor spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'meteor', spellName: 'Meteor Strike', cooldown: 40, damage: 150, effect: 'Massive fire damage' } },
+  { lootId: 'spell_scroll_meteor', name: 'Meteor Scroll', icon: '📜', description: 'Unlocks Meteor spell - Devastating impact + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'meteor', spellName: 'Meteor Strike', cooldown: 40, damage: 150, debuffType: 'burn', debuffValue: 20, debuffDamageType: 'flat', duration: 12, effect: 'Massive fire damage + burn' } },
 ];
 
 // === CASTLE BIOME LOOT (Phase 2.4) ===
@@ -449,7 +465,7 @@ const LICH_KING_SPECIFIC: LootItem[] = [
   { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'The endgame weapon', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 12, critChance: 25, attackSpeed: 15 } },
   { lootId: 'lich_plate', name: 'Lich King\'s Plate', icon: '🛡️', description: 'Eternal protection', rarity: 'legendary', type: 'armor', equipmentStats: { hpReduction: 28, maxHpBonus: 70 } },
   { lootId: 'death_orb', name: 'Orb of Eternal Death', icon: '🔮', description: 'Controls life and death', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 20, coinBonus: 80 } },
-  { lootId: 'spell_scroll_death', name: 'Death Comet Scroll', icon: '📜', description: 'Unlocks Death Comet spell', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'death_comet', spellName: 'Death Comet', cooldown: 50, damage: 200, effect: 'Massive dark damage' } },
+  { lootId: 'spell_scroll_death', name: 'Death Comet Scroll', icon: '📜', description: 'Unlocks Death Comet spell - Ultimate dark damage + bleed + self-empower', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'death_comet', spellName: 'Death Comet', cooldown: 50, damage: 200, buffType: 'damage_boost', buffValue: 25, duration: 15, debuffType: 'bleed', debuffValue: 18, debuffDamageType: 'flat', effect: 'Massive dark damage + bleed + damage boost' } },
 ];
 
 // ============================

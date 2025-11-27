@@ -160,7 +160,21 @@ export function usePlayerSpell(): UsePlayerSpellResult {
   }, []);
 
   // Cast spell
-  const castSpell = useCallback(async (): Promise<{ success: boolean; damage?: number; healing?: number; spellName?: string; effect?: string }> => {
+  const castSpell = useCallback(async (): Promise<{
+    success: boolean;
+    damage?: number;
+    healing?: number;
+    spellName?: string;
+    effect?: string;
+    // Buff data (for player buffs)
+    buffType?: string;
+    buffValue?: number;
+    duration?: number;
+    // Debuff data (for monster debuffs)
+    debuffType?: string;
+    debuffValue?: number;
+    debuffDamageType?: 'flat' | 'percentage';
+  }> => {
     if (!spellSlot.spellId || !spellSlot.spellData) {
       return { success: false };
     }
@@ -179,7 +193,18 @@ export function usePlayerSpell(): UsePlayerSpellResult {
       }
 
       const data = await response.json();
-      const { damage, healing, spellName, effect } = data;
+      const {
+        damage,
+        healing,
+        spellName,
+        effect,
+        buffType,
+        buffValue,
+        duration,
+        debuffType,
+        debuffValue,
+        debuffDamageType
+      } = data;
 
       // Update lastUsed timestamp
       const now = Date.now();
@@ -196,7 +221,19 @@ export function usePlayerSpell(): UsePlayerSpellResult {
         toast.success(`${spellSlot.spellData.spellName} dealt ${damage} damage!`, { duration: 3000 });
       }
 
-      return { success: true, damage, healing, spellName, effect };
+      return {
+        success: true,
+        damage,
+        healing,
+        spellName,
+        effect,
+        buffType,
+        buffValue,
+        duration,
+        debuffType,
+        debuffValue,
+        debuffDamageType
+      };
     } catch (error) {
       console.error('Failed to cast spell:', error);
       toast.error('Failed to cast spell');

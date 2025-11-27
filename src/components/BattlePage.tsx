@@ -7,6 +7,8 @@ import { useGameState } from '@/contexts/GameStateContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useState, useCallback, useRef } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
+import { usePlayerBuffs } from '@/hooks/usePlayerBuffs';
+import { BuffSource } from '@/types/buffs';
 import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import { usePlayerSpell } from '@/hooks/usePlayerSpell';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
@@ -45,10 +47,24 @@ export default function BattlePage() {
   const [showBiomeMap, setShowBiomeMap] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
 
+  // Buff system (managed at page level, passed to child components)
+  const { activeBuffs, applyBuff, clearBuffs, damageShield } = usePlayerBuffs();
+
+  // Wrapper function to handle shield absorption before taking damage
+  const takeDamageWithShield = useCallback(async (amount: number) => {
+    // Apply shield absorption first
+    const damageAfterShield = damageShield(amount);
+
+    // Take remaining damage (if any)
+    if (damageAfterShield > 0) {
+      await takeDamage(damageAfterShield);
+    }
+  }, [damageShield, takeDamage]);
+
   // Debuff system (managed at page level, passed to child components)
   const { activeDebuffs, applyDebuff, clearDebuffs } = useDebuffs({
     maxHP: playerStats?.maxHealth || 100,
-    takeDamage,
+    takeDamage: takeDamageWithShield,
     isActive: gameState.canAttackMonster()
   });
 
@@ -126,7 +142,21 @@ export default function BattlePage() {
     if (!spellSlot.spellId || !playerStats) return;
 
     // Cast spell via API
-    const result: { success: boolean; damage?: number; healing?: number; spellName?: string; effect?: string } = await castSpell();
+    const result: {
+      success: boolean;
+      damage?: number;
+      healing?: number;
+      spellName?: string;
+      effect?: string;
+      // Buff data (for player buffs)
+      buffType?: string;
+      buffValue?: number;
+      duration?: number;
+      // Debuff data (for monster debuffs)
+      debuffType?: string;
+      debuffValue?: number;
+      debuffDamageType?: 'flat' | 'percentage';
+    } = await castSpell();
     if (!result.success) return;
 
     // Apply healing locally, passing equipment max HP bonus
@@ -141,16 +171,34 @@ export default function BattlePage() {
       healHealth(result.healing, equipmentStats.maxHpBonus);
     }
 
+    // Apply player buff if spell provides one
+    if (result.buffType && result.buffValue && result.duration) {
+      applyBuff({
+        buffType: result.buffType as any,
+        value: result.buffValue,
+        duration: result.duration,
+        source: BuffSource.SPELL,
+        sourceId: spellSlot.spellId || undefined,
+        name: result.spellName,
+        icon: '✨'
+      });
+    }
+
     // Pass spell data to MonsterBattleSection for damage application and visual effects
     if (spellDamageHandlerRef.current) {
       spellDamageHandlerRef.current({
         spellName: result.spellName || 'Spell',
         damage: result.damage,
         healing: result.healing,
-        effect: result.effect
+        effect: result.effect,
+        // Pass debuff data for monster application
+        debuffType: result.debuffType,
+        debuffValue: result.debuffValue,
+        debuffDamageType: result.debuffDamageType,
+        duration: result.duration
       });
     }
-  }, [spellSlot.spellId, castSpell, healHealth, playerStats, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
+  }, [spellSlot.spellId, castSpell, healHealth, applyBuff, playerStats, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
 
   const handleLogout = async () => {
     try {
@@ -179,7 +227,7 @@ export default function BattlePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
       {/* Player Stats - Top Left (Always visible on desktop, top on mobile) */}
-      <PlayerStatsDisplay activeDebuffs={activeDebuffs} />
+      <PlayerStatsDisplay activeDebuffs={activeDebuffs} activeBuffs={activeBuffs} />
 
       {/* Biome Map Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
@@ -275,6 +323,8 @@ export default function BattlePage() {
         applyDebuff={applyDebuff}
         clearDebuffs={clearDebuffs}
         spellDamageHandler={spellDamageHandlerRef}
+        activeBuffs={activeBuffs}
+        damageShield={damageShield}
       />
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}

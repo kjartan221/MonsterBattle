@@ -133,12 +133,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Return spell results including buff/debuff data (tier-scaled)
     return NextResponse.json({
       success: true,
       spellName: spellData.spellName,
       damage,
       healing,
-      effect: spellData.effect
+      effect: spellData.effect,
+      // Buff data (for player buffs) - tier-scaled
+      buffType: spellData.buffType,
+      buffValue: spellData.buffValue ? Math.round(spellData.buffValue * statMultiplier) : undefined,
+      duration: spellData.duration,
+      // Debuff data (for monster debuffs) - tier-scaled
+      debuffType: spellData.debuffType,
+      debuffValue: spellData.debuffValue ? Math.round(spellData.debuffValue * statMultiplier) : undefined,
+      debuffDamageType: spellData.debuffDamageType
     });
 
   } catch (error) {

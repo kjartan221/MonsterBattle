@@ -5,14 +5,18 @@ import { useEquipment } from '@/contexts/EquipmentContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 import { getXPForLevel, getBaseCritChance } from '@/utils/playerProgression';
-import DebuffIndicators from '@/components/battle/DebuffIndicators';
+import DebuffIndicators from '@/components/battle/effect-indicators/PlayerDebuffIndicators';
+import PlayerBuffIndicators from '@/components/battle/effect-indicators/PlayerBuffIndicators';
 import type { ActiveDebuff } from '@/lib/types';
+import type { Buff } from '@/types/buffs';
+import { BuffType } from '@/types/buffs';
 
 interface PlayerStatsDisplayProps {
   activeDebuffs?: ActiveDebuff[];
+  activeBuffs?: Buff[];
 }
 
-export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDisplayProps) {
+export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [] }: PlayerStatsDisplayProps) {
   const { playerStats, getCurrentStreak } = usePlayer();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const { selectedBiome, selectedTier } = useBiome();
@@ -58,7 +62,22 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
   }
 
   const totalDamage = (Number(playerStats.baseDamage) || 1) + (Number(equipmentStats.damageBonus) || 0);
-  const totalCritChance = baseCritChance + (Number(equipmentStats.critChance) || 0);
+
+  // Calculate total shield HP from active buffs
+  const totalShieldHP = activeBuffs
+    .filter(buff => buff.buffType === BuffType.SHIELD)
+    .reduce((sum, buff) => sum + buff.value, 0);
+
+  // Calculate total crit chance (base + equipment + buffs)
+  const buffCritBoost = activeBuffs
+    .filter(buff => buff.buffType === BuffType.CRIT_BOOST)
+    .reduce((sum, buff) => sum + buff.value, 0);
+  const rawCritChance = baseCritChance + (Number(equipmentStats.critChance) || 0) + buffCritBoost;
+
+  // Convert excess crit (>100%) to crit damage multiplier
+  const totalCritChance = Math.min(100, rawCritChance);
+  const excessCrit = Math.max(0, rawCritChance - 100);
+  const critMultiplier = 2.0 + (excessCrit / 100); // Base 2x + excess crit
 
   // XP progress - safe calculation to prevent NaN
   const xpForNextLevel = getXPForLevel(level);
@@ -81,20 +100,45 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
         <div className="flex justify-between text-white text-xs sm:text-sm mb-1">
           <span>HP</span>
           <span className="font-bold">
+            {totalShieldHP > 0 && (
+              <span className="text-blue-400 mr-1">
+                ({currentHealth + totalShieldHP})
+              </span>
+            )}
             {currentHealth} / {maxHealth}
           </span>
         </div>
-        <div className="w-full bg-black/40 rounded-full h-4 sm:h-5 overflow-hidden border border-red-900/50">
-          <div
-            className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 flex items-center justify-center"
-            style={{ width: `${Math.max(0, Math.min(100, healthPercentage))}%` }}
-          >
-            {healthPercentage > 20 && (
-              <span className="text-white text-[10px] sm:text-xs font-bold">
-                {Math.round(healthPercentage)}%
-              </span>
-            )}
+        <div className="relative">
+          {/* Base HP Bar */}
+          <div className="w-full bg-black/40 rounded-full h-4 sm:h-5 overflow-hidden border border-red-900/50">
+            <div
+              className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 flex items-center justify-center"
+              style={{ width: `${Math.max(0, Math.min(100, healthPercentage))}%` }}
+            >
+              {healthPercentage > 20 && !totalShieldHP && (
+                <span className="text-white text-[10px] sm:text-xs font-bold">
+                  {Math.round(healthPercentage)}%
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* Shield HP Bar (Blue Overlay) */}
+          {totalShieldHP > 0 && (
+            <div className="absolute inset-0 w-full bg-transparent rounded-full h-4 sm:h-5 overflow-hidden pointer-events-none">
+              <div
+                className="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-300 flex items-center justify-center"
+                style={{
+                  width: `${Math.min(100, ((currentHealth + totalShieldHP) / maxHealth) * 100)}%`,
+                  boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+                }}
+              >
+                <span className="text-white text-[10px] sm:text-xs font-bold drop-shadow-lg">
+                  🛡️ {totalShieldHP}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -114,9 +158,17 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
         </div>
       </div>
 
+      {/* Active Buffs */}
+      {activeBuffs.length > 0 && (
+        <div className="mb-2 sm:mb-3 pt-1.5 sm:pt-2 border-t border-white/10">
+          <div className="text-white/60 text-[10px] sm:text-xs mb-1">Active Buffs:</div>
+          <PlayerBuffIndicators buffs={activeBuffs} size="small" showDuration={true} />
+        </div>
+      )}
+
       {/* Active Debuffs */}
       {activeDebuffs.length > 0 && (
-        <div className="mb-2 sm:mb-3 pt-1.5 sm:pt-2 border-t border-white/10">
+        <div className={`mb-2 sm:mb-3 ${activeBuffs.length > 0 ? '' : 'pt-1.5 sm:pt-2 border-t border-white/10'}`}>
           <div className="text-white/60 text-[10px] sm:text-xs mb-1">Active Debuffs:</div>
           <DebuffIndicators debuffs={activeDebuffs} size="small" showDuration={true} />
         </div>
@@ -138,14 +190,26 @@ export default function PlayerStatsDisplay({ activeDebuffs = [] }: PlayerStatsDi
         <div className="text-white/80">
           <span className="text-white/60">💥 Crit:</span>{' '}
           <span className="text-white font-semibold">
-            {totalCritChance}%
+            {totalCritChance.toFixed(0)}%
           </span>
-          {(Number(equipmentStats.critChance) || 0) > 0 && (
+          {((Number(equipmentStats.critChance) || 0) + buffCritBoost) > 0 && (
             <span className="text-yellow-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
-              (+{Number(equipmentStats.critChance) || 0}%)
+              (+{((Number(equipmentStats.critChance) || 0) + buffCritBoost).toFixed(0)}%)
             </span>
           )}
         </div>
+        {/* Crit Multiplier (shows when crit > 100%) */}
+        {excessCrit > 0 && (
+          <div className="text-white/80">
+            <span className="text-white/60">⚡ Crit Dmg:</span>{' '}
+            <span className="text-orange-400 font-semibold">
+              {critMultiplier.toFixed(2)}x
+            </span>
+            <span className="text-orange-400/70 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
+              (+{excessCrit.toFixed(0)}%)
+            </span>
+          </div>
+        )}
         <div className="text-white/80">
           <span className="text-white/60">🛡️ Defense:</span>{' '}
           <span className={(Number(equipmentStats.hpReduction) || 0) > 0 ? 'text-blue-400 font-semibold' : 'text-white/60'}>

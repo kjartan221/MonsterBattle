@@ -25,7 +25,10 @@ import BattleDefeatScreen from '@/components/battle/BattleDefeatScreen';
 import MonsterBattleArena from '@/components/battle/MonsterBattleArena';
 import SummonCard from '@/components/battle/SummonCard';
 import InteractiveAttackCard from '@/components/battle/InteractiveAttackCard';
-import BuffIndicators from '@/components/battle/BuffIndicators';
+import BuffIndicators from '@/components/battle/effect-indicators/MonsterBuffIndicators';
+import MonsterDebuffIndicators from '@/components/battle/effect-indicators/MonsterDebuffIndicators';
+import type { MonsterDebuff } from '@/components/battle/effect-indicators/MonsterDebuffIndicators';
+import { BuffType } from '@/types/buffs';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
@@ -36,6 +39,11 @@ interface SpellCastData {
   healing?: number;
   effect?: string;
   visualEffect?: string;
+  // Debuff data for monsters
+  debuffType?: 'poison' | 'burn' | 'bleed' | 'stun' | 'slow' | 'freeze';
+  debuffValue?: number;
+  debuffDamageType?: 'flat' | 'percentage';
+  duration?: number;
 }
 
 interface MonsterBattleSectionProps {
@@ -43,9 +51,11 @@ interface MonsterBattleSectionProps {
   applyDebuff: (effect: DebuffEffect, appliedBy?: string) => boolean;
   clearDebuffs: () => void;
   spellDamageHandler?: React.MutableRefObject<((spellData: SpellCastData) => void) | null>; // Phase 2.6: Ref to spell damage handler
+  activeBuffs?: import('@/types/buffs').Buff[]; // Phase 2.6: Active player buffs for crit multiplier calculation
+  damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -74,6 +84,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Phase 2.6: Spell cast visual feedback
   const [spellCast, setSpellCast] = useState<SpecialAttack | null>(null);
+
+  // Phase 2.6: Monster debuffs from player spells
+  const [monsterDebuffs, setMonsterDebuffs] = useState<MonsterDebuff[]>([]);
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -222,6 +235,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     onSpecialAttack: handleSpecialAttack
   });
 
+  // Wrapper function to handle shield absorption before taking damage
+  const takeDamageWithShield = useCallback(async (amount: number) => {
+    // Apply shield absorption first
+    const damageAfterShield = damageShield(amount);
+
+    // Take remaining damage (if any)
+    if (damageAfterShield > 0) {
+      await takeDamage(damageAfterShield);
+    }
+  }, [damageShield, takeDamage]);
+
   // Monster attack system with debuff application
   const { isAttacking } = useMonsterAttack({
     monster: gameState.monster,
@@ -230,7 +254,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     isInvulnerable: isInvulnerable,
     playerStats,
-    takeDamage,
+    takeDamage: takeDamageWithShield,
     equipmentStats,
     applyDebuff,
     additionalDamage: getTotalSummonDamage()
@@ -490,6 +514,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         setClickCount(0);
         setLastSavedClickCount(0);
         setTotalDamage(0);
+        setMonsterDebuffs([]); // Clear debuffs on cheat reset
         gameState.setBattleInProgress();
         return;
       }
@@ -608,10 +633,23 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     // Use player's base damage instead of defaulting to 1
     const baseDamage = playerStats?.baseDamage || 1;
+
+    // Calculate total crit chance (base 5% + equipment + buffs)
+    const baseCritChance = 5;
+    const buffCritBoost = activeBuffs
+      .filter(buff => buff.buffType === BuffType.CRIT_BOOST)
+      .reduce((sum, buff) => sum + buff.value, 0);
+    const totalCritChance = baseCritChance + equipmentStats.critChance + buffCritBoost;
+
+    // Convert excess crit (>100%) to crit damage multiplier
+    const excessCrit = Math.max(0, totalCritChance - 100);
+    const critMultiplier = 2.0 + (excessCrit / 100); // Base 2x + excess crit
+
     let { damage, isCrit } = calculateClickDamage(
       baseDamage,
       equipmentStats.damageBonus,
-      equipmentStats.critChance
+      totalCritChance,
+      critMultiplier
     );
 
     if (isCrit) {
@@ -659,7 +697,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         submitBattleCompletion(newClickCount, newTotalDamage);
       }
     }
-  }, [gameState, playerStats, equipmentStats, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth]);
+  }, [gameState, playerStats, equipmentStats, activeBuffs, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth]);
 
   const handleClick = () => {
     applyDamageToMonster(false);
@@ -723,6 +761,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     }
 
+    // Apply monster debuff if spell provides one
+    if (spellData.debuffType && spellData.debuffValue && spellData.duration) {
+      const newDebuff: MonsterDebuff = {
+        id: `${spellData.debuffType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: spellData.debuffType,
+        damageAmount: spellData.debuffValue,
+        damageType: spellData.debuffDamageType || 'flat',
+        duration: spellData.duration * 1000, // Convert to milliseconds
+        startTime: Date.now(),
+        tickInterval: 1000 // DoT ticks every second
+      };
+      setMonsterDebuffs(prev => [...prev, newDebuff]);
+      console.log('🔴 [SPELL] Applied debuff to monster:', spellData.debuffType, spellData.debuffValue);
+    }
+
     // Healing is handled by parent (BattlePage) via healHealth
   }, [gameState, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion]);
 
@@ -737,6 +790,40 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     };
   }, [handleSpellCast, spellDamageHandler]);
+
+  // Phase 2.6: Monster debuff management (auto-removal and DoT ticking)
+  useEffect(() => {
+    if (monsterDebuffs.length === 0) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      // Remove expired debuffs and apply DoT damage
+      setMonsterDebuffs(prev => {
+        const stillActive = prev.filter(debuff => {
+          const elapsed = now - debuff.startTime;
+          const expired = elapsed >= debuff.duration;
+
+          // Apply DoT damage if debuff is still active and is a DoT type
+          if (!expired && debuff.damageAmount && ['poison', 'burn', 'bleed'].includes(debuff.type)) {
+            const shouldTick = Math.floor(elapsed / (debuff.tickInterval || 1000)) > Math.floor((elapsed - 500) / (debuff.tickInterval || 1000));
+            if (shouldTick) {
+              // Apply debuff damage to monster (bypasses shield)
+              const damage = debuff.damageAmount; // Store to satisfy TypeScript
+              damagePhase(damage);
+              setTotalDamage(prev => prev + damage);
+              console.log(`💥 [DoT] ${debuff.type} dealt ${damage} damage`);
+            }
+          }
+
+          return !expired;
+        });
+        return stillActive;
+      });
+    }, 500); // Check every 500ms
+
+    return () => clearInterval(interval);
+  }, [monsterDebuffs.length, damagePhase]);
 
   // Phase 2.5: Auto-hit interval based on equipment autoClickRate
   useEffect(() => {
@@ -901,6 +988,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setTotalDamage(0);
     setShieldHP(0);
     setEscapeTimer(null);
+    setMonsterDebuffs([]); // Clear debuffs on new monster
 
     // Determine which zone we're starting the battle in
     // Use override if provided (from BiomeMapWidget zone change), otherwise use current selection
@@ -1014,6 +1102,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       {gameState.monster.buffs && gameState.monster.buffs.length > 0 && (
         <div className="w-full flex justify-center">
           <BuffIndicators buffs={gameState.monster.buffs} size="medium" />
+        </div>
+      )}
+
+      {/* Monster Debuffs (from player spells) */}
+      {monsterDebuffs.length > 0 && (
+        <div className="w-full flex justify-center mt-2">
+          <MonsterDebuffIndicators debuffs={monsterDebuffs} size="medium" showDuration={true} />
         </div>
       )}
 

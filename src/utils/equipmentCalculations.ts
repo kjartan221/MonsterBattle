@@ -93,22 +93,24 @@ export function calculateTotalEquipmentStats(
  * Calculate damage dealt per click with equipment bonuses
  * @param baseDamage - Base damage per click (usually 1)
  * @param damageBonus - Damage bonus from equipment
- * @param critChance - Crit chance percentage (0-100)
+ * @param critChance - Crit chance percentage (0-100, capped at 100)
+ * @param critMultiplier - Crit damage multiplier (default 2.0, increases with excess crit)
  * @returns Total damage dealt (includes crit if triggered)
  */
 export function calculateClickDamage(
   baseDamage: number,
   damageBonus: number,
-  critChance: number
+  critChance: number,
+  critMultiplier: number = 2.0
 ): { damage: number; isCrit: boolean } {
   const totalDamage = baseDamage + damageBonus;
 
-  // Roll for crit
+  // Roll for crit (crit chance is capped at 100%)
   const critRoll = Math.random() * 100;
-  const isCrit = critRoll < critChance;
+  const isCrit = critRoll < Math.min(100, critChance);
 
-  // Crit deals 2x damage
-  const finalDamage = isCrit ? totalDamage * 2 : totalDamage;
+  // Crit deals critMultiplier damage (base 2x + excess crit bonus)
+  const finalDamage = isCrit ? totalDamage * critMultiplier : totalDamage;
 
   return { damage: finalDamage, isCrit };
 }
