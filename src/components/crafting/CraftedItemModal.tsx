@@ -128,7 +128,7 @@ export default function CraftedItemModal({ item, statRoll, rolledStats, isEmpowe
               {rolledStats.attackSpeed !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-gray-400">Attack Speed:</span>
-                  <span className="text-green-400 font-bold">+{rolledStats.attackSpeed}%</span>
+                  <span className="text-green-400 font-bold">+{rolledStats.attackSpeed}</span>
                 </div>
               )}
               {rolledStats.coinBonus !== undefined && (

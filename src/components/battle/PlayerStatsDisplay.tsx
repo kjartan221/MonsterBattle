@@ -30,6 +30,13 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
     return Math.round((defense / (defense + K)) * MAX_REDUCTION * 10) / 10;
   };
 
+  // Helper function to calculate actual slowdown percentage from attack speed stat
+  const calculateActualSlowdown = (attackSpeed: number): number => {
+    const K = 67;
+    const MAX_SLOWDOWN = 50;
+    return Math.round((attackSpeed / (attackSpeed + K)) * MAX_SLOWDOWN * 10) / 10;
+  };
+
   // Calculate total equipment bonuses first (needed for HP calculation)
   const equipmentStats = calculateTotalEquipmentStats(
     equippedWeapon,
@@ -229,9 +236,13 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
         </div>
         <div className="text-white/80">
           <span className="text-white/60">🐌 Slow:</span>{' '}
-          <span className={(Number(equipmentStats.attackSpeed) || 0) > 0 ? 'text-purple-400 font-semibold' : 'text-white/60'}>
-            {Number(equipmentStats.attackSpeed) || 0}%
-          </span>
+          {(Number(equipmentStats.attackSpeed) || 0) > 0 ? (
+            <span className="text-purple-400 font-semibold">
+              {Number(equipmentStats.attackSpeed) || 0} <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">({calculateActualSlowdown(Number(equipmentStats.attackSpeed) || 0)}%)</span>
+            </span>
+          ) : (
+            <span className="text-white/60">0</span>
+          )}
         </div>
       </div>
     </div>

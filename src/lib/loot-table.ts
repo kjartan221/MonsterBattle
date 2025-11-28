@@ -1,12 +1,12 @@
 export interface EquipmentStats {
   damageBonus?: number;     // For weapons - adds to player damage (clicks per attack)
   critChance?: number;       // For weapons - increases crit chance %
-  defense?: number;          // For armor - reduces monster damage %
+  defense?: number;          // For armor - reduces monster damage (diminishing returns, max 80%)
   maxHpBonus?: number;       // For armor - increases max HP
-  attackSpeed?: number;      // For accessories - increases attack speed %
+  attackSpeed?: number;      // For accessories - slows monster attacks (diminishing returns, max 50%)
   coinBonus?: number;        // For accessories - increases coin drops %
   healBonus?: number;        // For artifacts/armor - increases HP healing % (after battle victories)
-  lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on manual & auto-clicks)
+  lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on manual clicks only)
   autoClickRate?: number;    // For weapons/artifacts - auto-clicks per second (stacks across items)
   fireResistance?: number;   // For armor/artifacts - reduces burn DoT damage %
   poisonResistance?: number; // For armor/artifacts - reduces poison DoT damage %

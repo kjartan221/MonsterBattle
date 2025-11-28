@@ -90,7 +90,7 @@ export default function CraftingItemDetailsModal({ item, onClose }: CraftingItem
               {item.equipmentStats.attackSpeed !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-gray-400">Attack Speed:</span>
-                  <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}%</span>
+                  <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}</span>
                 </div>
               )}
               {item.equipmentStats.coinBonus !== undefined && (

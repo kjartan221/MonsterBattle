@@ -241,15 +241,37 @@ export function calculateMonsterDamage(
 
 /**
  * Calculate effective monster attack interval with speed bonuses
+ * Uses diminishing returns formula to prevent attack speed from becoming too powerful at high tiers
+ *
+ * Formula: actualSlowdown% = (attackSpeed / (attackSpeed + K)) * maxSlowdown
+ * - K = 67 (diminishing returns constant, same as defense)
+ * - maxSlowdown = 50% (hard cap, prevents monsters from being frozen)
+ *
+ * Examples:
+ * - 0 attackSpeed → 0% slowdown (1000ms)
+ * - 10 attackSpeed → ~6.5% slowdown (1065ms)
+ * - 25 attackSpeed → ~13.6% slowdown (1136ms)
+ * - 50 attackSpeed → ~21.6% slowdown (1216ms)
+ * - 100 attackSpeed → ~30% slowdown (1300ms)
+ * - 200 attackSpeed → ~40% slowdown (1400ms)
+ * - ∞ attackSpeed → approaches 50% slowdown (1500ms max)
+ *
  * @param baseInterval - Base attack interval in ms (usually 1000)
- * @param attackSpeed - Attack speed bonus (positive = slower attacks)
+ * @param attackSpeed - Attack speed stat from equipment (not directly a percentage)
  * @returns Modified interval in ms
  */
 export function calculateMonsterAttackInterval(
   baseInterval: number,
   attackSpeed: number
 ): number {
-  // attackSpeed is a percentage (e.g., 10 = 10% slower attacks = 1100ms)
-  const speedMultiplier = 1 + (attackSpeed / 100);
-  return Math.round(baseInterval * speedMultiplier);
+  // Diminishing returns formula constants
+  const K = 67; // Diminishing returns constant (same as defense)
+  const MAX_SLOWDOWN = 50; // Hard cap at 50% slowdown
+
+  // Calculate actual slowdown percentage with diminishing returns
+  const actualSlowdownPercent = (attackSpeed / (attackSpeed + K)) * MAX_SLOWDOWN;
+
+  // Apply slowdown to base interval
+  const slowdownMultiplier = 1 + (actualSlowdownPercent / 100);
+  return Math.round(baseInterval * slowdownMultiplier);
 }

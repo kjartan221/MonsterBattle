@@ -83,9 +83,9 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
 
 ## 🎯 Current Implementation Progress
 
-**Last Updated**: 2025-11-27 (Phase 1.7: Equipment Customization - Blacksmith Page)
+**Last Updated**: 2025-11-28 (Balance Changes & Inscription Exclusivity System)
 
-**Reference**: docs/GAME_DESIGN_PROPOSAL.md lines 1080-1087 (Phase 1.7)
+**Reference**: Multiple files - balance changes across all biomes, stat scaling system, inscription validation
 
 ### ✅ Recently Completed (This Session)
 
@@ -145,6 +145,88 @@ When implementing features from docs/GAME_DESIGN_PROPOSAL.md:
   - IE/Edge: `* { -ms-overflow-style: none; }`
   - Preserved scroll functionality: `html, body { overflow-y: auto; }`
   - Cross-browser compatibility for clean UI
+
+#### **Balance Changes: Monster Attack Damage Standardization**
+- **Monster Attack Damage** (desert.ts, ocean.ts, volcano.ts, castle.ts):
+  - Standardized attack damage across all biomes by rarity
+  - Common: 4-5 damage
+  - Rare: 6-7 damage
+  - Epic: 10 damage
+  - Legendary: 12 damage
+  - Base HP values kept at T1 levels
+- **Tier HP Scaling** (biome-config.ts:22-29):
+  - T2: 3x HP (up from 2x)
+  - T3: 10x HP (up from 8x)
+  - T4: 30x HP (up from 20x)
+  - T5: 80x HP (up from 50x)
+  - Increased scaling provides harder endgame progression
+
+#### **Balance Changes: Lifesteal & AutoClick Stat Scaling**
+- **Stat Exemption System** (itemTierScaling.ts:69-97):
+  - Exempt lifesteal and autoClickRate from tier scaling
+  - Stats stay constant across tiers (base values only)
+  - Only craft bonuses and corrupted bonuses apply
+  - Example: 4% lifesteal at T1 = 4% lifesteal at T5 (not 16%)
+- **Empowered Bonus Precision** (equipmentCalculations.ts:64-79):
+  - Removed Math.ceil from lifesteal and autoClickRate in empowered calculations
+  - Keeps precision for % calculations and interval calculations
+  - Other stats still rounded up to prevent floats
+- **Crit Damage Float Fix** (equipmentCalculations.ts:197):
+  - Added Math.floor() to crit damage calculation
+  - Prevents float values in damage output
+- **Lifesteal Disable on Auto-Hits** (MonsterBattleSection.tsx:753-760):
+  - Lifesteal only triggers on manual clicks (!isAutoHit check)
+  - Prevents immortality from high autoclick + lifesteal combo
+  - Healing still tracked for cheat detection
+- **AutoClick Values Doubled** (loot-table.ts:751-794):
+  - 0.5 → 1 auto-hit/sec for base legendary scrolls
+  - 1 → 2 auto-hits/sec for enhanced legendary scrolls
+  - Precision maintained (no rounding)
+
+#### **Inscription Exclusivity System**
+- **Backend Validation** (inscriptions/apply/route.ts:132-149):
+  - Prevent both autoclick prefix AND suffix on same item
+  - Prevent both lifesteal prefix AND suffix on same item
+  - Returns 400 error with clear message on conflict
+  - Dynamic error messages based on inscription type
+- **Frontend UX Blocking** (BlacksmithPage.tsx:282-329):
+  - Detects conflicting inscriptions before API call
+  - Grays out blocked scrolls with opacity-40
+  - Shows cursor-not-allowed on disabled scrolls
+  - Displays conflict message: "🚫 Conflicts with {oppositeSlot} {conflictType}"
+  - Works for both autoclick and lifesteal exclusivity
+- **Description Updates** (loot-table.ts:711-794):
+  - All autoclick scroll descriptions mention exclusivity
+  - All lifesteal scroll descriptions mention exclusivity
+  - Notes that lifesteal only works on manual click damage
+  - Clear warnings about stacking restrictions
+
+#### **Attack Speed Diminishing Returns System**
+- **Backend Implementation** (equipmentCalculations.ts:242-277):
+  - Applied same diminishing returns formula as defense
+  - Formula: `actualSlowdown% = (attackSpeed / (attackSpeed + K)) * maxSlowdown`
+  - K = 67 (same constant as defense for consistency)
+  - MAX_SLOWDOWN = 50% (hard cap, prevents monsters from being frozen)
+  - Examples at key thresholds:
+    - 0 attackSpeed → 0% slowdown (1000ms base interval)
+    - 50 attackSpeed → ~21.6% slowdown (1216ms)
+    - 100 attackSpeed → ~30% slowdown (1300ms)
+    - ∞ attackSpeed → approaches 50% slowdown (1500ms max)
+- **UI Updates**:
+  - PlayerStatsDisplay (lines 33-38, 239-245): Shows raw stat + effective slowdown % in parentheses (like defense)
+  - Removed misleading "%" suffix from attack speed displays in all item modals:
+    - LootItemDetailsModal.tsx (line 113)
+    - CraftingItemDetailsModal.tsx (line 93)
+    - CraftedItemModal.tsx (line 131)
+  - Now displays as "+50" with calculated "(21.6%)" slowdown shown in PlayerStatsDisplay
+- **Documentation Updates** (loot-table.ts:1-14):
+  - Updated attackSpeed comment: "slows monster attacks (diminishing returns, max 50%)"
+  - Updated defense comment: "reduces monster damage (diminishing returns, max 80%)"
+  - Updated lifesteal comment: "works on manual clicks only" (not auto-hits)
+- **Balance Impact**:
+  - Prevents attack speed from becoming overpowered at high tiers
+  - Bosses remain challenging even with stacked slow equipment
+  - Consistent with defense scaling philosophy
 
 ### ✅ Previously Completed
 

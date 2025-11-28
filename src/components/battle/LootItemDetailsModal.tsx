@@ -110,7 +110,7 @@ export default function LootItemDetailsModal({ item, onClose }: LootItemDetailsM
                 {item.equipmentStats.attackSpeed !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Attack Speed:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}%</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}</span>
                   </div>
                 )}
                 {item.equipmentStats.coinBonus !== undefined && (
