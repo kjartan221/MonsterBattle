@@ -24,6 +24,7 @@ interface InventoryDetailsModalProps {
     isEmpowered?: boolean; // Whether item was dropped by corrupted monster
     prefix?: Inscription; // Prefix inscription
     suffix?: Inscription; // Suffix inscription
+    enhanced?: boolean; // Phase 3.5: Enhanced consumable (infinite uses)
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
@@ -31,6 +32,7 @@ interface InventoryDetailsModalProps {
 
 export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: InventoryDetailsModalProps) {
   const [isMinting, setIsMinting] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const rarityColors = {
     common: 'text-gray-400 border-gray-400',
@@ -78,6 +80,59 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     } finally {
       setIsMinting(false);
     }
+  };
+
+  // Phase 3.5: Handle consumable enhancement
+  const handleEnhanceConsumable = async () => {
+    setIsEnhancing(true);
+    const enhancingToast = toast.loading('Enhancing consumable...');
+
+    try {
+      const response = await fetch('/api/consumables/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetItemId: item.inventoryId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to enhance consumable');
+      }
+
+      toast.success(`${data.itemName} enhanced! It now has infinite uses with cooldown.`, { id: enhancingToast, duration: 4000 });
+
+      // Call the callback to refresh inventory
+      if (onMintSuccess) {
+        onMintSuccess();
+      }
+
+      // Close modal after successful enhancement
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to enhance consumable', { id: enhancingToast });
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  // Calculate enhancement cost based on rarity
+  const getEnhancementCost = (rarity: string): number => {
+    const costs: Record<string, number> = {
+      common: 500,
+      rare: 2000,
+      epic: 5000,
+      legendary: 10000
+    };
+    return costs[rarity] || 500;
   };
 
   const typeLabels = {
@@ -150,6 +205,71 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
               <span className="text-gray-500 text-xs">({item.tier || 1})</span>
             </div>
           </div>
+
+          {/* Phase 3.5: Consumable Enhancement Section */}
+          {item.type === 'consumable' && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Enhancement</span>
+
+              {item.enhanced ? (
+                // Already enhanced
+                <div className="bg-cyan-900/30 border-2 border-cyan-500/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 text-lg">✨</span>
+                    <span className="text-cyan-300 font-bold text-sm">Enhanced Consumable</span>
+                  </div>
+                  <div className="text-cyan-200 text-xs leading-relaxed">
+                    This consumable has <span className="font-bold text-cyan-300">infinite uses</span>. Cooldown still applies.
+                  </div>
+                </div>
+              ) : (
+                // Can be enhanced
+                <div className="space-y-3">
+                  <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-lg">💎</span>
+                      <span className="text-gray-300 font-medium text-sm">Not Enhanced</span>
+                    </div>
+                    <div className="text-gray-400 text-xs leading-relaxed">
+                      Enhance this consumable to make it <span className="font-bold text-white">infinite-use</span> (with cooldown).
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      <div>💰 Cost: <span className="text-yellow-400 font-bold">{getEnhancementCost(item.rarity)} gold</span></div>
+                      <div>📦 Required: <span className="text-white font-bold">5 copies</span> of this consumable</div>
+                      <div className="mt-1">📊 You have: <span className="text-white font-bold">{item.count || 1} copies</span></div>
+                    </div>
+                  </div>
+
+                  {(item.count || 1) >= 5 ? (
+                    <button
+                      onClick={handleEnhanceConsumable}
+                      disabled={isEnhancing}
+                      className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isEnhancing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Enhancing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✨</span>
+                          <span>Enhance Consumable</span>
+                          <span className="text-sm opacity-80">({getEnhancementCost(item.rarity)}g)</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                      <div className="text-red-400 text-xs text-center">
+                        Need {5 - (item.count || 1)} more copies to enhance
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Empowered Status */}
           {item.isEmpowered && (

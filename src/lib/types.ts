@@ -105,6 +105,9 @@ export interface UserInventory {
   // Equipment Customization (Phase 1: Inscriptions)
   prefix?: Inscription;     // Prefix inscription (e.g., "Savage" +5 damage)
   suffix?: Inscription;     // Suffix inscription (e.g., "of Haste" +5 attack speed)
+
+  // Consumable Enhancement System
+  enhanced?: boolean;       // True if consumable is enhanced (infinite uses with cooldown)
 }
 
 // Player Stats document (RPG progression)

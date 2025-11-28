@@ -4,7 +4,7 @@ import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
 import { getNextUnlock, formatBiomeTierKey } from '@/lib/biome-config';
-import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier, getTierRewardMultiplier } from '@/utils/playerProgression';
+import { getMonsterRewards, checkLevelUp, getStreakRewardMultiplier, getTierRewardMultiplier, getTierCoinMultiplier } from '@/utils/playerProgression';
 import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
 import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     const usedItemsArray = Array.isArray(usedItems) ? usedItems : [];
 
     // Calculate expected HP after battle (including equipment max HP bonuses)
-    const totalMaxHP = playerStats.maxHealth + equipmentStats.maxHpBonus;
+    const totalMaxHP = Math.floor(playerStats.maxHealth + equipmentStats.maxHpBonus * 1.2); // 20% tolerance
     const expectedHP = totalMaxHP - expectedDamage + totalHealing;
 
     console.log(`HP Verification - Base Max HP: ${playerStats.maxHealth}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
@@ -541,20 +541,37 @@ export async function POST(request: NextRequest) {
     const rewardStreakMultiplier = getStreakRewardMultiplier(winStreak);
 
     // Apply tier multiplier to rewards (higher tiers = MUCH more rewards)
-    const tierMultiplier = getTierRewardMultiplier(currentTier);
+    const tierXPMultiplier = getTierRewardMultiplier(currentTier); // Full multiplier for XP
+    const tierCoinMultiplier = getTierCoinMultiplier(currentTier); // Nerfed multiplier for coins
 
-    // Combined multiplier (streak * tier * challenge)
-    const totalRewardMultiplier = rewardStreakMultiplier * tierMultiplier * challengeXPMultiplier;
+    // Boss spawn rate penalty to coins (5x bosses = 50% coin reduction)
+    let bossSpawnCoinPenalty = 1.0;
+    let bossSpawnXPPenalty = 1.0;
+    if (challengeConfig.bossSpawnRate === 5.0) {
+      bossSpawnCoinPenalty = 0.5; // 50% reduction
+      bossSpawnXPPenalty = 0.5; // 50% reduction
+      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: -50% rewards`);
+    }
+
+    // XP multiplier (streak * tier * challenge)
+    const totalXPMultiplier = rewardStreakMultiplier * tierXPMultiplier * challengeXPMultiplier * bossSpawnXPPenalty;
+
+    // Coin multiplier (streak * nerfed_tier * challenge * boss_penalty)
+    const totalCoinMultiplier = rewardStreakMultiplier * tierCoinMultiplier * challengeXPMultiplier * bossSpawnCoinPenalty;
 
     console.log(`🎯 [REWARD DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins (${monster.rarity})`);
     console.log(`🎯 [REWARD DEBUG] Streak Multiplier: ${rewardStreakMultiplier}x (streak ${winStreak})`);
-    console.log(`🎯 [REWARD DEBUG] Tier Multiplier: ${tierMultiplier}x (Tier ${currentTier})`);
+    console.log(`🎯 [REWARD DEBUG] Tier XP Multiplier: ${tierXPMultiplier}x (Tier ${currentTier})`);
+    console.log(`🎯 [REWARD DEBUG] Tier Coin Multiplier: ${tierCoinMultiplier}x (Tier ${currentTier}) [NERFED]`);
     console.log(`🎯 [REWARD DEBUG] Challenge Multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
-    console.log(`🎯 [REWARD DEBUG] Total Multiplier: ${totalRewardMultiplier.toFixed(2)}x`);
+    console.log(`🎯 [REWARD DEBUG] Boss Spawn Coin Penalty: ${bossSpawnCoinPenalty}x`);
+    console.log(`🎯 [REWARD DEBUG] Boss Spawn XP Penalty: ${bossSpawnXPPenalty}x`);
+    console.log(`🎯 [REWARD DEBUG] Total XP Multiplier: ${totalXPMultiplier.toFixed(2)}x`);
+    console.log(`🎯 [REWARD DEBUG] Total Coin Multiplier: ${totalCoinMultiplier.toFixed(2)}x`);
 
     const rewards = {
-      xp: Math.ceil(baseRewards.xp * totalRewardMultiplier),
-      coins: Math.ceil(baseRewards.coins * totalRewardMultiplier)
+      xp: Math.ceil(baseRewards.xp * totalXPMultiplier),
+      coins: Math.ceil(baseRewards.coins * totalCoinMultiplier)
     };
 
     console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, Tier ${currentTier}, streak ${winStreak})`);

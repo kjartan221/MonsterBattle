@@ -10,14 +10,26 @@
 export type BiomeId = 'forest' | 'desert' | 'ocean' | 'volcano' | 'castle';
 export type Tier = 1 | 2 | 3 | 4 | 5;
 
-// Tier multipliers for monster stats
-export const TIER_MULTIPLIERS: Record<Tier, number> = {
-  1: 1.0,   // Base stats
-  2: 2.0,   // 2x stats
-  3: 4.0,   // 4x stats
-  4: 8.0,   // 8x stats
-  5: 15.0   // 15x stats (boss tier)
+// Tier multipliers for monster damage (moderate scaling)
+export const TIER_DAMAGE_MULTIPLIERS: Record<Tier, number> = {
+  1: 1.0,   // Base damage
+  2: 2.0,   // 2x damage
+  3: 4.0,   // 4x damage
+  4: 7.0,   // 8x damage
+  5: 12.0   // 15x damage (boss tier)
 };
+
+// Tier multipliers for monster HP (aggressive scaling like rewards)
+export const TIER_HP_MULTIPLIERS: Record<Tier, number> = {
+  1: 1.0,   // Base HP
+  2: 3.0,   // 3x HP
+  3: 8.0,   // 8x HP
+  4: 20.0,  // 20x HP
+  5: 50.0   // 50x HP (boss tier)
+};
+
+// Legacy: Keep for backwards compatibility, defaults to damage scaling
+export const TIER_MULTIPLIERS = TIER_DAMAGE_MULTIPLIERS;
 
 // Biome configuration
 export interface BiomeConfig {
@@ -162,7 +174,21 @@ export function parseBiomeTierKey(key: string): { biome: BiomeId; tier: Tier } |
 }
 
 /**
- * Calculate monster stats with tier scaling
+ * Calculate monster HP with tier scaling (aggressive scaling)
+ */
+export function applyTierHPScaling(baseHP: number, tier: Tier): number {
+  return Math.floor(baseHP * TIER_HP_MULTIPLIERS[tier]);
+}
+
+/**
+ * Calculate monster damage with tier scaling (moderate scaling)
+ */
+export function applyTierDamageScaling(baseDamage: number, tier: Tier): number {
+  return Math.floor(baseDamage * TIER_DAMAGE_MULTIPLIERS[tier]);
+}
+
+/**
+ * Calculate monster stats with tier scaling (legacy, uses damage scaling)
  */
 export function applyTierScaling(baseStat: number, tier: Tier): number {
   return Math.floor(baseStat * TIER_MULTIPLIERS[tier]);

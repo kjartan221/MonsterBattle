@@ -84,14 +84,34 @@ export async function POST(request: NextRequest) {
                     return;
                 }
 
-                // Delete one instance of the item (within transaction)
+                const lootTableId = inventoryItem.lootTableId;
+
+                // Phase 3.5: Enhanced consumables have infinite uses
+                if (inventoryItem.enhanced) {
+                    // Don't delete the item, just set cooldown
+                    // Count all instances of this consumable (for display)
+                    const totalCount = await userInventoryCollection.countDocuments(
+                        { userId, lootTableId },
+                        { session }
+                    );
+
+                    result = {
+                        success: true,
+                        remainingQuantity: totalCount, // Keep showing quantity
+                        shouldUnequip: false, // Never unequip enhanced items
+                        lootTableId,
+                        isEnhanced: true
+                    };
+                    return;
+                }
+
+                // Regular consumable: Delete one instance of the item (within transaction)
                 await userInventoryCollection.deleteOne(
                     { _id: equippedItemId, userId },
                     { session }
                 );
 
                 // Count remaining items of same type (within transaction)
-                const lootTableId = inventoryItem.lootTableId;
                 const remainingCount = await userInventoryCollection.countDocuments(
                     { userId, lootTableId },
                     { session }

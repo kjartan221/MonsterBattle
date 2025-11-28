@@ -193,6 +193,39 @@ export function getTierRewardMultiplier(tier: 1 | 2 | 3 | 4 | 5): number {
 }
 
 /**
+ * Calculate tier-based coin multiplier (NERFED compared to XP)
+ * More moderate scaling to prevent gold inflation
+ *
+ * Tier Multipliers:
+ * - T1: 1.0x (base)
+ * - T2: 1.5x (+50%)
+ * - T3: 2.5x (+150%)
+ * - T4: 4.0x (+300%)
+ * - T5: 6.0x (+500%)
+ *
+ * Why nerfed?
+ * - Prevents massive gold inflation at high tiers
+ * - Still rewards progression but keeps economy balanced
+ * - XP can scale aggressively, gold should not
+ */
+export function getTierCoinMultiplier(tier: 1 | 2 | 3 | 4 | 5): number {
+  switch (tier) {
+    case 1:
+      return 1.0;
+    case 2:
+      return 1.5;
+    case 3:
+      return 2.5;
+    case 4:
+      return 4.0;
+    case 5:
+      return 6.0;
+    default:
+      return 1.0;
+  }
+}
+
+/**
  * Calculate corrupted monster spawn rate based on streak
  * Higher streaks = more corrupted spawns = more challenge + more empowered loot
  *

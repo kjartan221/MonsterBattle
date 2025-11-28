@@ -125,6 +125,16 @@ export default function BlacksmithPage() {
     }
   };
 
+  const getInscriptionGoldCost = (rarity: string): number => {
+    const costs: Record<string, number> = {
+      common: 250,
+      rare: 1000,
+      epic: 2500,
+      legendary: 5000
+    };
+    return costs[rarity] || 250;
+  };
+
   const getRarityColor = (rarity: string) => {
     const colors = {
       common: 'text-gray-400 border-gray-500 bg-gray-900/50',
@@ -369,6 +379,7 @@ export default function BlacksmithPage() {
               {/* Selected Scroll */}
               {selectedScroll && (() => {
                 const lootItem = getLootItemById(selectedScroll.lootTableId);
+                const goldCost = lootItem ? getInscriptionGoldCost(lootItem.rarity) : 0;
                 return lootItem?.inscriptionData ? (
                   <div className="bg-gray-900/50 rounded-lg p-4 border-2 border-gray-600">
                     <div className="text-sm text-gray-400 mb-2">Inscription:</div>
@@ -384,6 +395,9 @@ export default function BlacksmithPage() {
                         <div className={`text-sm mt-2 ${getInscriptionRarityColor(lootItem.inscriptionData.statValue)}`}>
                           ✨ {formatInscriptionStat(lootItem.inscriptionData.inscriptionType, lootItem.inscriptionData.statValue)}
                         </div>
+                        <div className="text-sm mt-2 text-yellow-400 font-semibold">
+                          💰 Cost: {goldCost} gold
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -391,15 +405,19 @@ export default function BlacksmithPage() {
               })()}
 
               {/* Apply Button */}
-              {selectedEquipment && selectedScroll && (
-                <button
-                  onClick={() => handleApplyInscription(false)}
-                  disabled={applying}
-                  className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg transition-all cursor-pointer text-lg"
-                >
-                  {applying ? 'Applying...' : '✨ Apply Inscription'}
-                </button>
-              )}
+              {selectedEquipment && selectedScroll && (() => {
+                const lootItem = getLootItemById(selectedScroll.lootTableId);
+                const goldCost = lootItem ? getInscriptionGoldCost(lootItem.rarity) : 0;
+                return (
+                  <button
+                    onClick={() => handleApplyInscription(false)}
+                    disabled={applying}
+                    className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg transition-all cursor-pointer text-lg"
+                  >
+                    {applying ? 'Applying...' : `✨ Apply Inscription (${goldCost} gold)`}
+                  </button>
+                );
+              })()}
             </div>
           )}
         </div>

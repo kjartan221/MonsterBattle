@@ -64,7 +64,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    const { userInventoryCollection } = await connectToMongo();
+    const { userInventoryCollection, playerStatsCollection } = await connectToMongo();
+
+    // Fetch player stats to check gold
+    const playerStats = await playerStatsCollection.findOne({ userId });
+    if (!playerStats) {
+      return NextResponse.json(
+        { error: 'Player stats not found' },
+        { status: 404 }
+      );
+    }
 
     // Fetch equipment item
     const equipmentItem = await userInventoryCollection.findOne({
@@ -120,6 +129,27 @@ export async function POST(request: NextRequest) {
     const inscriptionData = scrollTemplate.inscriptionData;
     const slot = inscriptionData.slot; // 'prefix' or 'suffix'
 
+    // Calculate gold cost based on scroll rarity
+    const goldCosts: Record<string, number> = {
+      common: 250,
+      rare: 1000,
+      epic: 2500,
+      legendary: 5000
+    };
+    const goldCost = goldCosts[scrollTemplate.rarity] || 250;
+
+    // Check if player has enough gold
+    if (playerStats.coins < goldCost) {
+      return NextResponse.json(
+        {
+          error: `Insufficient gold. Need ${goldCost} gold to apply this inscription.`,
+          goldCost,
+          currentGold: playerStats.coins
+        },
+        { status: 400 }
+      );
+    }
+
     // Check if slot is already occupied
     const existingInscription = equipmentItem[slot] as Inscription | undefined;
     if (existingInscription && !overwriteExisting) {
@@ -156,6 +186,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Deduct gold cost from player
+    await playerStatsCollection.updateOne(
+      { userId },
+      { $inc: { coins: -goldCost } }
+    );
+
     // Delete consumed scroll from inventory
     await userInventoryCollection.deleteOne({ _id: scrollObjectId });
 
@@ -164,11 +200,12 @@ export async function POST(request: NextRequest) {
       _id: equipmentObjectId
     });
 
-    console.log(`✅ [INSCRIPTION] User ${userId} applied "${inscription.name}" ${slot} to equipment ${equipmentId}`);
+    console.log(`✅ [INSCRIPTION] User ${userId} applied "${inscription.name}" ${slot} to equipment ${equipmentId} for ${goldCost} gold`);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully applied "${inscription.name}" ${slot} inscription`,
+      message: `Successfully applied "${inscription.name}" ${slot} inscription (-${goldCost} gold)`,
+      goldCost,
       equipment: {
         ...updatedEquipment,
         _id: updatedEquipment?._id?.toString()

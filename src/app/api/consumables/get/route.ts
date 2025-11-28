@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
                         icon: lootItem.icon,
                         description: lootItem.description,
                         rarity: lootItem.rarity,
-                        type: lootItem.type
+                        type: lootItem.type,
+                        enhanced: item.enhanced || false // Phase 3.5: Enhanced consumables
                     };
                 }
                 return null;

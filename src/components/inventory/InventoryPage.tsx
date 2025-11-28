@@ -14,6 +14,7 @@ import type { Inscription } from '@/lib/types';
 
 interface InventoryItem extends LootItem {
   tier: number; // Which tier this item dropped from (1-5)
+  enhanced?: boolean; // Phase 3.5: Enhanced consumable (infinite uses)
   acquiredAt: Date;
   sessionId: string;
   inventoryId: string;
@@ -218,11 +219,18 @@ export default function InventoryPage() {
                   boxShadow: `0 0 20px ${item.borderGradient.color1}40, 0 0 20px ${item.borderGradient.color2}40`
                 } : {};
 
+                // Phase 3.5: Add enhanced glow effect for consumables
+                const isEnhancedConsumable = item.enhanced && item.type === 'consumable';
+                const enhancedStyle = isEnhancedConsumable ? {
+                  animation: 'enhanced-pulse 2s ease-in-out infinite',
+                  boxShadow: '0 0 20px rgba(0, 255, 255, 0.5), 0 0 40px rgba(0, 255, 255, 0.3)'
+                } : {};
+
                 return (
                 <div
                   key={`${item.sessionId}-${index}`}
                   className="relative p-1 rounded-xl hover:scale-105 transition-all duration-200 group"
-                  style={wrapperStyle}
+                  style={{ ...wrapperStyle, ...enhancedStyle }}
                 >
                   <button
                     onClick={() => setSelectedItem(item)}
@@ -258,6 +266,13 @@ export default function InventoryPage() {
                     {/* Empowered badge */}
                     {item.isEmpowered && (
                       <EmpoweredBadge size="small" position="top-left" />
+                    )}
+
+                    {/* Phase 3.5: Enhanced consumable badge */}
+                    {isEnhancedConsumable && (
+                      <div className="absolute top-2 left-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50 shadow-lg border border-cyan-300 animate-pulse">
+                        ✨ ∞
+                      </div>
                     )}
 
                     {/* Minting status badge */}

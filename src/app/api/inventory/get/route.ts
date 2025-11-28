@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
         isEmpowered: inventoryItem.isEmpowered, // True if from corrupted monster (+20% stats)
         equipmentStats: lootTemplate.equipmentStats, // Include equipment stats for display
         prefix: inventoryItem.prefix, // Phase 3.4: Prefix inscription
-        suffix: inventoryItem.suffix // Phase 3.4: Suffix inscription
+        suffix: inventoryItem.suffix, // Phase 3.4: Suffix inscription
+        enhanced: inventoryItem.enhanced || false // Phase 3.5: Enhanced consumables (infinite uses)
       };
     }).filter(item => item !== null); // Filter out any items not found
 

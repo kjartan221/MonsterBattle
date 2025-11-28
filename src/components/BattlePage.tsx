@@ -13,13 +13,17 @@ import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import { usePlayerSpell } from '@/hooks/usePlayerSpell';
 import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
-import ChallengeWidget from '@/components/battle/ChallengeWidget';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
 import EquipmentSelectionModal from '@/components/battle/EquipmentSelectionModal';
 import MonsterBattleSection from '@/components/battle/MonsterBattleSection';
 import Hotbar from '@/components/battle/Hotbar';
 import HotbarSelectionModal from '@/components/battle/HotbarSelectionModal';
+import QuickActionsBar from '@/components/battle/QuickActionsBar';
+import MonsterManualModal from '@/components/battle/MonsterManualModal';
+import LootItemDetailsModal from '@/components/battle/LootItemDetailsModal';
+import ChallengeSettingsModal from '@/components/battle/ChallengeSettingsModal';
+import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 
 export default function BattlePage() {
@@ -47,6 +51,11 @@ export default function BattlePage() {
   // Mobile menu toggles
   const [showBiomeMap, setShowBiomeMap] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
+
+  // Quick Actions modal states
+  const [showMonsterManual, setShowMonsterManual] = useState(false);
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [selectedLootItem, setSelectedLootItem] = useState<LootItem | null>(null);
 
   // Buff system (managed at page level, passed to child components)
   const { activeBuffs, applyBuff, clearBuffs, damageShield } = usePlayerBuffs();
@@ -100,6 +109,31 @@ export default function BattlePage() {
 
   const handleCloseHotbarModal = () => {
     setHotbarModal({ isOpen: false, slotType: 'consumable', slotIndex: 0 });
+  };
+
+  // Quick Actions handlers
+  const handleOpenMonsterManual = () => {
+    setShowMonsterManual(true);
+  };
+
+  const handleCloseMonsterManual = () => {
+    setShowMonsterManual(false);
+  };
+
+  const handleOpenChallengeModal = () => {
+    setShowChallengeModal(true);
+  };
+
+  const handleCloseChallengeModal = () => {
+    setShowChallengeModal(false);
+  };
+
+  const handleLootItemClick = (item: LootItem) => {
+    setSelectedLootItem(item);
+  };
+
+  const handleCloseLootItemDetails = () => {
+    setSelectedLootItem(null);
   };
 
   const handleConsumableUse = useCallback(async (slotIndex: number) => {
@@ -282,9 +316,6 @@ export default function BattlePage() {
       {/* Player Stats - Top Left (Always visible on desktop, top on mobile) */}
       <PlayerStatsDisplay activeDebuffs={activeDebuffs} activeBuffs={activeBuffs} />
 
-      {/* Challenge Widget - Below Player Stats */}
-      <ChallengeWidget />
-
       {/* Biome Map Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
         <>
@@ -331,6 +362,13 @@ export default function BattlePage() {
           </div>
         </>
       )}
+
+      {/* Quick Actions Bar - Below BiomeMapWidget */}
+      <QuickActionsBar
+        onMonsterManualClick={handleOpenMonsterManual}
+        onChallengeClick={handleOpenChallengeModal}
+        disabled={false}
+      />
 
       {/* Mobile Toggle Buttons - Left Middle (only visible on mobile) */}
       <div className="md:hidden fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
@@ -415,6 +453,30 @@ export default function BattlePage() {
           isOpen={equipmentModal.show}
           onClose={closeEquipmentModal}
           slot={equipmentModal.slot}
+        />
+      )}
+
+      {/* Monster Manual Modal */}
+      {showMonsterManual && (
+        <MonsterManualModal
+          onClose={handleCloseMonsterManual}
+          onItemClick={handleLootItemClick}
+        />
+      )}
+
+      {/* Challenge Settings Modal */}
+      {showChallengeModal && (
+        <ChallengeSettingsModal
+          isOpen={showChallengeModal}
+          onClose={handleCloseChallengeModal}
+        />
+      )}
+
+      {/* Loot Item Details Modal */}
+      {selectedLootItem && (
+        <LootItemDetailsModal
+          item={selectedLootItem}
+          onClose={handleCloseLootItemDetails}
         />
       )}
     </div>

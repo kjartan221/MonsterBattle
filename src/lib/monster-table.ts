@@ -1,4 +1,4 @@
-import { BiomeId, Tier, applyTierScaling, BIOMES } from './biome-config';
+import { BiomeId, Tier, applyTierScaling, applyTierHPScaling, applyTierDamageScaling, BIOMES } from './biome-config';
 import type { DebuffEffect, SpecialAttack, BossPhase, MonsterBuff } from './types';
 import {
   FOREST_MONSTERS,
@@ -209,17 +209,19 @@ export function getRandomMonsterTemplateForBiome(biome: BiomeId, tier: Tier, bos
 
 /**
  * Get random clicks required within a range, scaled by tier
+ * Uses aggressive HP scaling (same as XP rewards)
  */
 export function getRandomClicksRequired(range: [number, number], tier: Tier): number {
   const baseClicks = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
-  return applyTierScaling(baseClicks, tier);
+  return applyTierHPScaling(baseClicks, tier);
 }
 
 /**
  * Get scaled attack damage for a tier
+ * Uses moderate damage scaling
  */
 export function getScaledAttackDamage(baseAttackDamage: number, tier: Tier): number {
-  return applyTierScaling(baseAttackDamage, tier);
+  return applyTierDamageScaling(baseAttackDamage, tier);
 }
 
 /**

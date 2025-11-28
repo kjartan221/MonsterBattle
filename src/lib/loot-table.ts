@@ -809,6 +809,13 @@ export function getLootItemsByIds(lootIds: string[]): LootItem[] {
 }
 
 /**
+ * Get monster-specific drops for a given monster name
+ */
+export function getMonsterSpecificDrops(monsterName: string): LootItem[] {
+  return MONSTER_SPECIFIC_LOOT[monsterName] || [];
+}
+
+/**
  * Randomly select N items from various loot pools
  * Guarantees at least 1 monster-specific item (can be more if lucky)
  * Fills remaining slots with COMMON_LOOT or RARE_LOOT
