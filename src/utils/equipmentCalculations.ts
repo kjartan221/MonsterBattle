@@ -62,7 +62,7 @@ export function calculateTotalEquipmentStats(
     const scaledStats = scaleItemStats(statsToScale, itemTier);
 
     // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
-    // Always round UP for empowered stats to avoid float numbers
+    // Round UP for most stats to avoid floats, but keep lifesteal and autoClickRate precise
     let currentStats = { ...scaledStats };
     if (item.isEmpowered) {
       currentStats = {
@@ -73,8 +73,8 @@ export function calculateTotalEquipmentStats(
         attackSpeed: Math.ceil(scaledStats.attackSpeed * 1.2),
         coinBonus: Math.ceil(scaledStats.coinBonus * 1.2),
         healBonus: Math.ceil(scaledStats.healBonus * 1.2),
-        lifesteal: Math.ceil(scaledStats.lifesteal * 1.2),
-        autoClickRate: Math.ceil(scaledStats.autoClickRate * 1.2)
+        lifesteal: scaledStats.lifesteal * 1.2, // Keep precise for % calculation
+        autoClickRate: scaledStats.autoClickRate * 1.2 // Keep precise for interval calculation
       };
     }
 
@@ -194,7 +194,7 @@ export function calculateClickDamage(
   const isCrit = critRoll < Math.min(100, critChance);
 
   // Crit deals critMultiplier damage (base 2x + excess crit bonus)
-  const finalDamage = isCrit ? totalDamage * critMultiplier : totalDamage;
+  const finalDamage = isCrit ? Math.floor(totalDamage * critMultiplier) : totalDamage;
 
   return { damage: finalDamage, isCrit };
 }

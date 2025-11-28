@@ -279,14 +279,29 @@ export default function BlacksmithPage() {
                 const rarityClasses = getRarityColor(lootItem.rarity);
                 const inscriptionData = lootItem.inscriptionData;
 
+                // Check if this scroll is blocked due to exclusive inscription conflicts
+                // Both autoclick and lifesteal cannot have prefix + suffix on same item
+                const exclusiveTypes = ['autoclick', 'lifesteal'];
+                const isExclusiveType = exclusiveTypes.includes(inscriptionData.inscriptionType);
+                const oppositeSlot = inscriptionData.slot === 'prefix' ? 'suffix' : 'prefix';
+                const hasConflict = selectedEquipment &&
+                  isExclusiveType &&
+                  selectedEquipment[oppositeSlot]?.type === inscriptionData.inscriptionType;
+
+                const isBlocked = !!hasConflict;
+                const conflictType = hasConflict ? inscriptionData.inscriptionType : null;
+
                 return (
                   <button
                     key={item._id}
-                    onClick={() => setSelectedScroll(item)}
-                    className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-900/30 shadow-lg'
-                        : `${rarityClasses} hover:scale-102`
+                    onClick={() => !isBlocked && setSelectedScroll(item)}
+                    disabled={isBlocked}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                      isBlocked
+                        ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-800'
+                        : isSelected
+                        ? 'border-orange-500 bg-orange-900/30 shadow-lg cursor-pointer'
+                        : `${rarityClasses} hover:scale-102 cursor-pointer`
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -301,6 +316,13 @@ export default function BlacksmithPage() {
                         <div className={`text-xs mt-2 ${getInscriptionRarityColor(inscriptionData.statValue)}`}>
                           {formatInscriptionStat(inscriptionData.inscriptionType, inscriptionData.statValue)}
                         </div>
+                        {/* Show blocking reason */}
+                        {isBlocked && conflictType && (
+                          <div className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                            <span>🚫</span>
+                            <span>Conflicts with {oppositeSlot} {conflictType}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>

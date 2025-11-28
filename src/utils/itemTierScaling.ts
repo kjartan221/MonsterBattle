@@ -56,11 +56,15 @@ export function getItemTierMultiplier(tier: Tier): number {
 /**
  * Calculate all scaled stats for an item
  *
+ * Stats that DON'T scale with tier:
+ * - lifesteal: Percentage stays constant (only craft/corrupted bonuses apply)
+ * - autoClickRate: Rate stays constant (only craft/corrupted bonuses apply)
+ *
  * @example
- * const baseStats = { damageBonus: 2, critChance: 5 };
+ * const baseStats = { damageBonus: 2, critChance: 5, lifesteal: 4 };
  * const tier = 3;
  * const scaled = scaleItemStats(baseStats, tier);
- * // Returns: { damageBonus: 5, critChance: 13 }
+ * // Returns: { damageBonus: 5, critChance: 13, lifesteal: 4 } (lifesteal unchanged)
  */
 export function scaleItemStats<T extends Record<string, number>>(
   baseStats: T,
@@ -69,12 +73,20 @@ export function scaleItemStats<T extends Record<string, number>>(
   const multiplier = ITEM_TIER_MULTIPLIERS[tier] || 1; // Default to 1x if tier is invalid
   const scaled = {} as T;
 
+  // Stats that should NOT scale with tier (only craft/corrupted bonuses apply)
+  const noScaleStats = ['lifesteal', 'autoClickRate'];
+
   for (const [key, value] of Object.entries(baseStats)) {
     if (typeof value === 'number' && !isNaN(value)) {
-      // Always round UP to avoid float numbers (consistent with empowered stats)
-      const scaledValue = Math.ceil(value * multiplier);
-      // Defensive check - ensure result is not NaN
-      scaled[key as keyof T] = (isNaN(scaledValue) ? 0 : scaledValue) as T[keyof T];
+      // Exempt lifesteal and autoClickRate from tier scaling
+      if (noScaleStats.includes(key)) {
+        scaled[key as keyof T] = value as T[keyof T];
+      } else {
+        // Always round UP to avoid float numbers (consistent with empowered stats)
+        const scaledValue = Math.ceil(value * multiplier);
+        // Defensive check - ensure result is not NaN
+        scaled[key as keyof T] = (isNaN(scaledValue) ? 0 : scaledValue) as T[keyof T];
+      }
     } else {
       // If value is not a valid number, default to 0
       scaled[key as keyof T] = 0 as T[keyof T];

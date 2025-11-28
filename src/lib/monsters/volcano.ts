@@ -16,7 +16,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦎',
     rarity: 'common',
     baseClicksRange: [27, 32], // 70 HP ÷ 2.5 damage = 28 clicks
-    baseAttackDamage: 3, // 3 HP/sec, fire damage
+    baseAttackDamage: 4, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 1500, // Medium speed - reptile movement
     dotEffect: {
@@ -33,7 +33,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦇',
     rarity: 'common',
     baseClicksRange: [23, 28], // 55 HP ÷ 2 damage = 27.5 clicks
-    baseAttackDamage: 2, // 2 HP/sec, fast flying creature
+    baseAttackDamage: 5, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 900 // Very fast - flying agile creature
   },
@@ -44,7 +44,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🗿',
     rarity: 'rare',
     baseClicksRange: [40, 45], // 110 HP ÷ 2.5 damage = 44 clicks
-    baseAttackDamage: 4, // 4 HP/sec, heavy tank
+    baseAttackDamage: 6, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 2500, // Very slow - massive stone creature
     dotEffect: {
@@ -61,7 +61,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '👹',
     rarity: 'rare',
     baseClicksRange: [33, 38], // 85 HP ÷ 2.5 damage = 34 clicks
-    baseAttackDamage: 3, // 3 HP/sec, tricky demon
+    baseAttackDamage: 7, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 1100, // Fast - demonic agility
     dotEffect: {
@@ -80,7 +80,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐲',
     rarity: 'epic',
     baseClicksRange: [44, 49], // 140 HP ÷ 3 damage = 46.6 clicks
-    baseAttackDamage: 6, // 6 HP/sec, powerful dragon-kin
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 2000, // Slow - large flying boss
     isBoss: true,
@@ -133,7 +133,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🔥',
     rarity: 'epic',
     baseClicksRange: [50, 55], // 150 HP ÷ 3 damage = 50 clicks
-    baseAttackDamage: 7, // 7 HP/sec → 14 HP/sec at T2, 105 HP/sec at T5
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 2600, // Very slow - colossal elemental
     isBoss: true,
@@ -178,7 +178,7 @@ export const VOLCANO_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐉',
     rarity: 'legendary',
     baseClicksRange: [58, 63], // Base 60 HP → 240 HP at T3, 900 HP at T5
-    baseAttackDamage: 7, // 7 HP/sec → 28 HP/sec at T3, 105 HP/sec at T5
+    baseAttackDamage: 12, // Legendary: 12 damage (balanced with Forest/Common)
     biomes: ['volcano'],
     moveInterval: 3500, // Very slow - massive legendary boss
     isBoss: true,

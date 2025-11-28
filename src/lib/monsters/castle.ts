@@ -16,7 +16,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '💀',
     rarity: 'common',
     baseClicksRange: [28, 33], // 75 HP ÷ 2.5 damage = 30 clicks
-    baseAttackDamage: 3, // 3 HP/sec, undead melee
+    baseAttackDamage: 4, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 1600 // Medium-slow - shambling undead
   },
@@ -25,7 +25,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '👻',
     rarity: 'common',
     baseClicksRange: [24, 29], // 60 HP ÷ 2.5 damage = 24 clicks
-    baseAttackDamage: 2, // 2 HP/sec, ethereal
+    baseAttackDamage: 5, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 1300, // Medium-fast - floating ghost
     dotEffect: {
@@ -44,7 +44,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🧛',
     rarity: 'rare',
     baseClicksRange: [35, 40], // 90 HP ÷ 2.5 damage = 36 clicks
-    baseAttackDamage: 5, // 5 HP/sec, life drain
+    baseAttackDamage: 6, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 1000, // Fast - supernatural speed
     dotEffect: {
@@ -61,7 +61,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '⚔️',
     rarity: 'rare',
     baseClicksRange: [42, 47], // 120 HP ÷ 2.5 damage = 48 clicks
-    baseAttackDamage: 4, // 4 HP/sec, heavy armor
+    baseAttackDamage: 7, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 2200, // Slow - armored undead warrior
     dotEffect: {
@@ -80,7 +80,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🧙',
     rarity: 'epic',
     baseClicksRange: [43, 48], // 135 HP ÷ 3 damage = 45 clicks
-    baseAttackDamage: 5, // 5 HP/sec, dark magic
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 1900, // Medium-slow - caster movement
     isBoss: true,
@@ -148,7 +148,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '👤',
     rarity: 'epic',
     baseClicksRange: [48, 53], // 145 HP ÷ 3 damage = 48 clicks
-    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 1400, // Fast - ethereal movement
     isBoss: true,
@@ -193,7 +193,7 @@ export const CASTLE_MONSTERS: MonsterTemplate[] = [
     imageUrl: '👑',
     rarity: 'legendary',
     baseClicksRange: [60, 65], // Base 62 HP → 248 HP at T3, 930 HP at T5
-    baseAttackDamage: 8, // 8 HP/sec → 32 HP/sec at T3, 120 HP/sec at T5
+    baseAttackDamage: 12, // Legendary: 12 damage (balanced with Forest/Common)
     biomes: ['castle'],
     moveInterval: 3000, // Very slow - commanding presence
     isBoss: true,

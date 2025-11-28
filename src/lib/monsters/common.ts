@@ -16,8 +16,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Goblin',
     imageUrl: '👺',
     rarity: 'common',
-    baseClicksRange: [5, 10],
-    baseAttackDamage: 2,
+    baseClicksRange: [5, 10], // Keep T1 clicks reasonable
+    baseAttackDamage: 4, // Increased from 2 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 1500 // Medium speed - standard enemy
   },
@@ -25,8 +25,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Zombie',
     imageUrl: '🧟‍♂️',
     rarity: 'common',
-    baseClicksRange: [6, 11],
-    baseAttackDamage: 2,
+    baseClicksRange: [6, 11], // Keep T1 clicks reasonable
+    baseAttackDamage: 4, // Increased from 2 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 2000 // Slow - shambling undead
   },
@@ -34,8 +34,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Troll',
     imageUrl: '🧟',
     rarity: 'rare',
-    baseClicksRange: [15, 20],
-    baseAttackDamage: 5,
+    baseClicksRange: [15, 20], // Keep T1 clicks reasonable
+    baseAttackDamage: 7, // Increased from 5 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 2000 // Slow - large, heavy brute
   },
@@ -43,8 +43,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Orc',
     imageUrl: '👹',
     rarity: 'common',
-    baseClicksRange: [8, 12],
-    baseAttackDamage: 3,
+    baseClicksRange: [8, 12], // Keep T1 clicks reasonable
+    baseAttackDamage: 5, // Increased from 3 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 1500 // Medium speed - warrior type
   },
@@ -52,8 +52,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Ghost',
     imageUrl: '👻',
     rarity: 'rare',
-    baseClicksRange: [12, 18],
-    baseAttackDamage: 4,
+    baseClicksRange: [12, 18], // Keep T1 clicks reasonable
+    baseAttackDamage: 6, // Increased from 4 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 1000 // Fast - ethereal, hard to pin down
   },
@@ -61,8 +61,8 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     name: 'Dragon',
     imageUrl: '🐉',
     rarity: 'epic',
-    baseClicksRange: [30, 40],
-    baseAttackDamage: 8,
+    baseClicksRange: [30, 40], // Keep T1 clicks reasonable
+    baseAttackDamage: 10, // Increased from 8 for higher tier challenge
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 2500, // Very slow - large flying creature, easier to hit
     isBoss: true, // Mini-boss with special attacks
@@ -88,7 +88,7 @@ export const COMMON_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🧛',
     rarity: 'epic',
     baseClicksRange: [25, 35],
-    baseAttackDamage: 7,
+    baseAttackDamage: 10,
     biomes: ['forest', 'desert', 'ocean', 'volcano', 'castle'], // Can appear anywhere, scales with biome tier
     moveInterval: 1000, // Fast - supernatural speed
     isBoss: true, // Mini-boss with special attacks

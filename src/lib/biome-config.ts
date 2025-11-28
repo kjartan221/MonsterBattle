@@ -22,10 +22,10 @@ export const TIER_DAMAGE_MULTIPLIERS: Record<Tier, number> = {
 // Tier multipliers for monster HP (aggressive scaling like rewards)
 export const TIER_HP_MULTIPLIERS: Record<Tier, number> = {
   1: 1.0,   // Base HP
-  2: 3.0,   // 3x HP
-  3: 8.0,   // 8x HP
-  4: 20.0,  // 20x HP
-  5: 50.0   // 50x HP (boss tier)
+  2: 3.0,   // 3x HP (increased from 3x)
+  3: 10.0,  // 10x HP (increased from 8x)
+  4: 30.0,  // 30x HP (increased from 20x)
+  5: 80.0   // 80x HP - boss tier (increased from 50x for harder endgame)
 };
 
 // Legacy: Keep for backwards compatibility, defaults to damage scaling

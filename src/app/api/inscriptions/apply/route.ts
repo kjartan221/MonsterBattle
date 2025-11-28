@@ -129,6 +129,25 @@ export async function POST(request: NextRequest) {
     const inscriptionData = scrollTemplate.inscriptionData;
     const slot = inscriptionData.slot; // 'prefix' or 'suffix'
 
+    // VALIDATION: Prevent both autoclick prefix AND suffix on same item
+    // VALIDATION: Prevent both lifesteal prefix AND suffix on same item
+    const exclusiveTypes = ['autoclick', 'lifesteal'];
+    if (exclusiveTypes.includes(inscriptionData.inscriptionType)) {
+      const oppositeSlot = slot === 'prefix' ? 'suffix' : 'prefix';
+      const oppositeInscription = equipmentItem[oppositeSlot] as Inscription | undefined;
+
+      if (oppositeInscription && oppositeInscription.type === inscriptionData.inscriptionType) {
+        const typeLabel = inscriptionData.inscriptionType === 'autoclick' ? 'autoclick' : 'lifesteal';
+        return NextResponse.json(
+          {
+            error: `Cannot apply ${typeLabel} inscription`,
+            message: `This equipment already has a ${typeLabel} ${oppositeSlot}: "${oppositeInscription.name}". You cannot have both ${typeLabel} prefix and suffix on the same item.`
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Calculate gold cost based on scroll rarity
     const goldCosts: Record<string, number> = {
       common: 250,

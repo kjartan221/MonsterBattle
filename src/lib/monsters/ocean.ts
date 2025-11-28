@@ -16,7 +16,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦀',
     rarity: 'common',
     baseClicksRange: [26, 31], // 65 HP ÷ 2.5 damage = 26 clicks
-    baseAttackDamage: 2, // 2 HP/sec, armored shell
+    baseAttackDamage: 4, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 1700, // Medium-slow - heavy shell
     initialBuffs: [
@@ -31,7 +31,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🪼',
     rarity: 'common',
     baseClicksRange: [24, 29], // 60 HP ÷ 2.5 damage = 24 clicks
-    baseAttackDamage: 3, // 3 HP/sec, slow movement
+    baseAttackDamage: 5, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 2000, // Slow - drifting creature
     dotEffect: {
@@ -50,7 +50,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦈',
     rarity: 'rare',
     baseClicksRange: [36, 41], // 95 HP ÷ 2.5 damage = 38 clicks
-    baseAttackDamage: 4, // 4 HP/sec, aggressive predator
+    baseAttackDamage: 6, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 1200, // Fast - apex predator
     dotEffect: {
@@ -67,7 +67,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '⚡',
     rarity: 'rare',
     baseClicksRange: [32, 37], // 80 HP ÷ 2.5 damage = 32 clicks
-    baseAttackDamage: 3, // 3 HP/sec + shock
+    baseAttackDamage: 7, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 1000, // Fast - slippery and agile
     dotEffect: {
@@ -86,7 +86,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐍',
     rarity: 'epic',
     baseClicksRange: [42, 47], // 135 HP ÷ 3 damage = 45 clicks
-    baseAttackDamage: 5, // 5 HP/sec
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 1800, // Medium-slow - large creature
     isBoss: true,
@@ -119,7 +119,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐙',
     rarity: 'epic',
     baseClicksRange: [46, 51], // 145 HP ÷ 3 damage = 48 clicks
-    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 2200, // Slow - massive tentacled beast
     isBoss: true,
@@ -172,7 +172,7 @@ export const OCEAN_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐋',
     rarity: 'legendary',
     baseClicksRange: [55, 60], // Base 58 HP → 232 HP at T3, 870 HP at T5
-    baseAttackDamage: 6, // 6 HP/sec → 24 HP/sec at T3, 90 HP/sec at T5
+    baseAttackDamage: 12, // Legendary: 12 damage (balanced with Forest/Common)
     biomes: ['ocean'],
     moveInterval: 3000, // Very slow - colossal boss
     isBoss: true,

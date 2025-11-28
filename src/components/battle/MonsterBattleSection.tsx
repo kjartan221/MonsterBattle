@@ -751,9 +751,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
 
     // Phase 2.5: Apply lifesteal healing (% of damage dealt)
-    if (equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
+    // Only trigger on manual clicks, NOT on auto-hits
+    if (!isAutoHit && equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
-      healHealth(healAmount);
+      healHealth(healAmount, equipmentStats.maxHpBonus);
       // Track healing for cheat detection
       setTotalHealing(prev => prev + healAmount);
     }

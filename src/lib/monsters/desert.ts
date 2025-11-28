@@ -16,7 +16,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦂',
     rarity: 'common',
     baseClicksRange: [28, 32], // 70 HP ÷ 2.5 damage = 28 clicks
-    baseAttackDamage: 3, // 3 HP/sec + poison
+    baseAttackDamage: 4, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 1500, // Medium speed - standard desert creature
     dotEffect: {
@@ -33,7 +33,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🐍',
     rarity: 'common',
     baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks (time limit: 25s)
-    baseAttackDamage: 4, // 4 HP/sec, fast (escapes after 25s)
+    baseAttackDamage: 5, // Common: 4-5 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 700 // Very fast - elite speed, hard to hit
   },
@@ -44,7 +44,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🔥',
     rarity: 'rare',
     baseClicksRange: [35, 40], // 100 HP ÷ 3 damage = 33 clicks
-    baseAttackDamage: 3, // 3 HP/sec + burn
+    baseAttackDamage: 6, // Rare: 6-7 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 1500, // Medium speed - floating elemental
     dotEffect: {
@@ -63,7 +63,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🧞',
     rarity: 'epic',
     baseClicksRange: [40, 45], // 120 HP base → 240 HP at T2, 720 HP at T5
-    baseAttackDamage: 4, // 4 HP/sec → 8 HP/sec at T2, 60 HP/sec at T5
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 2000, // Slow - mini-boss, easier to target
     isBoss: true, // Mini-Boss: No random buffs except Tier 5
@@ -98,7 +98,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🗿',
     rarity: 'epic',
     baseClicksRange: [48, 53], // 140 HP ÷ 2.5 damage = 56 clicks
-    baseAttackDamage: 6, // 6 HP/sec → 12 HP/sec at T2, 90 HP/sec at T5
+    baseAttackDamage: 10, // Epic: 10 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 2800, // Very slow - massive stone construct
     isBoss: true,
@@ -151,7 +151,7 @@ export const DESERT_MONSTERS: MonsterTemplate[] = [
     imageUrl: '🦅',
     rarity: 'legendary',
     baseClicksRange: [62, 67], // Base 65 HP → 260 HP at T3, 975 HP at T5
-    baseAttackDamage: 8, // 8 HP/sec → 32 HP/sec at T3, 120 HP/sec at T5
+    baseAttackDamage: 12, // Legendary: 12 damage (balanced with Forest/Common)
     biomes: ['desert'],
     moveInterval: 1200, // Fast - graceful bird, hard to hit
     isBoss: true,

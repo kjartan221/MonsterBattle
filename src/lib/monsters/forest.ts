@@ -15,8 +15,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Forest Wolf',
     imageUrl: '🐺',
     rarity: 'common',
-    baseClicksRange: [25, 30], // 60 HP ÷ 2 damage = 30 clicks
-    baseAttackDamage: 2, // 2 HP/sec
+    baseClicksRange: [25, 30], // Keep T1 clicks reasonable
+    baseAttackDamage: 3, // Increased from 2 for higher tier challenge
     biomes: ['forest'],
     moveInterval: 1500 // Medium speed - standard predator
   },
@@ -24,8 +24,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Bandit Raccoon',
     imageUrl: '🦝',
     rarity: 'common',
-    baseClicksRange: [23, 28], // 55 HP ÷ 2 damage = 27.5 clicks
-    baseAttackDamage: 2, // 2 HP/sec, fast enemy (10% dodge)
+    baseClicksRange: [23, 28], // Keep T1 clicks reasonable
+    baseAttackDamage: 3, // Increased from 2, fast enemy
     biomes: ['forest'],
     moveInterval: 1000 // Fast - agile, dodgy enemy
   },
@@ -35,8 +35,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Wild Boar',
     imageUrl: '🐗',
     rarity: 'rare',
-    baseClicksRange: [35, 40], // 90 HP ÷ 2.5 damage = 36 clicks
-    baseAttackDamage: 3, // 3 HP/sec, armored (high HP), charge attack
+    baseClicksRange: [35, 40], // Keep T1 clicks reasonable
+    baseAttackDamage: 5, // Increased from 3, armored tank
     biomes: ['forest'],
     moveInterval: 2000, // Slow - heavy, armored tank
     dotEffect: {
@@ -52,8 +52,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Forest Sprite',
     imageUrl: '🧚',
     rarity: 'rare',
-    baseClicksRange: [30, 35], // 70 HP ÷ 2.5 damage = 28 clicks (but 20% dodge)
-    baseAttackDamage: 2, // 2 HP/sec, flying (20% dodge), heals at 50% HP
+    baseClicksRange: [30, 35], // Keep T1 clicks reasonable
+    baseAttackDamage: 4, // Increased from 2, flying creature
     biomes: ['forest'],
     moveInterval: 1000 // Fast - flying, agile creature
   },
@@ -63,8 +63,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Treant Guardian',
     imageUrl: '🌳',
     rarity: 'epic',
-    baseClicksRange: [45, 50], // Base 48 HP → 96 HP at T2, 192 HP at T3, 720 HP at T5
-    baseAttackDamage: 4, // 4 HP/sec → 8 HP/sec at T2, 60 HP/sec at T5
+    baseClicksRange: [45, 50], // Keep T1 clicks reasonable
+    baseAttackDamage: 7, // Increased from 4 for higher tier challenge
     biomes: ['forest'],
     moveInterval: 2500, // Very slow - large boss, easier to hit
     isBoss: true,
@@ -107,8 +107,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Dire Wolf Alpha',
     imageUrl: '🐺',
     rarity: 'epic',
-    baseClicksRange: [42, 47], // 120 HP ÷ 2.5 damage = 48 clicks
-    baseAttackDamage: 5, // 5 HP/sec → 10 HP/sec at T2, 75 HP/sec at T5
+    baseClicksRange: [42, 47], // Keep T1 clicks reasonable
+    baseAttackDamage: 8, // Increased from 5 for higher tier challenge
     biomes: ['forest'],
     moveInterval: 800, // Very fast - alpha predator
     isBoss: true,
@@ -140,8 +140,8 @@ export const FOREST_MONSTERS: MonsterTemplate[] = [
     name: 'Ancient Ent',
     imageUrl: '🌲',
     rarity: 'legendary',
-    baseClicksRange: [58, 63], // Base 60 HP → 240 HP at T3, 900 HP at T5
-    baseAttackDamage: 7, // 7 HP/sec → 28 HP/sec at T3, 105 HP/sec at T5
+    baseClicksRange: [58, 63], // Keep reasonable for T3 entry
+    baseAttackDamage: 12, // Increased from 7 for higher tier challenge
     biomes: ['forest'],
     moveInterval: 3200, // Extremely slow - ancient, massive tree
     isBoss: true,
