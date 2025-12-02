@@ -28,12 +28,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Ensure MongoDB is connected and get collections
-    const { userInventoryCollection, nftLootCollection } = await connectToMongo();
+    const { userInventoryCollection, nftLootCollection, materialTokensCollection } = await connectToMongo();
 
     // Fetch all inventory items for this user
     const inventoryItems = await userInventoryCollection
       .find({ userId })
       .sort({ acquiredAt: -1 }) // Most recent first
+      .toArray();
+
+    // Fetch all material tokens for this user (minted materials with quantity)
+    const materialTokens = await materialTokensCollection
+      .find({ userId, consumed: { $ne: true } }) // Exclude consumed tokens
       .toArray();
 
     // Build inventory by getting loot data from loot-table
@@ -91,10 +96,49 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Add material tokens to inventory (minted materials with quantity)
+    const materialTokenItems = materialTokens.map((token) => {
+      const lootTemplate = getLootItemById(token.lootTableId);
+      if (!lootTemplate) return null;
+
+      // Extract tier from metadata if available, default to 1
+      const tier = (token.metadata as any)?.tier || 1;
+
+      return {
+        lootId: token.lootTableId,
+        name: lootTemplate.name,
+        icon: lootTemplate.icon,
+        description: lootTemplate.description,
+        rarity: lootTemplate.rarity,
+        type: lootTemplate.type, // Should be 'material'
+        tier: tier,
+        acquiredAt: token.createdAt, // Use token creation date
+        inventoryId: token._id?.toString(), // For backward compatibility with UI
+        materialTokenId: token._id?.toString(), // Specific to material tokens
+        nftLootId: undefined, // Material tokens don't use NFTLoot collection
+        tokenId: token.tokenId, // Blockchain token ID
+        transactionId: token.transactionId, // Blockchain transaction ID
+        borderGradient: undefined, // Materials don't have gradients
+        isMinted: !!token.tokenId, // True if on blockchain
+        quantity: token.quantity, // Material token quantity
+        isMaterialToken: true, // Flag to distinguish from regular inventory items
+        crafted: false,
+        statRoll: undefined,
+        isEmpowered: false,
+        equipmentStats: undefined,
+        prefix: undefined,
+        suffix: undefined,
+        enhanced: false
+      };
+    }).filter(item => item !== null);
+
+    // Combine regular inventory with material tokens
+    const combinedInventory = [...inventory, ...materialTokenItems];
+
     return NextResponse.json({
       success: true,
-      inventory,
-      totalItems: inventory.length
+      inventory: combinedInventory,
+      totalItems: combinedInventory.length
     });
 
   } catch (error) {

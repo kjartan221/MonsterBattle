@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { tierToRoman } from '@/utils/tierUtils';
 import { getInscribedItemName, getInscriptionStatLabel, formatInscriptionStat, getInscriptionRarityColor } from '@/utils/itemNameHelpers';
 import type { Inscription } from '@/lib/types';
+import { useUpdateEquipmentNFT } from '@/hooks/useUpdateEquipmentNFT';
+import { useAuthContext } from '@/contexts/WalletContext';
 
 interface InventoryItem {
   _id: string;
@@ -19,6 +21,10 @@ interface InventoryItem {
   crafted?: boolean;
   statRoll?: number;
   isEmpowered?: boolean;
+  isMinted?: boolean;
+  nftLootId?: string;
+  tokenId?: string;
+  transactionId?: string;
 }
 
 export default function BlacksmithPage() {
@@ -33,6 +39,10 @@ export default function BlacksmithPage() {
     slot: 'prefix' | 'suffix';
     existingInscription: Inscription;
   } | null>(null);
+
+  // Blockchain hooks
+  const { updateEquipmentNFT, isUpdating } = useUpdateEquipmentNFT();
+  const { userWallet, isAuthenticated } = useAuthContext();
 
   useEffect(() => {
     fetchInventory();
@@ -55,7 +65,11 @@ export default function BlacksmithPage() {
           suffix: item.suffix,
           crafted: item.crafted,
           statRoll: item.statRoll,
-          isEmpowered: item.isEmpowered
+          isEmpowered: item.isEmpowered,
+          isMinted: item.isMinted,
+          nftLootId: item.nftLootId,
+          tokenId: item.tokenId,
+          transactionId: item.mintTransactionId
         }));
 
         // Separate equipment and scrolls
@@ -86,30 +100,139 @@ export default function BlacksmithPage() {
     }
 
     setApplying(true);
+    const applyingToast = toast.loading('Applying inscription...');
+
     try {
-      const response = await fetch('/api/inscriptions/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          equipmentId: selectedEquipment._id,
-          scrollId: selectedScroll._id,
-          overwriteExisting: overwrite
-        })
-      });
+      // Check if both items are minted as NFTs
+      const bothMinted = selectedEquipment.isMinted && selectedEquipment.tokenId &&
+                        selectedScroll.isMinted && selectedScroll.tokenId;
 
-      const data = await response.json();
+      if (bothMinted) {
+        // Use blockchain hook for NFT-to-NFT inscription
+        toast.loading('Checking wallet connection...', { id: applyingToast });
 
-      if (response.status === 409) {
-        // Overwrite warning
-        setOverwriteWarning(data.overwriteWarning);
-        return;
+        if (!userWallet || !isAuthenticated) {
+          throw new Error('Wallet not connected. Please connect your BSV wallet to apply inscriptions to NFTs.');
+        }
+
+        // Get scroll data for inscription type
+        const scrollData = getLootItemById(selectedScroll.lootTableId);
+        if (!scrollData || !scrollData.inscriptionData) {
+          throw new Error('Invalid scroll data');
+        }
+
+        const inscriptionType = scrollData.inscriptionData.slot;
+
+        // Check for overwrite warning
+        if (!overwrite) {
+          const existingInscription = inscriptionType === 'prefix' ? selectedEquipment.prefix : selectedEquipment.suffix;
+          if (existingInscription) {
+            setOverwriteWarning({ slot: inscriptionType, existingInscription });
+            toast.dismiss(applyingToast);
+            setApplying(false);
+            return;
+          }
+        }
+
+        toast.loading('Preparing blockchain transaction...', { id: applyingToast });
+
+        // Get equipment data
+        const equipmentData = getLootItemById(selectedEquipment.lootTableId);
+        if (!equipmentData || !equipmentData.equipmentStats) {
+          throw new Error('Invalid equipment data');
+        }
+
+        // Call blockchain hook
+        const result = await updateEquipmentNFT({
+          wallet: userWallet,
+          equipmentItem: {
+            inventoryItemId: selectedEquipment._id,
+            nftLootId: selectedEquipment.nftLootId!,
+            tokenId: selectedEquipment.tokenId!,
+            transactionId: selectedEquipment.transactionId!,
+            lootTableId: selectedEquipment.lootTableId,
+            name: equipmentData.name,
+            description: equipmentData.description,
+            icon: equipmentData.icon,
+            rarity: equipmentData.rarity,
+            type: equipmentData.type as 'weapon' | 'armor' | 'artifact',
+            tier: selectedEquipment.tier,
+            equipmentStats: { ...equipmentData.equipmentStats } as Record<string, number>,
+            crafted: selectedEquipment.crafted ? {
+              statRoll: selectedEquipment.statRoll || 1.0,
+              craftedBy: 'player' // TODO: Get from wallet public key
+            } : undefined,
+            borderGradient: selectedEquipment.borderGradient,
+            prefix: selectedEquipment.prefix ? {
+              type: selectedEquipment.prefix.type,
+              value: selectedEquipment.prefix.value,
+              name: selectedEquipment.prefix.name
+            } : undefined,
+            suffix: selectedEquipment.suffix ? {
+              type: selectedEquipment.suffix.type,
+              value: selectedEquipment.suffix.value,
+              name: selectedEquipment.suffix.name
+            } : undefined,
+          },
+          inscriptionScroll: {
+            inventoryItemId: selectedScroll._id,
+            nftLootId: selectedScroll.nftLootId!,
+            tokenId: selectedScroll.tokenId!,
+            transactionId: selectedScroll.transactionId!,
+            lootTableId: selectedScroll.lootTableId,
+            name: scrollData.name,
+            description: scrollData.description,
+            icon: scrollData.icon,
+            rarity: scrollData.rarity,
+            type: 'consumable',
+            inscriptionData: {
+              inscriptionType: scrollData.inscriptionData.inscriptionType,
+              statValue: scrollData.inscriptionData.statValue,
+              slot: scrollData.inscriptionData.slot,
+              name: scrollData.inscriptionData.name,
+              description: scrollData.inscriptionData.description
+            }
+          },
+          inscriptionType
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to update equipment NFT');
+        }
+
+        toast.success(`✨ Inscription applied on blockchain! TX: ${result.transactionId?.slice(0, 8)}...`, {
+          id: applyingToast,
+          duration: 5000
+        });
+
+      } else {
+        // Use regular API for non-NFT items
+        const response = await fetch('/api/inscriptions/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            equipmentId: selectedEquipment._id,
+            scrollId: selectedScroll._id,
+            overwriteExisting: overwrite
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 409) {
+          // Overwrite warning
+          setOverwriteWarning(data.overwriteWarning);
+          toast.dismiss(applyingToast);
+          setApplying(false);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to apply inscription');
+        }
+
+        toast.success(data.message, { id: applyingToast, icon: '✨', duration: 4000 });
       }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to apply inscription');
-      }
-
-      toast.success(data.message, { icon: '✨', duration: 4000 });
 
       // Reset selections and refresh
       setSelectedEquipment(null);
@@ -119,7 +242,7 @@ export default function BlacksmithPage() {
 
     } catch (error) {
       console.error('Apply inscription error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to apply inscription');
+      toast.error(error instanceof Error ? error.message : 'Failed to apply inscription', { id: applyingToast });
     } finally {
       setApplying(false);
     }

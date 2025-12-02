@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/WalletContext';
+import { useEquipment } from '@/contexts/EquipmentContext';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { initializeWallet, userPubKey, userWallet } = useAuthContext();
+  const { initializeWallet, userWallet } = useAuthContext();
+  const { refreshEquipment } = useEquipment();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,9 +33,9 @@ export default function LoginPage() {
         throw new Error('Wallet not initialized');
       }
 
+      // Use non-derived key for login
       const { publicKey } = await userWallet.getPublicKey({
-        protocolID: [0, "monsterbattle"],
-        keyID: "0",
+        identityKey: true,
       });
 
       if (!publicKey) {
@@ -60,6 +62,10 @@ export default function LoginPage() {
       }
 
       toast.success('Login successful!', { id: loadingToast });
+
+      // Refresh equipment after successful login
+      await refreshEquipment();
+
       router.push('/battle');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
@@ -110,6 +116,10 @@ export default function LoginPage() {
       }
 
       toast.success('Login successful!', { id: loadingToast });
+
+      // Refresh equipment after successful login
+      await refreshEquipment();
+
       router.push('/battle');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';

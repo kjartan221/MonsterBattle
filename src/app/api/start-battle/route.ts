@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
 
     if (requestedBiome && requestedTier) {
       // Validate requested biome/tier is unlocked
+      console.log(playerStats);
       const biomeTierKey = formatBiomeTierKey(requestedBiome, requestedTier);
       if (!playerStats.unlockedZones.includes(biomeTierKey)) {
         return NextResponse.json(

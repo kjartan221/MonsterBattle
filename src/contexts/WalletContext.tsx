@@ -8,7 +8,9 @@ import { toast } from "react-hot-toast";
 
 type authContextType = {
     userWallet: WalletClient | null;
-    userPubKey: string | null;
+    userPubKey: string | null; // DEPRECATED: Use userDerivedKey for blockchain ops
+    userIdentityKey: string | null; // Non-derived key for user ID/database
+    userDerivedKey: string | null; // Derived key for blockchain/token operations
     initializeWallet: () => Promise<void>;
     setIsAuthenticated: (value: boolean) => void;
     isAuthenticated: boolean | null;
@@ -18,6 +20,8 @@ type authContextType = {
 const AuthContext = createContext<authContextType>({
     userWallet: null,
     userPubKey: null,
+    userIdentityKey: null,
+    userDerivedKey: null,
     initializeWallet: async () => { },
     setIsAuthenticated: () => { },
     isAuthenticated: null,
@@ -25,7 +29,9 @@ const AuthContext = createContext<authContextType>({
 });
 export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => {
     const [userWallet, setUserWallet] = useState<authContextType['userWallet']>(null);
-    const [userPubKey, setUserPubKey] = useState<authContextType['userPubKey']>(null);
+    const [userPubKey, setUserPubKey] = useState<authContextType['userPubKey']>(null); // DEPRECATED
+    const [userIdentityKey, setUserIdentityKey] = useState<string | null>(null); // Non-derived
+    const [userDerivedKey, setUserDerivedKey] = useState<string | null>(null); // Derived
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
     const checkAuth = useCallback(async (): Promise<boolean> => {
@@ -64,14 +70,22 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                 return;
             }
 
-            const { publicKey } = await newWallet.getPublicKey({
+            // Get identity key (non-derived) for database operations and user ID
+            const { publicKey: identityKey } = await newWallet.getPublicKey({
+                identityKey: true,
+            });
+
+            // Get derived key for blockchain operations (tokens, transactions)
+            const { publicKey: derivedKey } = await newWallet.getPublicKey({
                 protocolID: [0, "monsterbattle"],
                 keyID: "0",
             });
 
             // Only update state once everything is fetched
             setUserWallet(newWallet);
-            setUserPubKey(publicKey);
+            setUserIdentityKey(identityKey);
+            setUserDerivedKey(derivedKey);
+            setUserPubKey(derivedKey); // Keep for backward compatibility (DEPRECATED)
             toast.success('Wallet connected successfully', {
                 duration: 5000,
                 position: 'top-center',
@@ -92,7 +106,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
     }, [initializeWallet]);
 
     return (
-        <AuthContext.Provider value={{ userWallet, userPubKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth }}>
+        <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth }}>
             {children}
         </AuthContext.Provider>
     );

@@ -18,6 +18,12 @@ interface InventoryMaterial {
   tier: 1 | 2 | 3 | 4 | 5;
   isEmpowered?: boolean;
   borderGradient: { color1: string; color2: string };
+  quantity: number; // For material tokens (1 for regular materials)
+  isMinted: boolean;
+  tokenId?: string;
+  transactionId?: string;
+  isMaterialToken: boolean;
+  materialTokenId?: string;
 }
 
 export default function MaterialSelectionModal({ recipe, onClose, onCraft }: MaterialSelectionModalProps) {
@@ -47,7 +53,13 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
             lootTableId: item.lootId,
             tier: item.tier || 1,
             isEmpowered: item.isEmpowered,
-            borderGradient: item.borderGradient
+            borderGradient: item.borderGradient,
+            quantity: item.quantity || 1, // Material tokens have quantity, regular items are 1
+            isMinted: item.isMinted || false,
+            tokenId: item.tokenId,
+            transactionId: item.transactionId,
+            isMaterialToken: item.isMaterialToken || false,
+            materialTokenId: item.materialTokenId
           }));
 
         setUserMaterials(materials);
