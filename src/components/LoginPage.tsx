@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { WalletClient } from '@bsv/sdk';
+import { useAuthContext } from '@/contexts/WalletContext';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { initializeWallet, userPubKey, userWallet } = useAuthContext();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -15,21 +16,30 @@ export default function LoginPage() {
   const isManualLoginValid = username.trim().length > 0 && identityKey.trim().length >= 32;
 
   const handleLoginWithWallet = async () => {
-    const walletClient = new WalletClient("auto", "monster-battle-game");
-    const isConnected = await walletClient.isAuthenticated();
-    if (!isConnected) {
-      toast.error('Failed to connect to your wallet');
-      return;
-    }
     setIsLoading(true);
-
     const loadingToast = toast.loading('Connecting wallet...');
 
     try {
-      const { publicKey } = await walletClient.getPublicKey({ identityKey: true });
+      // Initialize wallet using context
+      await initializeWallet();
+
+      // Wait a tick for state to update, then get fresh values
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Access wallet from context to get public key directly
+      if (!userWallet) {
+        throw new Error('Wallet not initialized');
+      }
+
+      const { publicKey } = await userWallet.getPublicKey({
+        protocolID: [0, "monsterbattle"],
+        keyID: "0",
+      });
+
       if (!publicKey) {
         throw new Error('Failed to get wallet public key');
       }
+
       const walletUsername = username.trim() || 'Wallet User';
 
       const response = await fetch('/api/login', {

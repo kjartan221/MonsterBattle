@@ -1,0 +1,128 @@
+import {
+     LockingScript,
+     ScriptTemplate,
+     Transaction,
+     UnlockingScript,
+     Hash,
+     OP,
+     Utils,
+     WalletInterface,
+     Script,
+     TransactionSignature,
+     Signature,
+     PublicKey
+ } from "@bsv/sdk";
+import { calculatePreimage } from "./createPreimage";
+
+export class OrdinalsP2PKH implements ScriptTemplate {
+    lock(
+        address: string | number[], // Just pubkey of user to send token to
+        assetId: string, // AssetID = txid_vout
+        data: Record<string, any>, // Dropped loot data
+        type: "deploy+mint" | "transfer"
+    ): LockingScript {
+        let pubKeyHash: number[];
+        if (typeof address === "string") {
+            pubKeyHash = Hash.hash160(address, "hex")
+        } else {
+            pubKeyHash = address;
+        }
+
+        // For inscriptions, we always have 1 token per item
+        let inscription: any;
+        if (type === "deploy+mint") {
+            inscription = {
+                p: "bsv-20",
+                op: type,
+                amt: 1,
+            }
+        } else {
+            inscription = {
+                p: "bsv-20",
+                op: type,
+                amt: 1,
+                id: assetId,
+            }
+        }
+
+        // Add metadata headers for ordinal standard
+        const metadata = {
+            "app": "monsterbattle",
+            "type": "ord",
+        }
+        const combined = {...metadata, ...data};
+
+        const jsonString = JSON.stringify(inscription);
+        const ordinalMetadataJson = JSON.stringify(combined);
+        const lockingScript = new LockingScript();
+        lockingScript
+            // Write inscription
+            .writeOpCode(OP.OP_0)
+            .writeOpCode(OP.OP_IF)
+            .writeBin(Utils.toArray('ord', 'utf8'))
+            .writeOpCode(OP.OP_1)
+            .writeBin(Utils.toArray('application/bsv-20', 'utf8'))
+            .writeOpCode(OP.OP_0)
+            .writeBin(Utils.toArray(jsonString, 'utf8'))
+            .writeOpCode(OP.OP_ENDIF)
+            // Write single signature lockingScript
+            .writeOpCode(OP.OP_DUP)
+            .writeOpCode(OP.OP_HASH160)
+            .writeBin(pubKeyHash)
+            .writeOpCode(OP.OP_EQUALVERIFY)
+            .writeOpCode(OP.OP_CHECKSIG)
+            // Token metadata
+            .writeOpCode(OP.OP_RETURN)
+            .writeBin(Utils.toArray(ordinalMetadataJson, "utf8"));
+
+        return lockingScript;
+    }
+
+    unlock(
+        wallet: WalletInterface,
+        signOutputs: "all" | "none" | "single" = "all",
+        anyoneCanPay = false,
+        sourceSatoshis?: number,
+        lockingScript?: Script,
+    ): {
+        sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>;
+        estimateLength: () => Promise<number>;
+    } {
+        return {
+            sign: async (tx: Transaction, inputIndex: number) => {
+                 const { preimage, signatureScope } = calculatePreimage(tx, inputIndex, signOutputs, anyoneCanPay, sourceSatoshis, lockingScript);
+
+                // include the pattern from BRC-29
+                const { signature } = await wallet.createSignature({
+                    hashToDirectlySign: Hash.hash256(preimage),
+                    protocolID: [0, "monsterbattle"],
+                    keyID: "0",
+                    counterparty: 'self'
+                })
+
+                console.log({ signature })
+
+                const { publicKey } = await wallet.getPublicKey({
+                    protocolID: [0, "monsterbattle"],
+                    keyID: "0",
+                    counterparty: 'self'
+                })
+
+                const rawSignature = Signature.fromDER(signature, 'hex')
+                const sig = new TransactionSignature(
+                    rawSignature.r,
+                    rawSignature.s,
+                    signatureScope
+                );
+                const unlockScript = new UnlockingScript();
+                unlockScript.writeBin(sig.toChecksigFormat());
+                unlockScript.writeBin(
+                    PublicKey.fromString(publicKey).encode(true) as number[]
+                );
+
+                return unlockScript;
+            },
+            estimateLength: async () => 108,
+        }
+    }
+}

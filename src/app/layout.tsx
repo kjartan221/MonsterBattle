@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { AuthContextProvider } from "@/contexts/WalletContext";
 import { PlayerProvider } from "@/contexts/PlayerContext";
 import { BiomeProvider } from "@/contexts/BiomeContext";
 import { EquipmentProvider } from "@/contexts/EquipmentContext";
@@ -33,41 +34,43 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PlayerProvider>
-          <BiomeProvider>
-            <EquipmentProvider>
-              <ChallengeProvider>
-                <GameStateProvider>
-                  {children}
-                  <Toaster
-                    position="top-center"
-                    toastOptions={{
-                      duration: 4000,
-                      style: {
-                        background: '#1f2937',
-                        color: '#fff',
-                        borderRadius: '0.5rem',
-                        padding: '1rem',
-                      },
-                      success: {
-                        iconTheme: {
-                          primary: '#10b981',
-                          secondary: '#fff',
+        <AuthContextProvider>
+          <PlayerProvider>
+            <BiomeProvider>
+              <EquipmentProvider>
+                <ChallengeProvider>
+                  <GameStateProvider>
+                    {children}
+                    <Toaster
+                      position="top-center"
+                      toastOptions={{
+                        duration: 4000,
+                        style: {
+                          background: '#1f2937',
+                          color: '#fff',
+                          borderRadius: '0.5rem',
+                          padding: '1rem',
                         },
-                      },
-                      error: {
-                        iconTheme: {
-                          primary: '#ef4444',
-                          secondary: '#fff',
+                        success: {
+                          iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#fff',
+                          },
                         },
-                      },
-                    }}
-                  />
-                </GameStateProvider>
-              </ChallengeProvider>
-            </EquipmentProvider>
-          </BiomeProvider>
-        </PlayerProvider>
+                        error: {
+                          iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                          },
+                        },
+                      }}
+                    />
+                  </GameStateProvider>
+                </ChallengeProvider>
+              </EquipmentProvider>
+            </BiomeProvider>
+          </PlayerProvider>
+        </AuthContextProvider>
       </body>
     </html>
   );

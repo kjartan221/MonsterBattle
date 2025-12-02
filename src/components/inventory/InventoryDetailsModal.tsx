@@ -7,6 +7,11 @@ import { tierToRoman } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import { getInscribedItemName } from '@/utils/itemNameHelpers';
 import type { Inscription } from '@/lib/types';
+import { useMintItemNFT } from '@/hooks/useMintItemNFT';
+import { useCreateMaterialToken } from '@/hooks/useCreateMaterialToken';
+import { useUpdateMaterialToken } from '@/hooks/useUpdateMaterialToken';
+import { useAuthContext } from '@/contexts/WalletContext';
+import MaterialMintModal from './MaterialMintModal';
 
 interface InventoryDetailsModalProps {
   item: LootItem & {
@@ -31,8 +36,19 @@ interface InventoryDetailsModalProps {
 }
 
 export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: InventoryDetailsModalProps) {
-  const [isMinting, setIsMinting] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [isMintingMaterial, setIsMintingMaterial] = useState(false);
+
+  // Blockchain minting hooks and wallet context
+  const { mintItemNFT, isMinting, error: mintError } = useMintItemNFT();
+  const { createMaterialToken, isCreating } = useCreateMaterialToken();
+  const { updateMaterialToken, isUpdating } = useUpdateMaterialToken();
+  const { userWallet, isAuthenticated, initializeWallet } = useAuthContext();
+
+  // Detect if this is a material item
+  const isMaterial = item.type === 'material';
 
   const rarityColors = {
     common: 'text-gray-400 border-gray-400',
@@ -41,28 +57,172 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     legendary: 'text-amber-400 border-amber-400'
   };
 
-  const handleMintNFT = async () => {
-    setIsMinting(true);
-    const mintingToast = toast.loading('Connecting to wallet...');
+  const handleConnectWallet = async () => {
+    setIsConnectingWallet(true);
+    try {
+      await initializeWallet();
+    } catch (error) {
+      console.error('Wallet connection error:', error);
+    } finally {
+      setIsConnectingWallet(false);
+    }
+  };
+
+  const handleMaterialMint = async (quantity: number) => {
+    setIsMintingMaterial(true);
+    const mintingToast = toast.loading('Checking existing tokens...');
 
     try {
-      const response = await fetch('/api/mint-nft', {
+      // Check wallet connection
+      if (!userWallet) {
+        throw new Error('Wallet not connected. Please connect your BSV wallet first.');
+      }
+
+      if (!isAuthenticated) {
+        throw new Error('Wallet not authenticated. Please authenticate your wallet.');
+      }
+
+      // Check if this material+tier already has a token
+      const checkResponse = await fetch('/api/materials/check-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          inventoryId: item.inventoryId,
+          lootTableId: item.lootId,
+          tier: item.tier || 1,
         }),
       });
 
-      const data = await response.json();
+      const checkData = await checkResponse.json();
+      const existingToken = checkData.exists ? checkData.token : null;
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to mint NFT');
+      if (existingToken) {
+        // Token exists - update quantity
+        toast.loading('Updating existing token...', { id: mintingToast });
+
+        const updateResult = await updateMaterialToken({
+          wallet: userWallet,
+          updates: [{
+            name: 'material_token',
+            lootTableId: item.lootId,
+            itemName: item.name,
+            description: item.description,
+            icon: item.icon,
+            rarity: item.rarity,
+            tier: item.tier || 1,
+            currentTokenId: existingToken.tokenId,
+            currentQuantity: existingToken.quantity,
+            operation: 'add',
+            quantity: quantity,
+            reason: 'Minting additional materials from inventory',
+          }],
+        });
+
+        if (!updateResult.success || !updateResult.results[0]?.success) {
+          throw new Error(updateResult.error || updateResult.results[0]?.error || 'Failed to update material token');
+        }
+
+        toast.success(`Token updated! Added ${quantity} to existing ${item.name}`, {
+          id: mintingToast,
+          duration: 5000
+        });
+
+      } else {
+        // Token doesn't exist - create new
+        toast.loading('Creating new material token...', { id: mintingToast });
+
+        const createResult = await createMaterialToken({
+          wallet: userWallet,
+          materials: [{
+            name: 'material_token',
+            lootTableId: item.lootId,
+            itemName: item.name,
+            description: item.description,
+            icon: item.icon,
+            rarity: item.rarity,
+            tier: item.tier || 1,
+            quantity: quantity,
+          }],
+        });
+
+        if (!createResult.success || !createResult.results[0]?.success) {
+          throw new Error(createResult.error || createResult.results[0]?.error || 'Failed to create material token');
+        }
+
+        toast.success(`Material token created! Minted ${quantity}x ${item.name}`, {
+          id: mintingToast,
+          duration: 5000
+        });
       }
 
-      toast.success('NFT minting started! Your item will be ready soon.', { id: mintingToast });
+      // Call the callback to refresh inventory
+      if (onMintSuccess) {
+        onMintSuccess();
+      }
+
+      // Close modals after successful minting
+      setShowMaterialModal(false);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Material minting error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to mint material token', { id: mintingToast });
+    } finally {
+      setIsMintingMaterial(false);
+    }
+  };
+
+  const handleMintNFT = async () => {
+    const mintingToast = toast.loading('Connecting to wallet...');
+
+    try {
+      // Check wallet connection
+      if (!userWallet) {
+        throw new Error('Wallet not connected. Please connect your BSV wallet first.');
+      }
+
+      if (!isAuthenticated) {
+        throw new Error('Wallet not authenticated. Please authenticate your wallet.');
+      }
+
+      toast.loading('Preparing NFT metadata...', { id: mintingToast });
+
+      // Prepare item data for blockchain minting
+      const itemData = {
+        inventoryItemId: item.inventoryId,
+        lootTableId: item.lootId,
+        name: item.name,
+        description: item.description,
+        icon: item.icon,
+        rarity: item.rarity,
+        type: item.type as 'weapon' | 'armor' | 'consumable' | 'artifact', // Exclude material type
+        tier: item.tier || 1,
+        equipmentStats: item.equipmentStats ? { ...item.equipmentStats } as Record<string, number> : undefined,
+        prefix: item.prefix?.name,
+        suffix: item.suffix?.name,
+        borderGradient: item.borderGradient || { color1: '#ffffff', color2: '#cccccc' },
+        acquiredFrom: undefined, // TODO: Add provenance data if available in the future
+      };
+
+      toast.loading('Creating blockchain transaction...', { id: mintingToast });
+
+      // Call the blockchain minting hook
+      const result = await mintItemNFT({
+        wallet: userWallet,
+        itemData,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to mint NFT');
+      }
+
+      toast.success(`NFT minted successfully! TX: ${result.transactionId?.slice(0, 8)}...`, {
+        id: mintingToast,
+        duration: 5000
+      });
 
       // Call the callback to refresh inventory
       if (onMintSuccess) {
@@ -77,8 +237,6 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     } catch (error) {
       console.error('Minting error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to mint NFT', { id: mintingToast });
-    } finally {
-      setIsMinting(false);
     }
   };
 
@@ -328,15 +486,58 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
                     </div>
                   </div>
                 </div>
+
+                {/* Wallet Connection Status */}
+                {!userWallet || !isAuthenticated ? (
+                  <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-amber-400 text-lg">⚠️</span>
+                      <span className="text-amber-300 font-medium text-sm">Wallet Not Connected</span>
+                    </div>
+                    <div className="text-amber-200 text-xs mb-3">
+                      You need to connect your BSV wallet to mint items as NFTs. The wallet will be used to sign the blockchain transaction.
+                    </div>
+                    <button
+                      onClick={handleConnectWallet}
+                      disabled={isConnectingWallet}
+                      className={`w-full text-white text-sm font-medium py-2 px-4 rounded transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                        isConnectingWallet
+                          ? 'bg-amber-800 cursor-not-allowed'
+                          : 'bg-amber-600 hover:bg-amber-700'
+                      }`}
+                    >
+                      {isConnectingWallet ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Connecting...</span>
+                        </>
+                      ) : (
+                        'Connect Wallet'
+                      )}
+                    </button>
+                  </div>
+                ) : null}
+
                 <button
-                  onClick={handleMintNFT}
-                  disabled={isMinting}
+                  onClick={isMaterial ? () => setShowMaterialModal(true) : handleMintNFT}
+                  disabled={isMinting || !userWallet || !isAuthenticated}
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                 >
                   {isMinting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Connecting to Wallet...</span>
+                      <span>Minting on Blockchain...</span>
+                    </>
+                  ) : !userWallet || !isAuthenticated ? (
+                    <>
+                      <span>🔒</span>
+                      <span>Connect Wallet to Mint</span>
+                    </>
+                  ) : isMaterial ? (
+                    <>
+                      <span>💎</span>
+                      <span>Mint Material Token</span>
+                      <span className="text-sm opacity-80">(costs BSV)</span>
                     </>
                   ) : (
                     <>
@@ -440,6 +641,20 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           Close
         </button>
       </div>
+
+      {/* Material Mint Modal */}
+      {showMaterialModal && (
+        <MaterialMintModal
+          materialName={item.name}
+          tier={item.tier || 1}
+          totalCount={item.count || 1}
+          icon={item.icon}
+          rarity={item.rarity}
+          onConfirm={handleMaterialMint}
+          onCancel={() => setShowMaterialModal(false)}
+          isProcessing={isMintingMaterial}
+        />
+      )}
     </div>
   );
 }

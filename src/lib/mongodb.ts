@@ -1,5 +1,5 @@
 import { MongoClient, ServerApiVersion, Db, Collection } from 'mongodb';
-import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats } from './types';
+import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken } from './types';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please add your MONGODB_URI to .env file');
@@ -43,6 +43,7 @@ export const COLLECTIONS = {
   USER_INVENTORY: 'user_inventory',
   BATTLE_SESSIONS: 'battle_sessions',
   PLAYER_STATS: 'player_stats',
+  MATERIAL_TOKENS: 'material_tokens',
 } as const;
 
 // Database and collections cache
@@ -53,6 +54,7 @@ let nftLootCollection: Collection<NFTLoot> | null = null;
 let userInventoryCollection: Collection<UserInventory> | null = null;
 let battleSessionsCollection: Collection<BattleSession> | null = null;
 let playerStatsCollection: Collection<PlayerStats> | null = null;
+let materialTokensCollection: Collection<MaterialToken> | null = null;
 let collectionsInitialized = false;
 
 // Connect to MongoDB and initialize collections
@@ -73,6 +75,7 @@ async function connectToMongo() {
       userInventoryCollection = db.collection<UserInventory>(COLLECTIONS.USER_INVENTORY);
       battleSessionsCollection = db.collection<BattleSession>(COLLECTIONS.BATTLE_SESSIONS);
       playerStatsCollection = db.collection<PlayerStats>(COLLECTIONS.PLAYER_STATS);
+      materialTokensCollection = db.collection<MaterialToken>(COLLECTIONS.MATERIAL_TOKENS);
 
       // Only create indexes once (not on every connection)
       if (!collectionsInitialized) {
@@ -114,6 +117,13 @@ async function connectToMongo() {
           playerStatsCollection.createIndex({ userId: 1 }, { unique: true }),
           playerStatsCollection.createIndex({ level: 1 }),
           playerStatsCollection.createIndex({ currentZone: 1, currentTier: 1 }),
+
+          // Material Tokens indexes
+          materialTokensCollection.createIndex({ userId: 1 }),
+          materialTokensCollection.createIndex({ lootTableId: 1 }),
+          materialTokensCollection.createIndex({ userId: 1, lootTableId: 1 }),
+          materialTokensCollection.createIndex({ tokenId: 1 }),
+          materialTokensCollection.createIndex({ consumed: 1 }),
         ]);
 
         collectionsInitialized = true;
@@ -136,7 +146,8 @@ async function connectToMongo() {
     nftLootCollection: nftLootCollection!,
     userInventoryCollection: userInventoryCollection!,
     battleSessionsCollection: battleSessionsCollection!,
-    playerStatsCollection: playerStatsCollection!
+    playerStatsCollection: playerStatsCollection!,
+    materialTokensCollection: materialTokensCollection!
   };
 }
 
@@ -178,4 +189,9 @@ export async function getBattleSessionsCollection() {
 export async function getPlayerStatsCollection() {
   const { playerStatsCollection } = await connectToMongo();
   return playerStatsCollection;
+}
+
+export async function getMaterialTokensCollection() {
+  const { materialTokensCollection } = await connectToMongo();
+  return materialTokensCollection;
 }

@@ -352,3 +352,30 @@ export interface BattleSessionFrontend {
   actualBattleStartedAt?: Date | string; // When user clicked "Start Battle" button
   completedAt?: Date | string;
 }
+
+// Material Token document (for tracking blockchain material tokens with quantities)
+export interface MaterialToken {
+  _id?: ObjectId;
+  userId: string;          // Reference to User.userId
+  lootTableId: string;     // Reference to loot-table.ts (e.g., "iron_ore")
+  itemName: string;        // Material name (e.g., "Iron Ore")
+  tokenId: string;         // Blockchain token ID (format: "txid.vout")
+  transactionId: string;   // BSV transaction ID
+  quantity: number;        // Current quantity of this material
+  metadata?: Record<string, any>; // Token metadata
+  consumed?: boolean;      // True if token was burned (quantity reached 0)
+  consumedAt?: Date;       // When token was burned
+  consumeTransactionId?: string; // Transaction ID of burn
+  previousTokenId?: string; // Previous token ID (for update history)
+  lastTransactionId?: string; // Most recent transaction ID
+  updateHistory?: Array<{  // History of all quantity updates
+    operation: 'add' | 'subtract' | 'set';
+    previousQuantity: number;
+    newQuantity: number;
+    transactionId: string;
+    reason?: string;
+    timestamp: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
