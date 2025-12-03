@@ -11,6 +11,7 @@ import MaterialSelectionModal from './MaterialSelectionModal';
 import { getStatRollQuality } from '@/utils/statRollUtils';
 import { useCraftItemNFT } from '@/hooks/useCraftItemNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
+import NavigationButtons from '@/components/navigation/NavigationButtons';
 
 type Category = 'all' | 'weapon' | 'armor' | 'consumable' | 'artifact';
 
@@ -359,15 +360,6 @@ export default function CraftingPage() {
     return colors[rarity as keyof typeof colors] || colors.common;
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/logout', { method: 'POST' });
-      router.push('/');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -380,41 +372,23 @@ export default function CraftingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">🔨 Crafting Workshop</h1>
-            <p className="text-gray-400">Combine materials to create powerful items</p>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => router.push('/blacksmith')}
-              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              🔨 Blacksmith
-            </button>
-            <button
-              onClick={() => router.push('/battle')}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              ⚔️ Battle
-            </button>
-            <button
-              onClick={() => router.push('/inventory')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              📦 Inventory
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              Logout
-            </button>
-          </div>
+      <div className="max-w-7xl mx-auto mb-6">
+        {/* Title Section */}
+        <div className="mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">⚒️ Crafting Workshop</h1>
+          <p className="text-gray-400">Combine materials to create powerful items</p>
         </div>
+
+        {/* Navigation Bar */}
+        <NavigationButtons
+          showMarketplace
+          showBlacksmith
+          showInventory
+          showBattle
+          showLogout
+        />
       </div>
 
       {/* Category Tabs */}

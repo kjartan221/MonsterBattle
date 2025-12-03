@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LootItem } from '@/lib/loot-table';
 import InventoryDetailsModal from './InventoryDetailsModal';
+import NavigationButtons from '@/components/navigation/NavigationButtons';
 import toast from 'react-hot-toast';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
@@ -105,16 +106,6 @@ export default function InventoryPage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/logout', { method: 'POST' });
-      toast.success('Logged out successfully');
-      router.push('/');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      toast.error('Failed to logout');
-    }
-  };
 
   const getRarityColor = (rarity: string) => {
     const colors = {
@@ -148,43 +139,25 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Your Treasure Chest</h1>
-            <p className="text-gray-400">
-              {inventory.length} {inventory.length === 1 ? 'item' : 'items'} collected
-            </p>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => router.push('/blacksmith')}
-              className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              🔨 Blacksmith
-            </button>
-            <button
-              onClick={() => router.push('/crafting')}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              ⚒️ Crafting
-            </button>
-            <button
-              onClick={() => router.push('/battle')}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              ⚔️ Battle
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              Logout
-            </button>
-          </div>
+      <div className="max-w-7xl mx-auto mb-6">
+        {/* Title Section */}
+        <div className="mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">📦 Your Treasure Chest</h1>
+          <p className="text-gray-400">
+            {inventory.length} {inventory.length === 1 ? 'item' : 'items'} collected
+          </p>
         </div>
+
+        {/* Navigation Bar */}
+        <NavigationButtons
+          showMarketplace
+          showBlacksmith
+          showCrafting
+          showBattle
+          showLogout
+        />
       </div>
 
       {/* Chest container */}

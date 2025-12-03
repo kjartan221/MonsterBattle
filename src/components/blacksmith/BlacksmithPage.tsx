@@ -9,6 +9,7 @@ import { getInscribedItemName, getInscriptionStatLabel, formatInscriptionStat, g
 import type { Inscription } from '@/lib/types';
 import { useUpdateEquipmentNFT } from '@/hooks/useUpdateEquipmentNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
+import NavigationButtons from '@/components/navigation/NavigationButtons';
 
 interface InventoryItem {
   _id: string;
@@ -280,35 +281,22 @@ export default function BlacksmithPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">🔨 Blacksmith</h1>
-            <p className="text-gray-400">Apply inscriptions to your equipment</p>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => router.push('/inventory')}
-              className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              📦 Inventory
-            </button>
-            <button
-              onClick={() => router.push('/crafting')}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              🔨 Crafting
-            </button>
-            <button
-              onClick={() => router.push('/battle')}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              ⚔️ Battle
-            </button>
-          </div>
+        {/* Title Section */}
+        <div className="mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">🔨 Blacksmith</h1>
+          <p className="text-gray-400">Apply inscriptions to your equipment</p>
         </div>
+
+        {/* Navigation Bar */}
+        <NavigationButtons
+          showMarketplace
+          showInventory
+          showCrafting
+          showBattle
+        />
       </div>
 
       {/* Main Content */}

@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { BiomeId, Tier } from './biome-config';
+import { EquipmentStats } from './loot-table';
 
 // ========== MongoDB Documents (Backend) ==========
 
@@ -378,4 +379,48 @@ export interface MaterialToken {
   }>;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Marketplace Item document (for trading items between players)
+export interface MarketplaceItem {
+  _id?: ObjectId;
+  sellerId: string;           // Reference to User.userId
+  sellerUsername: string;     // Seller's username for display
+
+  // Item reference (ONLY NFT items or material tokens)
+  inventoryItemId?: string;   // Reference to UserInventory._id (for NFT equipment/consumables)
+  materialTokenId?: string;   // Reference to MaterialToken._id (for material tokens)
+
+  // Item data (duplicated for query performance)
+  lootTableId: string;        // Reference to loot-table.ts
+  itemName: string;           // Item name
+  itemIcon: string;           // Emoji icon
+  itemType: ItemType;         // Type of item
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  tier?: number;              // Item tier (1-5)
+
+  // NFT-specific data
+  tokenId?: string;           // Blockchain token ID (if NFT)
+  transactionId?: string;     // Blockchain transaction ID
+
+  // Material token specific
+  quantity?: number;          // Quantity (for material tokens)
+
+  // Pricing
+  price: number;              // Price in satoshis (BSV)
+
+  // Status
+  status: 'active' | 'sold' | 'cancelled';
+  listedAt: Date;
+  soldAt?: Date;
+  soldTo?: string;            // Buyer's userId
+  cancelledAt?: Date;
+
+  // Additional metadata (for equipment items)
+  equipmentStats?: EquipmentStats;  // Base stats from loot table
+  crafted?: boolean;          // True if item was crafted
+  statRoll?: number;          // Stat roll multiplier (0.8 to 1.2) - frontend calculates: stats * statRoll
+  isEmpowered?: boolean;      // True if dropped by corrupted monster (+20% stats)
+  prefix?: any;               // Prefix inscription
+  suffix?: any;               // Suffix inscription
 }

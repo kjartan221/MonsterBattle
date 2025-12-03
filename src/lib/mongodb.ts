@@ -1,5 +1,5 @@
 import { MongoClient, ServerApiVersion, Db, Collection } from 'mongodb';
-import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken } from './types';
+import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken, MarketplaceItem } from './types';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please add your MONGODB_URI to .env file');
@@ -44,6 +44,7 @@ export const COLLECTIONS = {
   BATTLE_SESSIONS: 'battle_sessions',
   PLAYER_STATS: 'player_stats',
   MATERIAL_TOKENS: 'material_tokens',
+  MARKETPLACE_ITEMS: 'marketplace_items',
 } as const;
 
 // Database and collections cache
@@ -55,6 +56,7 @@ let userInventoryCollection: Collection<UserInventory> | null = null;
 let battleSessionsCollection: Collection<BattleSession> | null = null;
 let playerStatsCollection: Collection<PlayerStats> | null = null;
 let materialTokensCollection: Collection<MaterialToken> | null = null;
+let marketplaceItemsCollection: Collection<MarketplaceItem> | null = null;
 let collectionsInitialized = false;
 
 // Connect to MongoDB and initialize collections
@@ -76,6 +78,7 @@ async function connectToMongo() {
       battleSessionsCollection = db.collection<BattleSession>(COLLECTIONS.BATTLE_SESSIONS);
       playerStatsCollection = db.collection<PlayerStats>(COLLECTIONS.PLAYER_STATS);
       materialTokensCollection = db.collection<MaterialToken>(COLLECTIONS.MATERIAL_TOKENS);
+      marketplaceItemsCollection = db.collection<MarketplaceItem>(COLLECTIONS.MARKETPLACE_ITEMS);
 
       // Only create indexes once (not on every connection)
       if (!collectionsInitialized) {
@@ -124,6 +127,15 @@ async function connectToMongo() {
           materialTokensCollection.createIndex({ userId: 1, lootTableId: 1 }),
           materialTokensCollection.createIndex({ tokenId: 1 }),
           materialTokensCollection.createIndex({ consumed: 1 }),
+
+          // Marketplace Items indexes
+          marketplaceItemsCollection.createIndex({ sellerId: 1 }),
+          marketplaceItemsCollection.createIndex({ status: 1 }),
+          marketplaceItemsCollection.createIndex({ status: 1, listedAt: -1 }), // Active listings by date
+          marketplaceItemsCollection.createIndex({ itemType: 1, status: 1 }), // Filter by type
+          marketplaceItemsCollection.createIndex({ rarity: 1, status: 1 }), // Filter by rarity
+          marketplaceItemsCollection.createIndex({ tier: 1, status: 1 }), // Filter by tier
+          marketplaceItemsCollection.createIndex({ itemName: 1 }), // Regular index for name search
         ]);
 
         collectionsInitialized = true;
@@ -147,7 +159,8 @@ async function connectToMongo() {
     userInventoryCollection: userInventoryCollection!,
     battleSessionsCollection: battleSessionsCollection!,
     playerStatsCollection: playerStatsCollection!,
-    materialTokensCollection: materialTokensCollection!
+    materialTokensCollection: materialTokensCollection!,
+    marketplaceItemsCollection: marketplaceItemsCollection!
   };
 }
 
@@ -194,4 +207,9 @@ export async function getPlayerStatsCollection() {
 export async function getMaterialTokensCollection() {
   const { materialTokensCollection } = await connectToMongo();
   return materialTokensCollection;
+}
+
+export async function getMarketplaceItemsCollection() {
+  const { marketplaceItemsCollection } = await connectToMongo();
+  return marketplaceItemsCollection;
 }

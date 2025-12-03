@@ -25,6 +25,7 @@ import LootItemDetailsModal from '@/components/battle/LootItemDetailsModal';
 import ChallengeSettingsModal from '@/components/battle/ChallengeSettingsModal';
 import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
+import NavigationButtons from '@/components/navigation/NavigationButtons';
 
 export default function BattlePage() {
   const router = useRouter();
@@ -287,21 +288,6 @@ export default function BattlePage() {
     }
   }, [spellSlot.spellId, castSpell, healHealth, applyBuff, playerStats, equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2]);
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        router.push('/');
-      }
-    } catch (err) {
-      console.error('Error logging out:', err);
-      toast.error('Failed to logout');
-    }
-  };
-
   // Show loading only on initial page load
   if (statsLoading) {
     return (
@@ -398,18 +384,11 @@ export default function BattlePage() {
 
       {/* Navigation Buttons - Top Right (responsive sizing) */}
       <div className="absolute top-4 right-4 flex gap-2">
-        <button
-          onClick={() => router.push('/inventory')}
-          className="px-3 py-2 md:px-4 text-sm md:text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
-        >
-          📦 <span className="hidden sm:inline">Inventory</span>
-        </button>
-        <button
-          onClick={handleLogout}
-          className="px-3 py-2 md:px-4 text-sm md:text-base bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg cursor-pointer"
-        >
-          <span className="hidden sm:inline">Logout</span><span className="sm:hidden">🚪</span>
-        </button>
+        <NavigationButtons
+          showMarketplace
+          showInventory
+          showLogout
+        />
       </div>
 
       {/* Monster Battle Section - Center */}
