@@ -846,9 +846,9 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🗡️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'dragon_fang', quantity: 8 },
-      { lootTableId: 'demon_horn', quantity: 5 },
-      { lootTableId: 'rare_steel', quantity: 10 },
+      { lootTableId: 'dragon_fang', quantity: 4 },
+      { lootTableId: 'demon_horn', quantity: 3 },
+      { lootTableId: 'rare_steel', quantity: 5 },
       { lootTableId: 'soul_stone', quantity: 1 }
     ],
     output: { lootTableId: 'vorpal_blade', quantity: 1 },
@@ -863,11 +863,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🔱',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'leviathan_scale', quantity: 10 },
+      { lootTableId: 'leviathan_scale', quantity: 5 },
       { lootTableId: 'ocean_heart', quantity: 2 },
-      { lootTableId: 'serpent_scale', quantity: 12 },
-      { lootTableId: 'lightning_core', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 10 }
+      { lootTableId: 'serpent_scale', quantity: 6 },
+      { lootTableId: 'lightning_core', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 5 }
     ],
     output: { lootTableId: 'tidal_reaver', quantity: 1 },
     rarity: 'legendary',
@@ -881,11 +881,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '⚔️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'ancient_dragon_scale', quantity: 12 },
+      { lootTableId: 'ancient_dragon_scale', quantity: 6 },
       { lootTableId: 'dragon_soul', quantity: 2 },
-      { lootTableId: 'drake_scale', quantity: 10 },
-      { lootTableId: 'golem_core', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 10 }
+      { lootTableId: 'drake_scale', quantity: 5 },
+      { lootTableId: 'golem_core', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 5 }
     ],
     output: { lootTableId: 'infernal_claymore', quantity: 1 },
     rarity: 'legendary',
@@ -900,10 +900,10 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     category: 'weapon',
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 1 },
-      { lootTableId: 'void_essence', quantity: 8 },
-      { lootTableId: 'necrotic_essence', quantity: 10 },
-      { lootTableId: 'dark_crystal', quantity: 8 },
-      { lootTableId: 'dark_steel', quantity: 12 }
+      { lootTableId: 'void_essence', quantity: 4 },
+      { lootTableId: 'necrotic_essence', quantity: 5 },
+      { lootTableId: 'dark_crystal', quantity: 4 },
+      { lootTableId: 'dark_steel', quantity: 6 }
     ],
     output: { lootTableId: 'reaper_scythe', quantity: 1 },
     rarity: 'legendary',
@@ -920,9 +920,9 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
       { lootTableId: 'soul_stone', quantity: 2 },
       { lootTableId: 'phoenix_feather', quantity: 3 },
       { lootTableId: 'dragon_heart', quantity: 2 },
-      { lootTableId: 'rare_steel', quantity: 12 },
-      { lootTableId: 'rare_gem', quantity: 10 },
-      { lootTableId: 'millennium_root', quantity: 5 }
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 5 },
+      { lootTableId: 'millennium_root', quantity: 3 }
     ],
     output: { lootTableId: 'excalibur', quantity: 1 },
     rarity: 'legendary',
@@ -935,11 +935,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🗡️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'vampire_blood', quantity: 12 },
+      { lootTableId: 'vampire_blood', quantity: 6 },
       { lootTableId: 'blood_chalice', quantity: 1 },
-      { lootTableId: 'demon_horn', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 10 },
-      { lootTableId: 'rare_gem', quantity: 10 },
+      { lootTableId: 'demon_horn', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 5 },
+      { lootTableId: 'rare_gem', quantity: 5 },
       { lootTableId: 'crimson_crown', quantity: 1 }
     ],
     output: { lootTableId: 'scarlet_dagger', quantity: 1 },
@@ -987,10 +987,10 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'dragon_scale', quantity: 12 },
-      { lootTableId: 'rare_steel', quantity: 10 },
+      { lootTableId: 'dragon_scale', quantity: 6 },
+      { lootTableId: 'rare_steel', quantity: 5 },
       { lootTableId: 'treant_heart', quantity: 3 },
-      { lootTableId: 'demon_horn', quantity: 5 }
+      { lootTableId: 'demon_horn', quantity: 3 }
     ],
     output: { lootTableId: 'titans_armor', quantity: 1 },
     rarity: 'legendary',
@@ -1004,11 +1004,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'leviathan_scale', quantity: 10 },
+      { lootTableId: 'leviathan_scale', quantity: 5 },
       { lootTableId: 'ocean_heart', quantity: 1 },
-      { lootTableId: 'serpent_scale', quantity: 12 },
-      { lootTableId: 'frozen_scale', quantity: 10 },
-      { lootTableId: 'rare_steel', quantity: 10 }
+      { lootTableId: 'serpent_scale', quantity: 6 },
+      { lootTableId: 'frozen_scale', quantity: 5 },
+      { lootTableId: 'rare_steel', quantity: 5 }
     ],
     output: { lootTableId: 'abyssal_plate', quantity: 1 },
     rarity: 'legendary',
@@ -1022,11 +1022,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'ancient_dragon_scale', quantity: 12 },
+      { lootTableId: 'ancient_dragon_scale', quantity: 6 },
       { lootTableId: 'dragon_soul', quantity: 1 },
-      { lootTableId: 'drake_scale', quantity: 10 },
-      { lootTableId: 'golem_core', quantity: 10 },
-      { lootTableId: 'rare_steel', quantity: 10 }
+      { lootTableId: 'drake_scale', quantity: 5 },
+      { lootTableId: 'golem_core', quantity: 5 },
+      { lootTableId: 'rare_steel', quantity: 5 }
     ],
     output: { lootTableId: 'dragonlord_armor', quantity: 1 },
     rarity: 'legendary',
@@ -1041,10 +1041,10 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     category: 'armor',
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 1 },
-      { lootTableId: 'void_essence', quantity: 8 },
-      { lootTableId: 'necrotic_essence', quantity: 10 },
-      { lootTableId: 'dark_steel', quantity: 12 },
-      { lootTableId: 'bone_shard', quantity: 12 }
+      { lootTableId: 'void_essence', quantity: 4 },
+      { lootTableId: 'necrotic_essence', quantity: 5 },
+      { lootTableId: 'dark_steel', quantity: 6 },
+      { lootTableId: 'bone_shard', quantity: 6 }
     ],
     output: { lootTableId: 'dreadlord_plate', quantity: 1 },
     rarity: 'legendary',
@@ -1123,11 +1123,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🥷',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'fairy_wing', quantity: 12 },
-      { lootTableId: 'pixie_dust', quantity: 12 },
-      { lootTableId: 'void_essence', quantity: 8 },
+      { lootTableId: 'fairy_wing', quantity: 6 },
+      { lootTableId: 'pixie_dust', quantity: 6 },
+      { lootTableId: 'void_essence', quantity: 4 },
       { lootTableId: 'soul_stone', quantity: 2 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'shadowdancer_silk', quantity: 1 },
     rarity: 'legendary',
@@ -1140,11 +1140,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'dragon_scale', quantity: 12 },
+      { lootTableId: 'dragon_scale', quantity: 6 },
       { lootTableId: 'treant_heart', quantity: 3 },
-      { lootTableId: 'golem_core', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 12 },
-      { lootTableId: 'demon_horn', quantity: 6 }
+      { lootTableId: 'golem_core', quantity: 4 },
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'demon_horn', quantity: 3 }
     ],
     output: { lootTableId: 'fortress_plate', quantity: 1 },
     rarity: 'legendary',
@@ -1157,10 +1157,10 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '👑',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'dragon_scale', quantity: 10 },
+      { lootTableId: 'dragon_scale', quantity: 5 },
       { lootTableId: 'phoenix_feather', quantity: 3 },
-      { lootTableId: 'rare_steel', quantity: 10 },
-      { lootTableId: 'rare_gem', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 5 },
+      { lootTableId: 'rare_gem', quantity: 4 },
       { lootTableId: 'soul_stone', quantity: 1 }
     ],
     output: { lootTableId: 'warlords_regalia', quantity: 1 },
@@ -1217,6 +1217,23 @@ const CRAFT_ONLY_CONSUMABLE_RECIPES: CraftingRecipe[] = [
     output: { lootTableId: 'phoenix_tear', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 20
+  },
+  {
+    recipeId: 'craft_refine_stone',
+    name: 'Refine Stone',
+    description: 'Rerolls stat quality on crafted equipment',
+    icon: '💎',
+    category: 'consumable',
+    requiredMaterials: [
+      { lootTableId: 'soul_stone', quantity: 1 },
+      { lootTableId: 'dragon_heart', quantity: 1 },
+      { lootTableId: 'ancient_dragon_scale', quantity: 3 },
+      { lootTableId: 'void_essence', quantity: 3 },
+      { lootTableId: 'rare_gem', quantity: 5 }
+    ],
+    output: { lootTableId: 'refine_stone', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
   }
 ];
 
@@ -1261,8 +1278,8 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'soul_stone', quantity: 3 },
       { lootTableId: 'chaos_orb', quantity: 1 },
-      { lootTableId: 'phoenix_feather', quantity: 5 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'phoenix_feather', quantity: 3 },
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'infinity_amulet', quantity: 1 },
     rarity: 'legendary',
@@ -1278,9 +1295,9 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'ocean_heart', quantity: 3 },
       { lootTableId: 'tidal_orb', quantity: 1 },
-      { lootTableId: 'lightning_core', quantity: 8 },
-      { lootTableId: 'serpent_scale', quantity: 12 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'lightning_core', quantity: 4 },
+      { lootTableId: 'serpent_scale', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'maelstrom_pendant', quantity: 1 },
     rarity: 'legendary',
@@ -1296,9 +1313,9 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'dragon_soul', quantity: 3 },
       { lootTableId: 'dragon_amulet', quantity: 1 },
-      { lootTableId: 'golem_core', quantity: 10 },
-      { lootTableId: 'drake_claw', quantity: 12 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'golem_core', quantity: 5 },
+      { lootTableId: 'drake_claw', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'volcanic_heart', quantity: 1 },
     rarity: 'legendary',
@@ -1314,9 +1331,9 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 2 },
       { lootTableId: 'death_orb', quantity: 1 },
-      { lootTableId: 'void_essence', quantity: 10 },
-      { lootTableId: 'dark_crystal', quantity: 10 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'void_essence', quantity: 5 },
+      { lootTableId: 'dark_crystal', quantity: 5 },
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'crown_of_eternity', quantity: 1 },
     rarity: 'legendary',
@@ -1411,11 +1428,11 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     icon: '💀',
     category: 'artifact',
     requiredMaterials: [
-      { lootTableId: 'void_essence', quantity: 10 },
-      { lootTableId: 'demon_horn', quantity: 8 },
+      { lootTableId: 'void_essence', quantity: 5 },
+      { lootTableId: 'demon_horn', quantity: 4 },
       { lootTableId: 'soul_stone', quantity: 3 },
       { lootTableId: 'lich_crown', quantity: 1 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'heart_of_reaper', quantity: 1 },
     rarity: 'legendary',
@@ -1428,8 +1445,8 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     icon: '🔷',
     category: 'artifact',
     requiredMaterials: [
-      { lootTableId: 'rare_gem', quantity: 12 },
-      { lootTableId: 'spirit_crystal', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 6 },
+      { lootTableId: 'spirit_crystal', quantity: 5 },
       { lootTableId: 'phoenix_feather', quantity: 3 },
       { lootTableId: 'soul_stone', quantity: 2 }
     ],
@@ -1444,11 +1461,11 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'artifact',
     requiredMaterials: [
-      { lootTableId: 'dragon_scale', quantity: 12 },
+      { lootTableId: 'dragon_scale', quantity: 6 },
       { lootTableId: 'treant_heart', quantity: 3 },
-      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'golem_core', quantity: 5 },
       { lootTableId: 'soul_stone', quantity: 2 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'aegis_of_titans', quantity: 1 },
     rarity: 'legendary',
@@ -1461,11 +1478,11 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     icon: '⚙️',
     category: 'artifact',
     requiredMaterials: [
-      { lootTableId: 'golem_core', quantity: 10 },
-      { lootTableId: 'dragon_scale', quantity: 10 },
-      { lootTableId: 'rare_steel', quantity: 12 },
-      { lootTableId: 'demon_horn', quantity: 6 },
-      { lootTableId: 'rare_gem', quantity: 10 }
+      { lootTableId: 'golem_core', quantity: 5 },
+      { lootTableId: 'dragon_scale', quantity: 5 },
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'demon_horn', quantity: 3 },
+      { lootTableId: 'rare_gem', quantity: 5 }
     ],
     output: { lootTableId: 'bastion_core', quantity: 1 },
     rarity: 'legendary',

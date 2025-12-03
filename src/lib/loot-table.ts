@@ -246,6 +246,7 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
   { lootId: 'heart_crystal', name: 'Heart Crystal', icon: '💎', description: 'Ancient crystal pulsing with life (+12% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, healBonus: 12 } },
   { lootId: 'lifebringers_crown', name: 'Lifebringer\'s Crown', icon: '👑', description: 'Crown of the eternal healer (+15% heal)', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, healBonus: 15, defense: 10 } },
   { lootId: 'spell_scroll_earthquake', name: 'Earthquake Scroll', icon: '📜', description: 'Unlocks Earthquake spell - Massive earth damage + stun', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'earthquake', spellName: 'Earthquake', cooldown: 45, damage: 140, debuffType: 'stun', debuffValue: 100, duration: 4, effect: 'Massive earth damage + stun' } },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 // Sand Scorpion Specific Loot (Desert Tier 1, Common Monster)
@@ -305,6 +306,7 @@ const DESERT_PHOENIX_SPECIFIC: LootItem[] = [
   { lootId: 'phoenix_plate', name: 'Phoenix Flame Plate', icon: '🛡️', description: 'Armor of rebirth', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 65 } },
   { lootId: 'eternal_flame_orb', name: 'Eternal Flame Orb', icon: '🔮', description: 'Contains the phoenix\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, critChance: 18, coinBonus: 75 } },
   { lootId: 'spell_scroll_phoenix_fire', name: 'Phoenix Fire Scroll', icon: '📜', description: 'Unlocks Phoenix Fire spell - Massive fire damage + burn + self-heal', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'phoenix_fire', spellName: 'Phoenix Fire', cooldown: 50, damage: 180, healing: 40, debuffType: 'burn', debuffValue: 15, debuffDamageType: 'flat', duration: 10, effect: 'Massive fire damage + burn + heal' } },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 // === OCEAN BIOME LOOT (Phase 2.4) ===
@@ -373,6 +375,7 @@ const LEVIATHAN_SPECIFIC: LootItem[] = [
   { lootId: 'leviathan_armor', name: 'Leviathan Plate', icon: '🛡️', description: 'Unbreakable defense', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 22, maxHpBonus: 50 } },
   { lootId: 'tidal_orb', name: 'Tidal Orb', icon: '🔮', description: 'Controls water itself', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, critChance: 15, coinBonus: 60 } },
   { lootId: 'spell_scroll_tsunami', name: 'Tsunami Scroll', icon: '📜', description: 'Unlocks Tsunami spell - Massive water damage + slow', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'tsunami', spellName: 'Tsunami', cooldown: 45, damage: 120, debuffType: 'slow', debuffValue: 75, duration: 10, effect: 'Massive water damage + slow' } },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 // === VOLCANO BIOME LOOT (Phase 2.4) ===
@@ -440,6 +443,7 @@ const ANCIENT_DRAGON_SPECIFIC: LootItem[] = [
   { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection - ancient scales retaliate fiercely', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 60, thorns: 18 } },
   { lootId: 'dragon_amulet', name: 'Dragon Amulet', icon: '💎', description: 'Grants dragon\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, maxHpBonus: 45, critChance: 16 } },
   { lootId: 'spell_scroll_meteor', name: 'Meteor Scroll', icon: '📜', description: 'Unlocks Meteor spell - Devastating impact + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'meteor', spellName: 'Meteor Strike', cooldown: 40, damage: 150, debuffType: 'burn', debuffValue: 20, debuffDamageType: 'flat', duration: 12, effect: 'Massive fire damage + burn' } },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 // === CASTLE BIOME LOOT (Phase 2.4) ===
@@ -507,6 +511,7 @@ const LICH_KING_SPECIFIC: LootItem[] = [
   { lootId: 'lich_plate', name: 'Lich King\'s Plate', icon: '🛡️', description: 'Eternal protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70 } },
   { lootId: 'death_orb', name: 'Orb of Eternal Death', icon: '🔮', description: 'Controls life and death', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 20, coinBonus: 80 } },
   { lootId: 'spell_scroll_death', name: 'Death Comet Scroll', icon: '📜', description: 'Unlocks Death Comet spell - Ultimate dark damage + bleed + self-empower', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'death_comet', spellName: 'Death Comet', cooldown: 50, damage: 200, buffType: 'damage_boost', buffValue: 25, duration: 15, debuffType: 'bleed', debuffValue: 18, debuffDamageType: 'flat', effect: 'Massive dark damage + bleed + damage boost' } },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 // ============================
@@ -550,6 +555,7 @@ const CRAFT_ONLY_CONSUMABLES: LootItem[] = [
   { lootId: 'concentrated_elixir', name: 'Concentrated Elixir', icon: '⚗️', description: 'Restores 75 HP', rarity: 'rare', type: 'consumable', cooldown: 12, healing: 75 },
   { lootId: 'transmutation_potion', name: 'Transmutation Potion', icon: '🧪', description: 'Restores 50 HP + grants 30s damage buff', rarity: 'epic', type: 'consumable', cooldown: 15, healing: 50 },
   { lootId: 'phoenix_tear', name: 'Phoenix Tear', icon: '💧', description: 'Fully restores HP', rarity: 'legendary', type: 'consumable', cooldown: 25, healing: 999 },
+  { lootId: 'refine_stone', name: 'Refine Stone', icon: '💎', description: 'Rerolls stat quality on crafted equipment (0.8-1.2x multiplier)', rarity: 'legendary', type: 'consumable' },
 ];
 
 const CRAFT_ONLY_ARTIFACTS: LootItem[] = [

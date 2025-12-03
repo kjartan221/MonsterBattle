@@ -58,7 +58,7 @@ export default function BiomeMapWidget({
   };
 
   return (
-    <div className="fixed top-4 left-2 sm:left-4 z-50 w-[calc(100vw-1rem)] sm:w-auto max-w-[320px]">
+    <div className="fixed top-4 left-2 sm:left-4 z-50 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
       {/* Collapsed View - Show current biome */}
       {!isExpanded && selectedBiome && selectedTier && (
         <button

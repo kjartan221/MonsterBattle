@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import { tierToRoman } from '@/utils/tierUtils';
@@ -40,6 +40,9 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [isMintingMaterial, setIsMintingMaterial] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [showRefineConfirm, setShowRefineConfirm] = useState(false);
+  const [refineStoneCount, setRefineStoneCount] = useState(0);
 
   // Blockchain minting hooks and wallet context
   const { mintItemNFT, isMinting, error: mintError } = useMintItemNFT();
@@ -49,6 +52,24 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
 
   // Detect if this is a material item
   const isMaterial = item.type === 'material';
+
+  // Fetch refine stone count on mount (for crafted equipment)
+  const isRefinable = item.crafted && item.statRoll !== undefined &&
+    (item.type === 'weapon' || item.type === 'armor' || item.type === 'artifact');
+
+  React.useEffect(() => {
+    if (isRefinable) {
+      fetch('/api/inventory/get')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const refineStones = data.inventory.filter((invItem: any) => invItem.lootTableId === 'refine_stone');
+            setRefineStoneCount(refineStones.length);
+          }
+        })
+        .catch(err => console.error('Failed to fetch refine stone count:', err));
+    }
+  }, [isRefinable]);
 
   const rarityColors = {
     common: 'text-gray-400 border-gray-400',
@@ -293,6 +314,80 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
     return costs[rarity] || 500;
   };
 
+  // Handle refine stone usage
+  const handleRefine = async () => {
+    setShowRefineConfirm(false);
+    setIsRefining(true);
+    const refiningToast = toast.loading('Refining equipment...');
+
+    try {
+      // Get first refine stone from inventory
+      const inventoryRes = await fetch('/api/inventory/get');
+      const inventoryData = await inventoryRes.json();
+
+      if (!inventoryData.success) {
+        throw new Error('Failed to fetch inventory');
+      }
+
+      const refineStone = inventoryData.inventory.find((invItem: any) => invItem.lootTableId === 'refine_stone');
+      if (!refineStone) {
+        throw new Error('No refine stone found in inventory');
+      }
+
+      const response = await fetch('/api/crafting/refine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetItemId: item.inventoryId,
+          refineStoneId: refineStone._id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to refine item');
+      }
+
+      const oldPercent = Math.round((data.oldStatRoll - 0.8) / 0.4 * 100);
+      const rolledPercent = Math.round((data.rolledStatRoll - 0.8) / 0.4 * 100);
+      const finalPercent = Math.round((data.finalStatRoll - 0.8) / 0.4 * 100);
+
+      if (data.wasUpgraded) {
+        toast.success(
+          `${data.targetItem.name} refined! ${oldPercent}% → ${finalPercent}% quality`,
+          { id: refiningToast, duration: 5000 }
+        );
+      } else {
+        toast.success(
+          `${data.targetItem.name} refined! Rolled ${rolledPercent}%, kept ${finalPercent}% (no downgrade)`,
+          { id: refiningToast, duration: 5000 }
+        );
+      }
+
+      // Update refine stone count
+      setRefineStoneCount(prev => prev - 1);
+
+      // Call the callback to refresh inventory
+      if (onMintSuccess) {
+        onMintSuccess();
+      }
+
+      // Close modal after successful refinement
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Refinement error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to refine item', { id: refiningToast });
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   const typeLabels = {
     weapon: 'Weapon',
     armor: 'Armor',
@@ -460,6 +555,54 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
                       Stat Quality:
                     </div>
                     <StatRangeIndicator statRoll={item.statRoll} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Refine System (for crafted equipment) */}
+          {isRefinable && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Refine Equipment</span>
+
+              <div className="space-y-3">
+                <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-lg">💎</span>
+                    <span className="text-gray-300 font-medium text-sm">Stat Refinement</span>
+                  </div>
+                  <div className="text-gray-400 text-xs leading-relaxed">
+                    Use a <span className="font-bold text-white">Refine Stone</span> to reroll this item's stat variance. Guarantees a minimum of <span className="font-bold text-green-400">+1% quality boost</span> per use.
+                  </div>
+                  <div className="text-gray-400 text-xs">
+                    <div>💎 Available: <span className="text-white font-bold">{refineStoneCount} Refine Stones</span></div>
+                  </div>
+                </div>
+
+                {refineStoneCount > 0 ? (
+                  <button
+                    onClick={() => setShowRefineConfirm(true)}
+                    disabled={isRefining}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {isRefining ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Refining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>💎</span>
+                        <span>Refine Equipment</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                    <div className="text-red-400 text-xs text-center">
+                      No Refine Stones available. Craft them in the Crafting menu.
+                    </div>
                   </div>
                 )}
               </div>
@@ -747,6 +890,54 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           onCancel={() => setShowMaterialModal(false)}
           isProcessing={isMintingMaterial}
         />
+      )}
+
+      {/* Refine Confirmation Modal */}
+      {showRefineConfirm && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border-2 border-blue-500 max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-3">💎</div>
+              <h3 className="text-xl font-bold text-white mb-2">Refine Equipment?</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                This will consume <span className="font-bold text-white">1 Refine Stone</span> and reroll the stat variance on <span className="font-bold text-blue-400">{getInscribedItemName(item.name, item.prefix, item.suffix)}</span>.
+              </p>
+            </div>
+
+            <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 mb-6 space-y-2">
+              <div className="text-gray-300 text-sm">
+                <span className="font-bold text-green-400">How it works:</span>
+              </div>
+              <div className="text-gray-400 text-xs leading-relaxed">
+                • Rolls new stat variance (0.8x - 1.2x base stats)
+              </div>
+              <div className="text-gray-400 text-xs leading-relaxed">
+                • Guarantees minimum <span className="font-bold text-green-400">+1% quality boost</span> per use
+              </div>
+              <div className="text-gray-400 text-xs leading-relaxed">
+                • Never downgrades your item
+              </div>
+              <div className="text-gray-400 text-xs leading-relaxed mt-2">
+                Current Quality: <span className="font-bold text-white">{Math.round(((item.statRoll || 0.8) - 0.8) / 0.4 * 100)}%</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRefineConfirm(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRefine}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition-all cursor-pointer"
+              >
+                Refine
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

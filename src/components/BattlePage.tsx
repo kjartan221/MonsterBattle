@@ -21,6 +21,7 @@ import Hotbar from '@/components/battle/Hotbar';
 import HotbarSelectionModal from '@/components/battle/HotbarSelectionModal';
 import QuickActionsBar from '@/components/battle/QuickActionsBar';
 import MonsterManualModal from '@/components/battle/MonsterManualModal';
+import GuidebookModal from '@/components/battle/GuidebookModal';
 import LootItemDetailsModal from '@/components/battle/LootItemDetailsModal';
 import ChallengeSettingsModal from '@/components/battle/ChallengeSettingsModal';
 import { LootItem } from '@/lib/loot-table';
@@ -55,6 +56,7 @@ export default function BattlePage() {
 
   // Quick Actions modal states
   const [showMonsterManual, setShowMonsterManual] = useState(false);
+  const [showGuidebook, setShowGuidebook] = useState(false);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [selectedLootItem, setSelectedLootItem] = useState<LootItem | null>(null);
 
@@ -119,6 +121,14 @@ export default function BattlePage() {
 
   const handleCloseMonsterManual = () => {
     setShowMonsterManual(false);
+  };
+
+  const handleOpenGuidebook = () => {
+    setShowGuidebook(true);
+  };
+
+  const handleCloseGuidebook = () => {
+    setShowGuidebook(false);
   };
 
   const handleOpenChallengeModal = () => {
@@ -352,6 +362,7 @@ export default function BattlePage() {
       {/* Quick Actions Bar - Below BiomeMapWidget */}
       <QuickActionsBar
         onMonsterManualClick={handleOpenMonsterManual}
+        onGuidebookClick={handleOpenGuidebook}
         onChallengeClick={handleOpenChallengeModal}
         disabled={false}
       />
@@ -440,6 +451,13 @@ export default function BattlePage() {
         <MonsterManualModal
           onClose={handleCloseMonsterManual}
           onItemClick={handleLootItemClick}
+        />
+      )}
+
+      {/* Guidebook Modal */}
+      {showGuidebook && (
+        <GuidebookModal
+          onClose={handleCloseGuidebook}
         />
       )}
 
