@@ -11,7 +11,9 @@ export interface TotalEquipmentStats {
   attackSpeed: number;
   coinBonus: number;
   healBonus: number;
-  lifesteal: number;      // Phase 2.5: % of damage dealt returned as HP
+  lifesteal: number;      // Phase 2.5: % of damage dealt returned as HP (offensive)
+  defensiveLifesteal: number; // % of damage taken returned as HP (defensive)
+  thorns: number;         // % of damage taken reflected back to monster (uses pre-mitigation damage)
   autoClickRate: number;  // Phase 2.5: auto-hits per second (stacks)
 }
 
@@ -34,6 +36,8 @@ export function calculateTotalEquipmentStats(
     coinBonus: 0,
     healBonus: 0,
     lifesteal: 0,
+    defensiveLifesteal: 0,
+    thorns: 0,
     autoClickRate: 0
   };
 
@@ -56,13 +60,15 @@ export function calculateTotalEquipmentStats(
       coinBonus: baseStats.coinBonus || 0,
       healBonus: baseStats.healBonus || 0,
       lifesteal: baseStats.lifesteal || 0,
+      defensiveLifesteal: baseStats.defensiveLifesteal || 0,
+      thorns: baseStats.thorns || 0,
       autoClickRate: baseStats.autoClickRate || 0
     };
 
     const scaledStats = scaleItemStats(statsToScale, itemTier);
 
     // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
-    // Round UP for most stats to avoid floats, but keep lifesteal and autoClickRate precise
+    // Round UP for most stats to avoid floats, but keep lifesteal/defensiveLifesteal/thorns/autoClickRate precise
     let currentStats = { ...scaledStats };
     if (item.isEmpowered) {
       currentStats = {
@@ -74,6 +80,8 @@ export function calculateTotalEquipmentStats(
         coinBonus: Math.ceil(scaledStats.coinBonus * 1.2),
         healBonus: Math.ceil(scaledStats.healBonus * 1.2),
         lifesteal: scaledStats.lifesteal * 1.2, // Keep precise for % calculation
+        defensiveLifesteal: scaledStats.defensiveLifesteal * 1.2, // Keep precise for % calculation
+        thorns: scaledStats.thorns * 1.2, // Keep precise for % calculation
         autoClickRate: scaledStats.autoClickRate * 1.2 // Keep precise for interval calculation
       };
     }
@@ -90,8 +98,10 @@ export function calculateTotalEquipmentStats(
     stats.attackSpeed += currentStats.attackSpeed + inscriptionBonuses.attackSpeed;
     stats.coinBonus += currentStats.coinBonus + inscriptionBonuses.coinBonus;
     stats.healBonus += currentStats.healBonus + inscriptionBonuses.healBonus;
-    stats.lifesteal += currentStats.lifesteal; // No inscription type for lifesteal yet
-    stats.autoClickRate += currentStats.autoClickRate; // No inscription type for autoClickRate yet
+    stats.lifesteal += currentStats.lifesteal + inscriptionBonuses.lifesteal;
+    stats.defensiveLifesteal += currentStats.defensiveLifesteal + inscriptionBonuses.defensiveLifesteal;
+    stats.thorns += currentStats.thorns + inscriptionBonuses.thorns;
+    stats.autoClickRate += currentStats.autoClickRate + inscriptionBonuses.autoClickRate;
   }
 
   return stats;
@@ -117,6 +127,8 @@ function applyInscriptionBonuses(
     coinBonus: 0,
     healBonus: 0,
     lifesteal: 0,
+    defensiveLifesteal: 0,
+    thorns: 0,
     autoClickRate: 0
   };
 
@@ -164,6 +176,12 @@ function addInscriptionBonus(
       break;
     case 'lifesteal':
       stats.lifesteal += inscription.value;
+      break;
+    case 'defensiveLifesteal':
+      stats.defensiveLifesteal += inscription.value;
+      break;
+    case 'thorns':
+      stats.thorns += inscription.value;
       break;
     case 'autoclick':
       stats.autoClickRate += inscription.value;

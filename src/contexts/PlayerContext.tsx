@@ -151,11 +151,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * that depend on this function (useMonsterAttack, useDebuffs)
    */
   const takeDamage = useCallback(async (amount: number) => {
+    console.log(`[PlayerContext takeDamage] Called with amount: ${amount}`);
+
     // Use functional setState to avoid stale state issues and dependency on playerStats
     setPlayerStats((prevStats) => {
-      if (!prevStats) return prevStats;
+      if (!prevStats) {
+        console.log(`[PlayerContext takeDamage] prevStats is null, returning`);
+        return prevStats;
+      }
 
       const newHealth = Math.max(0, prevStats.currentHealth - amount);
+      console.log(`[PlayerContext takeDamage] Updating HP: ${prevStats.currentHealth} -> ${newHealth}`);
 
       if (newHealth === 0) {
         toast.error('You have been defeated!');
@@ -175,11 +181,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    *
    * @param amount - Amount of HP to heal
    * @param maxHpBonus - Optional equipment max HP bonus (default: 0)
+   *
    */
   const healHealth = useCallback(async (amount: number, maxHpBonus: number = 0) => {
-    if (!playerStats) return;
-
-    // Use functional setState to avoid stale state issues
+    // Use functional setState to avoid stale state issues and dependency on playerStats
     setPlayerStats((prevStats) => {
       if (!prevStats) return prevStats;
 
@@ -194,7 +199,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentHealth: newHealth,
       };
     });
-  }, [playerStats]);
+  }, []); // Empty dependency array - function uses functional setState
 
   const addCoins = async (amount: number) => {
     if (!playerStats) return;

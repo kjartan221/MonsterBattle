@@ -472,6 +472,99 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
             <p className="text-white text-sm leading-relaxed">{item.description}</p>
           </div>
 
+          {/* Equipment Stats */}
+          {item.equipmentStats && (
+            <div className="pb-3 border-b border-gray-700">
+              <span className="text-gray-400 text-sm font-medium block mb-2">Equipment Stats</span>
+              <div className="bg-gray-800/50 rounded-lg p-3 space-y-1">
+                {item.equipmentStats.damageBonus !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Damage Bonus:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.damageBonus}</span>
+                  </div>
+                )}
+                {item.equipmentStats.critChance !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Crit Chance:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.critChance}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.defense !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Defense:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.defense}</span>
+                  </div>
+                )}
+                {item.equipmentStats.maxHpBonus !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Max HP Bonus:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.maxHpBonus}</span>
+                  </div>
+                )}
+                {item.equipmentStats.attackSpeed !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Attack Speed:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}</span>
+                  </div>
+                )}
+                {item.equipmentStats.coinBonus !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Coin Bonus:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.coinBonus}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.healBonus !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Heal Bonus:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.healBonus}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.lifesteal !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Lifesteal (Offense):</span>
+                    <span className="text-red-400 font-bold">+{item.equipmentStats.lifesteal}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.defensiveLifesteal !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Tank Heal (Defense):</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.defensiveLifesteal}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.thorns !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Thorns (Reflect):</span>
+                    <span className="text-orange-400 font-bold">+{item.equipmentStats.thorns}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.autoClickRate !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Auto-Click Rate:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.autoClickRate}/sec</span>
+                  </div>
+                )}
+                {item.equipmentStats.fireResistance !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Fire Resistance:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.fireResistance}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.poisonResistance !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Poison Resistance:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.poisonResistance}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.bleedResistance !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Bleed Resistance:</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.bleedResistance}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* NFT Status */}
           <div className="pb-3 border-b border-gray-700">
             <span className="text-gray-400 text-sm font-medium block mb-2">NFT Status</span>

@@ -127,8 +127,20 @@ export default function LootItemDetailsModal({ item, onClose }: LootItemDetailsM
                 )}
                 {item.equipmentStats.lifesteal !== undefined && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Lifesteal:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.lifesteal}%</span>
+                    <span className="text-gray-300">Lifesteal (Offense):</span>
+                    <span className="text-red-400 font-bold">+{item.equipmentStats.lifesteal}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.defensiveLifesteal !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Tank Heal (Defense):</span>
+                    <span className="text-green-400 font-bold">+{item.equipmentStats.defensiveLifesteal}%</span>
+                  </div>
+                )}
+                {item.equipmentStats.thorns !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Thorns (Reflect):</span>
+                    <span className="text-orange-400 font-bold">+{item.equipmentStats.thorns}%</span>
                   </div>
                 )}
                 {item.equipmentStats.autoClickRate !== undefined && (

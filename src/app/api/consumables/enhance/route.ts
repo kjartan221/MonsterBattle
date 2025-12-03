@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -23,23 +24,18 @@ import { getLootItemById } from '@/lib/loot-table';
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const token = request.cookies.get('token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('verified')?.value;
+
     if (!token) {
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const decoded = await verifyJWT(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    const userId = decoded.userId as string;
+    const payload = await verifyJWT(token);
+    const userId = payload.userId;
 
     // Parse request body
     const body = await request.json();
@@ -134,11 +130,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Count duplicates of the same consumable (same lootTableId and tier)
+    // Count duplicates of the same consumable (same lootTableId only)
+    // Note: We ignore tier and empowered status because consumables don't have equipment stats
+    // Any tier/empowered combination of the same consumable counts as a duplicate
     const duplicates = await userInventoryCollection.find({
       userId,
       lootTableId: targetItem.lootTableId,
-      tier: targetItem.tier,
       itemType: 'consumable',
       enhanced: { $ne: true } // Don't count already enhanced items
     }).toArray();

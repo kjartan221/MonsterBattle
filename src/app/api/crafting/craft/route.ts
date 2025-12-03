@@ -165,6 +165,30 @@ export async function POST(request: NextRequest) {
               : undefined,
             coinBonus: outputLootItem.equipmentStats.coinBonus !== undefined
               ? Math.round(outputLootItem.equipmentStats.coinBonus * statRoll)
+              : undefined,
+            healBonus: outputLootItem.equipmentStats.healBonus !== undefined
+              ? Math.round(outputLootItem.equipmentStats.healBonus * statRoll)
+              : undefined,
+            lifesteal: outputLootItem.equipmentStats.lifesteal !== undefined
+              ? Math.round(outputLootItem.equipmentStats.lifesteal * statRoll)
+              : undefined,
+            defensiveLifesteal: outputLootItem.equipmentStats.defensiveLifesteal !== undefined
+              ? Math.round(outputLootItem.equipmentStats.defensiveLifesteal * statRoll)
+              : undefined,
+            thorns: outputLootItem.equipmentStats.thorns !== undefined
+              ? Math.round(outputLootItem.equipmentStats.thorns * statRoll)
+              : undefined,
+            autoClickRate: outputLootItem.equipmentStats.autoClickRate !== undefined
+              ? Math.round(outputLootItem.equipmentStats.autoClickRate * statRoll * 100) / 100 // Preserve decimals for autoClickRate
+              : undefined,
+            fireResistance: outputLootItem.equipmentStats.fireResistance !== undefined
+              ? Math.round(outputLootItem.equipmentStats.fireResistance * statRoll)
+              : undefined,
+            poisonResistance: outputLootItem.equipmentStats.poisonResistance !== undefined
+              ? Math.round(outputLootItem.equipmentStats.poisonResistance * statRoll)
+              : undefined,
+            bleedResistance: outputLootItem.equipmentStats.bleedResistance !== undefined
+              ? Math.round(outputLootItem.equipmentStats.bleedResistance * statRoll)
               : undefined
           };
         }

@@ -60,7 +60,9 @@ export type InscriptionType =
   | 'haste'       // +attackSpeed
   | 'fortune'     // +coinBonus
   | 'healing'     // +healBonus
-  | 'lifesteal'   // +lifesteal (legendary only, boss drops)
+  | 'lifesteal'   // +lifesteal (offensive, legendary only, boss drops)
+  | 'defensiveLifesteal'  // +defensiveLifesteal (defensive, legendary only, boss drops)
+  | 'thorns'      // +thorns (defensive reflect, legendary only, boss drops)
   | 'autoclick';  // +autoClickRate (legendary only, boss drops)
 
 // Inscription data structure (stored in loot-table.ts for inscription scrolls)

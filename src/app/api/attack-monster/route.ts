@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount, totalDamage, usedItems, currentShieldHP, damageReductionPercent, actualHealing, invulnerabilityTimeMs, summonDamage } = body;
+    const { sessionId, clickCount, totalDamage, usedItems, currentShieldHP, damageReductionPercent, actualHealing, invulnerabilityTimeMs, summonDamage, thornsDamage } = body;
 
     // Validate input
     if (!sessionId || typeof clickCount !== 'number' || typeof totalDamage !== 'number') {
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     const reportedHealing = typeof actualHealing === 'number' ? actualHealing : 0;
     const invulnerabilityMs = typeof invulnerabilityTimeMs === 'number' ? invulnerabilityTimeMs : 0;
     const reportedSummonDamage = typeof summonDamage === 'number' ? summonDamage : 0;
+    const reportedThornsDamage = typeof thornsDamage === 'number' ? thornsDamage : 0;
 
     // Convert sessionId string to ObjectId
     let sessionObjectId: ObjectId;
@@ -230,6 +231,9 @@ export async function POST(request: NextRequest) {
     console.log(`  Monster: ${damagePerHit} dmg/hit (${equipmentStats.defense} defense → ${actualReductionPercent}% reduction), ${attackInterval}ms interval, ${numberOfAttacks} attacks = ${monsterDamage} damage`);
     console.log(`  Summons: ${reportedSummonDamage} damage (not reduced by armor)`);
     console.log(`  Total base: ${totalBaseDamage} damage`);
+    if (reportedThornsDamage > 0) {
+      console.log(`  Thorns (reflection): ${reportedThornsDamage} damage dealt to monster`);
+    }
     if (damageReduction > 0) {
       console.log(`  → After ${damageReduction}% damage reduction: ${expectedDamage} damage`);
     }
@@ -249,24 +253,35 @@ export async function POST(request: NextRequest) {
     const usedItemsArray = Array.isArray(usedItems) ? usedItems : [];
 
     // Calculate expected HP after battle (including equipment max HP bonuses)
-    const totalMaxHP = Math.floor(playerStats.maxHealth + equipmentStats.maxHpBonus * 1.2); // 20% tolerance
+    const totalMaxHP = playerStats.maxHealth + equipmentStats.maxHpBonus;
     const expectedHP = totalMaxHP - expectedDamage + totalHealing;
 
+    // Apply 20% tolerance to account for state update timing issues
+    // Player is considered dead only if expectedHP < -(totalMaxHP * 0.20)
+    // This allows minor discrepancies in close fights due to heal state updates
+    const hpTolerance = Math.floor(totalMaxHP * 0.20);
+    const hpThreshold = -hpTolerance;
+
     console.log(`HP Verification - Base Max HP: ${playerStats.maxHealth}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
+    console.log(`  → 20% tolerance: ${hpTolerance} HP buffer (threshold: ${hpThreshold} HP)`);
     if (shieldHP > 0 || damageReduction > 0) {
       console.log(`  Buff protection: ${shieldHP} shield HP, ${damageReduction}% damage reduction`);
     }
 
-    // If player should have died, they're cheating
-    if (expectedHP <= 0) {
+    // If player should have died (beyond tolerance), they're cheating
+    if (expectedHP < hpThreshold) {
       console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
+      console.warn(`   Expected HP: ${expectedHP} (below threshold: ${hpThreshold} with 20% tolerance)`);
       console.warn(`   Total Max HP: ${totalMaxHP} (base: ${playerStats.maxHealth} + equipment: ${equipmentStats.maxHpBonus})`);
       console.warn(`   Active time: ${(activeAttackTimeMs / 1000).toFixed(2)}s (${invulnerabilityMs}ms invulnerable)`);
       console.warn(`   Defense: ${equipmentStats.defense} (→ ${actualReductionPercent}% damage reduction)`);
       console.warn(`   Monster damage: ${numberOfAttacks} attacks × ${damagePerHit} dmg/hit = ${monsterDamage}`);
       console.warn(`   Summon damage: ${reportedSummonDamage} (not reduced by defense)`);
       console.warn(`   Total damage: ${expectedDamage} (after ${shieldHP} shield, ${damageReduction}% reduction buff)`);
-      console.warn(`   Healing used: ${totalHealing}`);
+      console.warn(`   Healing used: ${totalHealing} (includes defensive lifesteal)`);
+      if (reportedThornsDamage > 0) {
+        console.warn(`   Thorns damage dealt to monster: ${reportedThornsDamage}`);
+      }
 
       // End the battle session (mark as defeated, no loot)
       const now = new Date();
@@ -495,6 +510,12 @@ export async function POST(request: NextRequest) {
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
     console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks (${totalDamage} damage) in ${timeInSeconds.toFixed(2)}s`);
+    if (reportedThornsDamage > 0) {
+      console.log(`   🔱 Thorns damage: ${reportedThornsDamage}`);
+    }
+    if (reportedHealing > 0) {
+      console.log(`   💚 Total healing: ${reportedHealing} (includes defensive lifesteal + consumables + offensive lifesteal)`);
+    }
     console.log(`🎁 Loot generated (${winStreak} streak, ${streakMultiplier}x): ${lootOptions.map(l => `${l.name} (${l.rarity})`).join(', ')}`);
 
     // Mark session as completed and save loot options (user hasn't selected yet)
@@ -513,9 +534,18 @@ export async function POST(request: NextRequest) {
     );
 
     // BIOME UNLOCK PROGRESSION: Unlock next biome/tier after victory
+    // Requires EITHER:
+    // - 10 win streak in current zone/tier, OR
+    // - Killing an epic mini-boss (rarity === 'epic' && isBoss === true)
     const nextUnlock = getNextUnlock(currentBiome, currentTier);
+    let unlockReason: string | null = null;
 
-    if (nextUnlock) {
+    // Check unlock conditions
+    const has10WinStreak = winStreak >= 9; // Will be 10 after this victory
+    const killedEpicBoss = monster.rarity === 'epic' && monster.isBoss === true;
+    const canUnlock = has10WinStreak || killedEpicBoss;
+
+    if (nextUnlock && canUnlock) {
       const nextBiomeTierKey = formatBiomeTierKey(nextUnlock.biome, nextUnlock.tier);
 
       // Check if player already has this biome/tier unlocked
@@ -529,7 +559,15 @@ export async function POST(request: NextRequest) {
             }
           }
         );
-        console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId}`);
+
+        // Set unlock reason for UI feedback
+        if (killedEpicBoss) {
+          unlockReason = 'epic_boss';
+          console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId} by defeating epic mini-boss ${monster.name}`);
+        } else {
+          unlockReason = '10_streak';
+          console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId} with 10 win streak`);
+        }
       }
     }
 
@@ -652,6 +690,7 @@ export async function POST(request: NextRequest) {
         previousLevel: levelUpResult.previousLevel,
         statIncreases: levelUpResult.statIncreases
       } : null,
+      unlockReason, // 'epic_boss', '10_streak', or null
       stats: {
         timeElapsed: timeInSeconds.toFixed(2),
         clickRate: clickRate.toFixed(2)

@@ -66,6 +66,8 @@ export function getInscriptionStatLabel(type: InscriptionType): string {
     fortune: 'Coin Bonus',
     healing: 'Heal Bonus',
     lifesteal: 'Lifesteal',
+    defensiveLifesteal: 'Defensive Lifesteal',
+    thorns: 'Thorns',
     autoclick: 'Auto-Hits/Sec'
   };
 

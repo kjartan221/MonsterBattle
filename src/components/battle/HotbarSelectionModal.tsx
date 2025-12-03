@@ -12,6 +12,7 @@ interface UserInventoryItem {
   tier: number;
   borderGradient: { color1: string; color2: string };
   acquiredAt: string;
+  enhanced?: boolean; // Phase 3.5: Enhanced consumables (infinite-use)
 }
 
 type HotbarSlotType = 'spell' | 'consumable';
@@ -107,7 +108,8 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
             lootTableId: item.lootTableId,
             tier: 1, // Consumables don't have tiers in current system
             borderGradient: { color1: '#4b5563', color2: '#6b7280' }, // Default gray
-            acquiredAt: new Date().toISOString()
+            acquiredAt: new Date().toISOString(),
+            enhanced: item.enhanced || false // Phase 3.5: Enhanced consumables (infinite-use)
           }));
 
       setItems(filteredItems);
@@ -391,6 +393,22 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
 
                 const isCurrentlyEquipped = currentlyEquipped?.inventoryId === item._id;
 
+                // Calculate tier-scaled spell stats (Phase 2.6)
+                const spellTier = item.tier || 1;
+                const tierMultipliers = [1.0, 1.5, 2.125, 2.875, 3.75];
+                const statMultiplier = tierMultipliers[spellTier - 1] || 1.0;
+                const cooldownReduction = (spellTier - 1) * 2;
+
+                // Apply tier scaling to spell stats
+                const scaledSpellData = lootItem.spellData ? {
+                  ...lootItem.spellData,
+                  cooldown: Math.max(5, lootItem.spellData.cooldown - cooldownReduction),
+                  damage: lootItem.spellData.damage ? Math.round(lootItem.spellData.damage * statMultiplier) : undefined,
+                  healing: lootItem.spellData.healing ? Math.round(lootItem.spellData.healing * statMultiplier) : undefined,
+                  debuffValue: lootItem.spellData.debuffValue ? Math.round(lootItem.spellData.debuffValue * statMultiplier) : undefined,
+                  buffValue: lootItem.spellData.buffValue ? Math.round(lootItem.spellData.buffValue * statMultiplier) : undefined
+                } : undefined;
+
                 return (
                   <button
                     key={item._id}
@@ -398,6 +416,7 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
                     disabled={isEquipping || isCurrentlyEquipped}
                     className={`
                       relative p-4 rounded-lg border-2 transition-all text-left
+                      ${slotType === 'spell' ? 'pb-10' : ''}
                       ${isCurrentlyEquipped ? 'border-green-500 bg-green-900/30 cursor-default' : 'border-gray-700 hover:border-purple-500 hover:bg-gray-800/70 cursor-pointer'}
                       ${isEquipping ? 'opacity-50 cursor-not-allowed' : ''}
                       bg-gradient-to-br ${getRarityBgGradient(lootItem.rarity)}
@@ -417,10 +436,71 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
                       </div>
                     </div>
 
+                    {/* Spell Stats Display (for spell scrolls) */}
+                    {slotType === 'spell' && scaledSpellData && (
+                      <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
+                        {/* Cooldown */}
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-400">Cooldown:</span>
+                          <span className="text-blue-400 font-semibold">{scaledSpellData.cooldown}s</span>
+                        </div>
+
+                        {/* Damage */}
+                        {scaledSpellData.damage !== undefined && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-400">Damage:</span>
+                            <span className="text-red-400 font-semibold">{scaledSpellData.damage} HP</span>
+                          </div>
+                        )}
+
+                        {/* Healing */}
+                        {scaledSpellData.healing !== undefined && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-400">Healing:</span>
+                            <span className="text-green-400 font-semibold">+{scaledSpellData.healing} HP</span>
+                          </div>
+                        )}
+
+                        {/* Debuff */}
+                        {scaledSpellData.debuffType && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-400">Debuff:</span>
+                            <span className="text-orange-400 font-semibold">
+                              {scaledSpellData.debuffType.charAt(0).toUpperCase() + scaledSpellData.debuffType.slice(1)}
+                              {scaledSpellData.debuffValue && ` (${scaledSpellData.debuffValue}${scaledSpellData.debuffDamageType === 'flat' ? ' HP' : '%'})`}
+                              {scaledSpellData.duration && ` for ${scaledSpellData.duration}s`}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Buff */}
+                        {scaledSpellData.buffType && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-400">Buff:</span>
+                            <span className="text-cyan-400 font-semibold">
+                              {scaledSpellData.buffType === 'shield' && `Shield ${scaledSpellData.buffValue} HP`}
+                              {scaledSpellData.buffType === 'damage_boost' && `+${scaledSpellData.buffValue} Damage`}
+                              {scaledSpellData.buffType === 'damage_mult' && `+${scaledSpellData.buffValue}% Damage`}
+                              {scaledSpellData.buffType === 'attack_speed' && `+${scaledSpellData.buffValue}% Attack Speed`}
+                              {scaledSpellData.duration && ` for ${scaledSpellData.duration}s`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Quantity Badge (for consumables) */}
                     {slotType === 'consumable' && item.count > 1 && (
                       <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
                         Quantity: <span className="text-blue-400 font-semibold">{item.count}</span>
+                      </div>
+                    )}
+
+                    {/* Enhanced/Infinite-Use Badge (Phase 3.5) */}
+                    {slotType === 'consumable' && item.enhanced && (
+                      <div className="text-xs text-cyan-400 font-semibold mt-2 pt-2 border-t border-cyan-700/50 flex items-center gap-1">
+                        <span>✨</span>
+                        <span>Infinite Use</span>
                       </div>
                     )}
 

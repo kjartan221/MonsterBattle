@@ -26,6 +26,8 @@ function getInscriptionStatKey(inscriptionType: InscriptionType): string | null 
     fortune: 'coinBonus',
     healing: 'healBonus',
     lifesteal: 'lifesteal',
+    defensiveLifesteal: 'defensiveLifesteal',
+    thorns: 'thorns',
     autoclick: 'autoClickRate'
   };
   return mapping[inscriptionType] || null;

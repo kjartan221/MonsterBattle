@@ -74,6 +74,8 @@ export function checkLevelUp(
 
 /**
  * Calculate XP and coin rewards based on monster rarity
+ *
+ * Updated coin rewards (2x increase from previous nerf)
  */
 export function getMonsterRewards(rarity: 'common' | 'rare' | 'epic' | 'legendary'): {
   xp: number;
@@ -81,15 +83,15 @@ export function getMonsterRewards(rarity: 'common' | 'rare' | 'epic' | 'legendar
 } {
   switch (rarity) {
     case 'common':
-      return { xp: 10, coins: 5 };
+      return { xp: 10, coins: 10 };
     case 'rare':
-      return { xp: 20, coins: 10 };
+      return { xp: 20, coins: 20 };
     case 'epic':
-      return { xp: 40, coins: 20 };
+      return { xp: 40, coins: 40 };
     case 'legendary':
-      return { xp: 80, coins: 50 };
+      return { xp: 80, coins: 100 };
     default:
-      return { xp: 10, coins: 5 };
+      return { xp: 10, coins: 10 };
   }
 }
 
@@ -193,33 +195,34 @@ export function getTierRewardMultiplier(tier: 1 | 2 | 3 | 4 | 5): number {
 }
 
 /**
- * Calculate tier-based coin multiplier (NERFED compared to XP)
- * More moderate scaling to prevent gold inflation
+ * Calculate tier-based coin multiplier (REBALANCED - was too low!)
+ * Increased to make gold gain feel rewarding at higher tiers
  *
- * Tier Multipliers:
+ * Tier Multipliers (Updated):
  * - T1: 1.0x (base)
- * - T2: 1.5x (+50%)
- * - T3: 2.5x (+150%)
- * - T4: 4.0x (+300%)
- * - T5: 6.0x (+500%)
+ * - T2: 2.0x (+100%)
+ * - T3: 5.0x (+400%)
+ * - T4: 12.0x (+1100%)
+ * - T5: 25.0x (+2400%)
  *
- * Why nerfed?
- * - Prevents massive gold inflation at high tiers
- * - Still rewards progression but keeps economy balanced
- * - XP can scale aggressively, gold should not
+ * Why increased?
+ * - Previous nerf made gold gain too slow for crafting/enhancements
+ * - Higher tiers need better rewards to feel meaningful
+ * - Still conservative compared to XP multipliers (1/3/8/20/50)
+ * - Balances economy while keeping progression rewarding
  */
 export function getTierCoinMultiplier(tier: 1 | 2 | 3 | 4 | 5): number {
   switch (tier) {
     case 1:
       return 1.0;
     case 2:
-      return 1.5;
+      return 2.0;
     case 3:
-      return 2.5;
+      return 5.0;
     case 4:
-      return 4.0;
+      return 12.0;
     case 5:
-      return 6.0;
+      return 25.0;
     default:
       return 1.0;
   }

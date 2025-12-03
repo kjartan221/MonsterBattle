@@ -6,7 +6,9 @@ export interface EquipmentStats {
   attackSpeed?: number;      // For accessories - slows monster attacks (diminishing returns, max 50%)
   coinBonus?: number;        // For accessories - increases coin drops %
   healBonus?: number;        // For artifacts/armor - increases HP healing % (after battle victories)
-  lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on manual clicks only)
+  lifesteal?: number;        // For weapons - % of damage dealt returned as HP (works on all damage sources)
+  defensiveLifesteal?: number; // For armor - % of damage taken returned as HP (works on all damage sources)
+  thorns?: number;           // For armor - % of damage taken reflected back to monster (uses pre-mitigation damage)
   autoClickRate?: number;    // For weapons/artifacts - auto-clicks per second (stacks across items)
   fireResistance?: number;   // For armor/artifacts - reduces burn DoT damage %
   poisonResistance?: number; // For armor/artifacts - reduces poison DoT damage %
@@ -134,7 +136,7 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   { lootId: 'dragon_heart', name: 'Dragon Heart', icon: '❤️', description: 'Still warm and beating', rarity: 'epic', type: 'material' },
   { lootId: 'flame_sword', name: 'Flame Sword', icon: '🔥', description: 'Blade wreathed in eternal fire', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
   { lootId: 'blood_chalice', name: 'Blood Chalice', icon: '🏆', description: 'An ancient vampiric relic', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 25, coinBonus: 30 } },
-  { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense', rarity: 'epic', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 30 } },
+  { lootId: 'dragon_armor', name: 'Dragon Scale Armor', icon: '🛡️', description: 'Nearly impenetrable defense - spiked scales reflect damage', rarity: 'epic', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 30, thorns: 12 } },
   // Phase 2.6: Advanced spell scrolls (epic tier)
   { lootId: 'spell_scroll_lightning_bolt', name: 'Lightning Bolt Scroll', icon: '⚡', description: 'Unlocks Lightning Bolt spell - Devastating electric strike', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'lightning_bolt', spellName: 'Lightning Bolt', cooldown: 35, damage: 100, effect: 'Electric damage' } },
   { lootId: 'spell_scroll_mass_heal', name: 'Mass Heal Scroll', icon: '🌟', description: 'Unlocks Mass Heal spell - Powerful restoration', rarity: 'epic', type: 'spell_scroll', spellData: { spellId: 'mass_heal', spellName: 'Mass Heal', cooldown: 40, healing: 60 } },
@@ -148,18 +150,18 @@ const DRAGON_VAMPIRE_SPECIFIC: LootItem[] = [
   // Phase 3.4: Epic inscription scrolls (mini-boss drops)
   { lootId: 'prefix_damage_epic', name: 'Vicious Prefix Scroll', icon: '📜', description: 'Adds "Vicious" prefix: +8 damage', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'damage', statValue: 8, slot: 'prefix', name: 'Vicious', description: 'Adds +8 damage to equipment' } },
   { lootId: 'suffix_critical_epic', name: 'Suffix of Execution Scroll', icon: '📜', description: 'Adds "of Execution" suffix: +8% crit chance', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'critical', statValue: 8, slot: 'suffix', name: 'of Execution', description: 'Adds +8% crit chance to equipment' } },
-  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'prefix', name: 'Robust', description: 'Adds +8 maximum HP to equipment' } },
-  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'suffix', name: 'of Warding', description: 'Adds +8 HP reduction to equipment' } },
+  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +32 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 32, slot: 'prefix', name: 'Robust', description: 'Adds +32 maximum HP to equipment' } },
+  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +25 defense', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 25, slot: 'suffix', name: 'of Warding', description: 'Adds +25 defense to equipment' } },
 ];
 
 // Demon Specific Loot (Legendary Monster)
 const DEMON_SPECIFIC: LootItem[] = [
   { lootId: 'demon_horn', name: 'Demon Horn', icon: '🦖', description: 'Radiates malevolent energy', rarity: 'legendary', type: 'material' },
   { lootId: 'soul_stone', name: 'Soul Stone', icon: '💠', description: 'Contains thousands of trapped souls', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 100, critChance: 20, attackSpeed: 15 } },
-  { lootId: 'infernal_blade', name: 'Infernal Blade', icon: '🗡️', description: 'Forged in the fires of hell', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 20 } },
+  { lootId: 'infernal_blade', name: 'Infernal Blade', icon: '🗡️', description: 'Forged in the fires of hell - pure offensive power', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 16 } },
   { lootId: 'demon_eye', name: 'Demon Eye', icon: '👁️', description: 'Sees through all illusions', rarity: 'legendary', type: 'material' },
-  { lootId: 'hellfire_staff', name: 'Hellfire Staff', icon: '🪄', description: 'Commands the flames of perdition', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 10, attackSpeed: 20 } },
-  { lootId: 'void_armor', name: 'Void Armor', icon: '🛡️', description: 'Forged from pure darkness', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 75 } },
+  { lootId: 'hellfire_staff', name: 'Hellfire Staff', icon: '🪄', description: 'Commands the flames of perdition - devastating magical assault', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 14 } },
+  { lootId: 'void_armor', name: 'Void Armor', icon: '🛡️', description: 'Forged from pure darkness - devours pain as sustenance', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 75, defensiveLifesteal: 5 } },
   { lootId: 'demonic_tome', name: 'Demonic Tome', icon: '📖', description: 'Contains forbidden knowledge', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 25, attackSpeed: 15 } },
   { lootId: 'chaos_orb', name: 'Chaos Orb', icon: '🔮', description: 'Reality bends around it', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, coinBonus: 100 } },
   { lootId: 'dark_halo', name: 'Dark Halo', icon: '⭕', description: 'Corrupts all who wear it', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 30, defense: 10 } },
@@ -170,7 +172,7 @@ const DEMON_SPECIFIC: LootItem[] = [
   { lootId: 'prefix_haste_legendary', name: 'Lightning Prefix Scroll', icon: '📜', description: 'Adds "Lightning" prefix: +12 attack speed', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'haste', statValue: 12, slot: 'prefix', name: 'Lightning', description: 'Adds +12 attack speed to equipment' } },
   { lootId: 'suffix_fortune_legendary', name: 'Suffix of Prosperity Scroll', icon: '📜', description: 'Adds "of Prosperity" suffix: +12% coin bonus', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'fortune', statValue: 12, slot: 'suffix', name: 'of Prosperity', description: 'Adds +12% coin bonus to equipment' } },
   // Phase 3.4: Special legendary inscriptions (lifesteal & autoclick) - Extremely rare
-  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +3% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'prefix', name: 'Vampiric', description: 'Adds +3% lifesteal to equipment - heals for 3% of manual click damage (exclusive with lifesteal suffix)' } },
+  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +2% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 2, slot: 'prefix', name: 'Vampiric', description: 'Adds +2% lifesteal to equipment - heals for 2% of damage dealt (exclusive with lifesteal suffix)' } },
   { lootId: 'suffix_autoclick_legendary', name: 'Suffix of Eternity Scroll', icon: '📜', description: 'Adds "of Eternity" suffix: +1 auto-hit/sec (cannot stack with autoclick prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 1, slot: 'suffix', name: 'of Eternity', description: 'Adds +1 auto-hit per second to equipment (exclusive with autoclick prefix)' } },
 ];
 
@@ -219,7 +221,7 @@ const TREANT_GUARDIAN_SPECIFIC: LootItem[] = [
   { lootId: 'spell_scroll_heal', name: 'Nature\'s Blessing Scroll', icon: '📜', description: 'Unlocks Nature\'s Blessing spell - Powerful heal + shield', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'minor_heal', spellName: 'Nature\'s Blessing', cooldown: 25, healing: 50, buffType: 'shield', buffValue: 60, duration: 15, effect: 'Heal + shield' } },
   // Phase 3.4: Epic inscription scrolls (mini-boss drops)
   { lootId: 'prefix_healing_epic', name: 'Renewing Prefix Scroll', icon: '📜', description: 'Adds "Renewing" prefix: +8% heal bonus', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'healing', statValue: 8, slot: 'prefix', name: 'Renewing', description: 'Adds +8% heal bonus to equipment' } },
-  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'suffix', name: 'of Endurance', description: 'Adds +8 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +32 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 32, slot: 'suffix', name: 'of Endurance', description: 'Adds +32 maximum HP to equipment' } },
 ];
 
 // Dire Wolf Alpha Specific Loot (Forest Tier 1+, Epic Mini-Boss)
@@ -237,7 +239,7 @@ const ANCIENT_ENT_SPECIFIC: LootItem[] = [
   { lootId: 'eternal_wood', name: 'Eternal Wood', icon: '🌲', description: 'Wood that never decays', rarity: 'legendary', type: 'material' },
   { lootId: 'ancient_sap', name: 'Ancient Sap', icon: '💧', description: 'Millennium-old tree sap', rarity: 'legendary', type: 'material' },
   { lootId: 'millennium_root', name: 'Millennium Root', icon: '🌿', description: 'Root from the oldest tree', rarity: 'legendary', type: 'material' },
-  { lootId: 'natures_judgment', name: 'Nature\'s Judgment', icon: '🪄', description: 'Ancient staff of the forest', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 9, critChance: 18, attackSpeed: 10 } },
+  { lootId: 'natures_judgment', name: 'Nature\'s Judgment', icon: '🪄', description: 'Ancient staff of the forest - balanced power and utility', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 7, critChance: 13, attackSpeed: 8 } },
   { lootId: 'ancient_bark_plate', name: 'Ancient Bark Plate', icon: '🛡️', description: 'Millennium-old protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 24, maxHpBonus: 55 } },
   { lootId: 'heart_of_forest', name: 'Heart of the Forest', icon: '💚', description: 'Essence of all nature', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 45, critChance: 14, coinBonus: 65 } },
   // Legendary heal-focused items (ultimate sustainability)
@@ -299,7 +301,7 @@ const DESERT_PHOENIX_SPECIFIC: LootItem[] = [
   { lootId: 'phoenix_ash', name: 'Phoenix Ash', icon: '🦅', description: 'Ashes of rebirth', rarity: 'legendary', type: 'material' },
   { lootId: 'rebirth_flame', name: 'Rebirth Flame', icon: '🔥', description: 'Never-ending fire', rarity: 'legendary', type: 'material' },
   { lootId: 'phoenix_plume', name: 'Phoenix Plume', icon: '🪶', description: 'Feather of resurrection', rarity: 'legendary', type: 'material' },
-  { lootId: 'phoenix_talon', name: 'Phoenix Talon Blade', icon: '⚔️', description: 'Forged from eternal flames', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 11, critChance: 22, attackSpeed: 14 } },
+  { lootId: 'phoenix_talon', name: 'Phoenix Talon Blade', icon: '⚔️', description: 'Forged from eternal flames - sustain-focused blade for tank builds', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 10, attackSpeed: 15, defense: 10, maxHpBonus: 25, lifesteal: 4 } },
   { lootId: 'phoenix_plate', name: 'Phoenix Flame Plate', icon: '🛡️', description: 'Armor of rebirth', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 65 } },
   { lootId: 'eternal_flame_orb', name: 'Eternal Flame Orb', icon: '🔮', description: 'Contains the phoenix\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 5, maxHpBonus: 50, critChance: 18, coinBonus: 75 } },
   { lootId: 'spell_scroll_phoenix_fire', name: 'Phoenix Fire Scroll', icon: '📜', description: 'Unlocks Phoenix Fire spell - Massive fire damage + burn + self-heal', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'phoenix_fire', spellName: 'Phoenix Fire', cooldown: 50, damage: 180, healing: 40, debuffType: 'burn', debuffValue: 15, debuffDamageType: 'flat', duration: 10, effect: 'Massive fire damage + burn + heal' } },
@@ -367,7 +369,7 @@ const KRAKEN_SPECIFIC: LootItem[] = [
 const LEVIATHAN_SPECIFIC: LootItem[] = [
   { lootId: 'leviathan_scale', name: 'Leviathan Scale', icon: '🐋', description: 'Massive and ancient', rarity: 'legendary', type: 'material' },
   { lootId: 'ocean_heart', name: 'Heart of the Ocean', icon: '💙', description: 'Pulses with the sea\'s power', rarity: 'legendary', type: 'material' },
-  { lootId: 'trident', name: 'Poseidon\'s Trident', icon: '🔱', description: 'Legendary three-pronged spear', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 18, attackSpeed: 10 } },
+  { lootId: 'trident', name: 'Poseidon\'s Trident', icon: '🔱', description: 'Legendary three-pronged spear - balanced power and utility', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 13, attackSpeed: 10 } },
   { lootId: 'leviathan_armor', name: 'Leviathan Plate', icon: '🛡️', description: 'Unbreakable defense', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 22, maxHpBonus: 50 } },
   { lootId: 'tidal_orb', name: 'Tidal Orb', icon: '🔮', description: 'Controls water itself', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 40, critChance: 15, coinBonus: 60 } },
   { lootId: 'spell_scroll_tsunami', name: 'Tsunami Scroll', icon: '📜', description: 'Unlocks Tsunami spell - Massive water damage + slow', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'tsunami', spellName: 'Tsunami', cooldown: 45, damage: 120, debuffType: 'slow', debuffValue: 75, duration: 10, effect: 'Massive water damage + slow' } },
@@ -434,8 +436,8 @@ const VOLCANIC_TITAN_SPECIFIC: LootItem[] = [
 const ANCIENT_DRAGON_SPECIFIC: LootItem[] = [
   { lootId: 'ancient_dragon_scale', name: 'Ancient Dragon Scale', icon: '🐉', description: 'Legendary protection', rarity: 'legendary', type: 'material' },
   { lootId: 'dragon_soul', name: 'Dragon Soul', icon: '🔥', description: 'Essence of dragonkind', rarity: 'legendary', type: 'material' },
-  { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 10, critChance: 20, attackSpeed: 12 } },
-  { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 60 } },
+  { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword - balanced power for versatile warriors', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 7, critChance: 14, attackSpeed: 8 } },
+  { lootId: 'ancient_dragon_armor', name: 'Ancient Dragon Plate', icon: '🛡️', description: 'Ultimate protection - ancient scales retaliate fiercely', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 25, maxHpBonus: 60, thorns: 18 } },
   { lootId: 'dragon_amulet', name: 'Dragon Amulet', icon: '💎', description: 'Grants dragon\'s power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, maxHpBonus: 45, critChance: 16 } },
   { lootId: 'spell_scroll_meteor', name: 'Meteor Scroll', icon: '📜', description: 'Unlocks Meteor spell - Devastating impact + burn', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'meteor', spellName: 'Meteor Strike', cooldown: 40, damage: 150, debuffType: 'burn', debuffValue: 20, debuffDamageType: 'flat', duration: 12, effect: 'Massive fire damage + burn' } },
 ];
@@ -465,7 +467,7 @@ const VAMPIRE_LORD_SPECIFIC: LootItem[] = [
   { lootId: 'vampire_fang', name: 'Vampire Fang', icon: '🦷', description: 'Drains life force', rarity: 'rare', type: 'material' },
   { lootId: 'blood_vial', name: 'Blood Vial', icon: '🩸', description: 'Contains vampiric blood', rarity: 'rare', type: 'material' },
   { lootId: 'blood_sword', name: 'Blood Sword', icon: '🗡️', description: 'Thirsts for blood', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 3, critChance: 8, maxHpBonus: 5 } },
-  { lootId: 'vampire_cape', name: 'Vampire Cape', icon: '🧛', description: 'Grants night power', rarity: 'rare', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 12 } },
+  { lootId: 'vampire_cape', name: 'Vampire Cape', icon: '🧛', description: 'Grants night power - heals from damage taken', rarity: 'rare', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 12, defensiveLifesteal: 3 } },
   { lootId: 'crimson_ring', name: 'Crimson Ring', icon: '💍', description: 'Drains enemies', rarity: 'epic', type: 'artifact', equipmentStats: { critChance: 10, maxHpBonus: 8 } },
 ];
 
@@ -474,7 +476,7 @@ const DEATH_KNIGHT_SPECIFIC: LootItem[] = [
   { lootId: 'dark_steel', name: 'Dark Steel', icon: '⚫', description: 'Forged in darkness', rarity: 'rare', type: 'material' },
   { lootId: 'cursed_blade_fragment', name: 'Cursed Blade Fragment', icon: '⚔️', description: 'Piece of a legendary sword', rarity: 'rare', type: 'material' },
   { lootId: 'necrotic_sword', name: 'Necrotic Sword', icon: '⚔️', description: 'Drains life on hit', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 7 } },
-  { lootId: 'death_armor', name: 'Death Knight Armor', icon: '🛡️', description: 'Forged for the undead', rarity: 'rare', type: 'armor', equipmentStats: { defense: 13, maxHpBonus: 15 } },
+  { lootId: 'death_armor', name: 'Death Knight Armor', icon: '🛡️', description: 'Forged for the undead - absorbs life and curses attackers', rarity: 'rare', type: 'armor', equipmentStats: { defense: 13, maxHpBonus: 15, defensiveLifesteal: 3, thorns: 8 } },
   { lootId: 'shadow_ring', name: 'Shadow Ring', icon: '💍', description: 'Hides in darkness', rarity: 'rare', type: 'artifact', equipmentStats: { attackSpeed: 12, coinBonus: 10 } },
 ];
 
@@ -483,7 +485,7 @@ const NECROMANCER_SPECIFIC: LootItem[] = [
   { lootId: 'necrotic_essence', name: 'Necrotic Essence', icon: '🧙', description: 'Pure death magic', rarity: 'epic', type: 'material' },
   { lootId: 'dark_crystal', name: 'Dark Crystal', icon: '🔮', description: 'Channels necromancy', rarity: 'epic', type: 'material' },
   { lootId: 'staff_of_souls', name: 'Staff of Souls', icon: '🪄', description: 'Commands the dead', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 5, critChance: 11, attackSpeed: 10 } },
-  { lootId: 'necro_robes', name: 'Necromancer\'s Robes', icon: '🧥', description: 'Radiates dark power', rarity: 'epic', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 25 } },
+  { lootId: 'necro_robes', name: 'Necromancer\'s Robes', icon: '🧥', description: 'Radiates dark power - siphons life force', rarity: 'epic', type: 'armor', equipmentStats: { defense: 10, maxHpBonus: 25, defensiveLifesteal: 4 } },
   { lootId: 'phylactery', name: 'Phylactery', icon: '⚱️', description: 'Stores a soul', rarity: 'epic', type: 'artifact', equipmentStats: { maxHpBonus: 30, coinBonus: 20 } },
 ];
 
@@ -501,7 +503,7 @@ const WRAITH_LORD_SPECIFIC: LootItem[] = [
 const LICH_KING_SPECIFIC: LootItem[] = [
   { lootId: 'lich_crown', name: 'Crown of the Lich King', icon: '👑', description: 'Ultimate undead power', rarity: 'legendary', type: 'material' },
   { lootId: 'void_essence', name: 'Void Essence', icon: '⚫', description: 'Pure nothingness', rarity: 'legendary', type: 'material' },
-  { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'The endgame weapon', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 12, critChance: 25, attackSpeed: 15 } },
+  { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'Pure offensive power - no defensive capabilities', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 9, critChance: 18 } },
   { lootId: 'lich_plate', name: 'Lich King\'s Plate', icon: '🛡️', description: 'Eternal protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70 } },
   { lootId: 'death_orb', name: 'Orb of Eternal Death', icon: '🔮', description: 'Controls life and death', rarity: 'legendary', type: 'artifact', equipmentStats: { maxHpBonus: 50, critChance: 20, coinBonus: 80 } },
   { lootId: 'spell_scroll_death', name: 'Death Comet Scroll', icon: '📜', description: 'Unlocks Death Comet spell - Ultimate dark damage + bleed + self-empower', rarity: 'legendary', type: 'spell_scroll', spellData: { spellId: 'death_comet', spellName: 'Death Comet', cooldown: 50, damage: 200, buffType: 'damage_boost', buffValue: 25, duration: 15, debuffType: 'bleed', debuffValue: 18, debuffDamageType: 'flat', effect: 'Massive dark damage + bleed + damage boost' } },
@@ -515,24 +517,33 @@ const LICH_KING_SPECIFIC: LootItem[] = [
 const CRAFT_ONLY_WEAPONS: LootItem[] = [
   { lootId: 'masterwork_blade', name: 'Masterwork Blade', icon: '⚔️', description: 'Perfectly balanced steel sword', rarity: 'rare', type: 'weapon', equipmentStats: { damageBonus: 4, critChance: 10 } },
   { lootId: 'alchemists_staff', name: 'Alchemist\'s Staff', icon: '🪄', description: 'Infused with magical properties', rarity: 'epic', type: 'weapon', equipmentStats: { damageBonus: 6, critChance: 12, attackSpeed: 8 } },
-  { lootId: 'vorpal_blade', name: 'Vorpal Blade', icon: '🗡️', description: 'Legendary blade that strikes true', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 15, critChance: 30 } },
-  { lootId: 'tidal_reaver', name: 'Tidal Reaver', icon: '🔱', description: 'Legendary trident of the sea', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 14, critChance: 25, attackSpeed: 12 } },
-  { lootId: 'infernal_claymore', name: 'Infernal Claymore', icon: '⚔️', description: 'Forged in volcanic fury', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 16, critChance: 22, maxHpBonus: 20 } },
-  { lootId: 'reaper_scythe', name: 'Reaper\'s Scythe', icon: '🗡️', description: 'Harvests souls of the living', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 13, critChance: 28, maxHpBonus: 30 } },
+  { lootId: 'vorpal_blade', name: 'Vorpal Blade', icon: '🗡️', description: 'Legendary blade that strikes true - pure glass cannon offense', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 9, critChance: 18 } },
+  { lootId: 'tidal_reaver', name: 'Tidal Reaver', icon: '🔱', description: 'Legendary trident of the sea - balanced power and speed', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 14, attackSpeed: 12 } },
+  { lootId: 'infernal_claymore', name: 'Infernal Claymore', icon: '⚔️', description: 'Forged in volcanic fury - power with endurance', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 13, maxHpBonus: 20 } },
+  { lootId: 'reaper_scythe', name: 'Reaper\'s Scythe', icon: '🗡️', description: 'Harvests souls of the living - balanced offense and survivability', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 7, critChance: 16, maxHpBonus: 30 } },
   // Phase 2.5 - Advanced Legendary Items with special effects
-  { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword of kings - strikes with divine fury', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 18, critChance: 35, autoClickRate: 1 } },
-  { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'Crimson blade that thirsts for blood - heals with every strike', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 14, critChance: 30, lifesteal: 5 } },
+  { lootId: 'excalibur', name: 'Excalibur', icon: '⚔️', description: 'The legendary sword of kings - strikes with divine fury (auto-attacks)', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 8, critChance: 15, autoClickRate: 1 } },
+  { lootId: 'scarlet_dagger', name: 'Scarlet Dagger', icon: '🗡️', description: 'Crimson blade that thirsts for blood - heals with every strike', rarity: 'legendary', type: 'weapon', equipmentStats: { damageBonus: 7, critChance: 16, lifesteal: 3 } },
 ];
 
 const CRAFT_ONLY_ARMOR: LootItem[] = [
-  { lootId: 'reinforced_steel_plate', name: 'Reinforced Steel Plate', icon: '🛡️', description: 'Heavy armor with exceptional protection', rarity: 'rare', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 20 } },
+  { lootId: 'reinforced_steel_plate', name: 'Reinforced Steel Plate', icon: '🛡️', description: 'Heavy spiked armor punishes attackers', rarity: 'rare', type: 'armor', equipmentStats: { defense: 15, maxHpBonus: 20, thorns: 10 } },
   { lootId: 'enchanted_silk_robes', name: 'Enchanted Silk Robes', icon: '🧥', description: 'Light armor imbued with protective magic', rarity: 'epic', type: 'armor', equipmentStats: { defense: 12, maxHpBonus: 35, attackSpeed: 10 } },
-  { lootId: 'healers_plate', name: 'Healer\'s Plate', icon: '🛡️', description: 'Armor infused with restoration magic (+10% heal)', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 30, healBonus: 10 } },
-  { lootId: 'titans_armor', name: 'Titan\'s Armor', icon: '🛡️', description: 'Armor of the ancient giants', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 30, maxHpBonus: 100 } },
-  { lootId: 'abyssal_plate', name: 'Abyssal Plate', icon: '🛡️', description: 'Forged in the deepest trenches', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 90, attackSpeed: -5 } },
-  { lootId: 'dragonlord_armor', name: 'Dragonlord Armor', icon: '🛡️', description: 'Ultimate volcanic protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 32, maxHpBonus: 110, critChance: 5 } },
-  { lootId: 'dreadlord_plate', name: 'Dreadlord Plate', icon: '🛡️', description: 'Eternal undead protection', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 30, maxHpBonus: 95, damageBonus: 5 } },
-  { lootId: 'sacred_guardian_armor', name: 'Sacred Guardian Armor', icon: '🛡️', description: 'Divine protection with regenerative power (+12% heal)', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 80, healBonus: 12 } },
+  { lootId: 'healers_plate', name: 'Healer\'s Plate', icon: '🛡️', description: 'Armor infused with restoration magic (+10% heal, 5% defensive lifesteal)', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 30, healBonus: 10, defensiveLifesteal: 5 } },
+  // NEW: Archetype-specific epic armor
+  { lootId: 'assassins_leathers', name: 'Assassin\'s Leathers', icon: '🥋', description: 'Light armor designed for precision strikes - sacrifices all protection for deadly accuracy', rarity: 'epic', type: 'armor', equipmentStats: { critChance: 18 } },
+  { lootId: 'battle_robes', name: 'Battle Robes', icon: '🧥', description: 'Enchanted robes offering balanced protection and utility', rarity: 'epic', type: 'armor', equipmentStats: { defense: 14, maxHpBonus: 22, attackSpeed: 8 } },
+  { lootId: 'bulwark_plate', name: 'Bulwark Plate', icon: '🛡️', description: 'Impenetrable heavy armor that slows your reactions but grants unmatched protection', rarity: 'epic', type: 'armor', equipmentStats: { defense: 20, maxHpBonus: 40, attackSpeed: 12, thorns: 10 } },
+  { lootId: 'berserkers_vest', name: 'Berserker\'s Vest', icon: '🎽', description: 'Ragged armor of the fearless - boosts offensive power while exposing vulnerabilities', rarity: 'epic', type: 'armor', equipmentStats: { damageBonus: 4, critChance: 15 } },
+  { lootId: 'titans_armor', name: 'Titan\'s Armor', icon: '🛡️', description: 'Armor of the ancient giants - thrives on adversity', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70, defensiveLifesteal: 5 } },
+  { lootId: 'abyssal_plate', name: 'Abyssal Plate', icon: '🛡️', description: 'Forged in the deepest trenches - converts pain to power', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 65, attackSpeed: -5, defensiveLifesteal: 4 } },
+  { lootId: 'dragonlord_armor', name: 'Dragonlord Armor', icon: '🛡️', description: 'Ultimate volcanic protection - molten scales sear attackers', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70, critChance: 5, thorns: 18 } },
+  { lootId: 'dreadlord_plate', name: 'Dreadlord Plate', icon: '🛡️', description: 'Eternal undead protection - feeds on suffering and curses attackers', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 28, maxHpBonus: 70, damageBonus: 5, defensiveLifesteal: 5, thorns: 18 } },
+  { lootId: 'sacred_guardian_armor', name: 'Sacred Guardian Armor', icon: '🛡️', description: 'Divine protection with regenerative power (+12% heal, 5% defensive lifesteal)', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 26, maxHpBonus: 65, healBonus: 12, defensiveLifesteal: 5 } },
+  // NEW: Archetype-specific legendary armor
+  { lootId: 'shadowdancer_silk', name: 'Shadowdancer Silk', icon: '🥷', description: 'Ethereal armor worn by legendary assassins - offers no protection, only deadliness', rarity: 'legendary', type: 'armor', equipmentStats: { critChance: 28 } },
+  { lootId: 'fortress_plate', name: 'Fortress Plate', icon: '🛡️', description: 'Living citadel - impenetrable defense that slows monsters and reflects attacks', rarity: 'legendary', type: 'armor', equipmentStats: { defense: 30, maxHpBonus: 75, attackSpeed: 20, thorns: 20, defensiveLifesteal: 4 } },
+  { lootId: 'warlords_regalia', name: 'Warlord\'s Regalia', icon: '👑', description: 'Armor of legendary commanders - balanced offense and defense for versatile warriors', rarity: 'legendary', type: 'armor', equipmentStats: { damageBonus: 5, defense: 22, maxHpBonus: 60, attackSpeed: 12 } },
 ];
 
 const CRAFT_ONLY_CONSUMABLES: LootItem[] = [
@@ -544,10 +555,22 @@ const CRAFT_ONLY_CONSUMABLES: LootItem[] = [
 const CRAFT_ONLY_ARTIFACTS: LootItem[] = [
   { lootId: 'master_craftsman_ring', name: 'Master Craftsman\'s Ring', icon: '💍', description: 'Enhances all combat abilities', rarity: 'rare', type: 'artifact', equipmentStats: { damageBonus: 3, critChance: 8, attackSpeed: 8 } },
   { lootId: 'arcane_amplifier', name: 'Arcane Amplifier', icon: '🔮', description: 'Boosts magical power', rarity: 'epic', type: 'artifact', equipmentStats: { damageBonus: 5, critChance: 15, maxHpBonus: 40 } },
-  { lootId: 'infinity_amulet', name: 'Infinity Amulet', icon: '🔱', description: 'Contains limitless power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 8, critChance: 20, maxHpBonus: 80, coinBonus: 100 } },
-  { lootId: 'maelstrom_pendant', name: 'Maelstrom Pendant', icon: '🌊', description: 'Harnesses the fury of the ocean', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 7, critChance: 18, attackSpeed: 15, coinBonus: 80 } },
-  { lootId: 'volcanic_heart', name: 'Volcanic Heart', icon: '🔥', description: 'Pulses with molten power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 10, critChance: 20, maxHpBonus: 60, coinBonus: 70 } },
-  { lootId: 'crown_of_eternity', name: 'Crown of Eternity', icon: '👑', description: 'Rules over life and death', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, critChance: 22, maxHpBonus: 100, coinBonus: 120 } },
+  // NEW: Archetype-specific epic artifacts
+  { lootId: 'assassins_mark', name: 'Assassin\'s Mark', icon: '💀', description: 'Cursed relic that grants deadly precision at the cost of all protection', rarity: 'epic', type: 'artifact', equipmentStats: { critChance: 20 } },
+  { lootId: 'executioners_eye', name: 'Executioner\'s Eye', icon: '👁️', description: 'See enemy weaknesses with perfect clarity - pure offense, no protection', rarity: 'epic', type: 'artifact', equipmentStats: { damageBonus: 5, critChance: 15 } },
+  { lootId: 'guardians_talisman', name: 'Guardian\'s Talisman', icon: '🛡️', description: 'Sacred relic of protectors - grants endurance and resilience, but no offensive power', rarity: 'epic', type: 'artifact', equipmentStats: { defense: 15, maxHpBonus: 50, attackSpeed: 10 } },
+  { lootId: 'ironheart_stone', name: 'Ironheart Stone', icon: '💎', description: 'Grants the endurance of stone and the strength to endure any assault', rarity: 'epic', type: 'artifact', equipmentStats: { defense: 12, maxHpBonus: 45, attackSpeed: 12, defensiveLifesteal: 2 } },
+  { lootId: 'adventurers_compass', name: 'Adventurer\'s Compass', icon: '🧭', description: 'Guides the way to fortune and survival - balanced power for versatile builds', rarity: 'epic', type: 'artifact', equipmentStats: { damageBonus: 3, critChance: 8, maxHpBonus: 20, coinBonus: 25 } },
+  { lootId: 'infinity_amulet', name: 'Infinity Amulet', icon: '🔱', description: 'Contains limitless power - balanced might', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 8, critChance: 16, maxHpBonus: 60, coinBonus: 100 } },
+  { lootId: 'maelstrom_pendant', name: 'Maelstrom Pendant', icon: '🌊', description: 'Harnesses the fury of the ocean - swift and deadly', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 7, critChance: 14, attackSpeed: 15, coinBonus: 80 } },
+  { lootId: 'volcanic_heart', name: 'Volcanic Heart', icon: '🔥', description: 'Pulses with molten power - raw offensive force', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 8, critChance: 16, maxHpBonus: 60, coinBonus: 70 } },
+  { lootId: 'crown_of_eternity', name: 'Crown of Eternity', icon: '👑', description: 'Rules over life and death - enduring power', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, critChance: 18, maxHpBonus: 70, coinBonus: 120 } },
+  // NEW: Archetype-specific legendary artifacts
+  { lootId: 'heart_of_reaper', name: 'Heart of the Reaper', icon: '💀', description: 'Ultimate offensive artifact - Death incarnate, offering no mercy or protection', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 8, critChance: 20 } },
+  { lootId: 'perfect_prism', name: 'Perfect Prism', icon: '🔷', description: 'Focuses all power into critical strikes - fragile but devastating', rarity: 'legendary', type: 'artifact', equipmentStats: { critChance: 25 } },
+  { lootId: 'aegis_of_titans', name: 'Aegis of Titans', icon: '🛡️', description: 'Legendary shield of the ancient giants - unbreakable defense with no offensive power', rarity: 'legendary', type: 'artifact', equipmentStats: { defense: 25, maxHpBonus: 100, attackSpeed: 20, defensiveLifesteal: 3 } },
+  { lootId: 'bastion_core', name: 'Bastion Core', icon: '⚙️', description: 'Mechanical heart of an ancient guardian - reflects damage while enduring endless assault', rarity: 'legendary', type: 'artifact', equipmentStats: { defense: 20, maxHpBonus: 70, attackSpeed: 18, thorns: 20 } },
+  { lootId: 'equilibrium_orb', name: 'Equilibrium Orb', icon: '☯️', description: 'Perfect balance of offense and defense - the way of the warrior sage', rarity: 'legendary', type: 'artifact', equipmentStats: { damageBonus: 6, critChance: 15, defense: 12, maxHpBonus: 60, attackSpeed: 10 } },
 ];
 
 // Monster name to monster-specific loot mapping
@@ -641,29 +664,29 @@ const INSCRIPTION_CRITICAL: LootItem[] = [
 // Protection Inscription Scrolls (+hpReduction/defense)
 const INSCRIPTION_PROTECTION: LootItem[] = [
   // Prefixes
-  { lootId: 'prefix_protection_common', name: 'Guarded Prefix Scroll', icon: '📜', description: 'Adds "Guarded" prefix: +3 HP reduction', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 3, slot: 'prefix', name: 'Guarded', description: 'Adds +3 HP reduction to equipment' } },
-  { lootId: 'prefix_protection_rare', name: 'Steadfast Prefix Scroll', icon: '📜', description: 'Adds "Steadfast" prefix: +5 HP reduction', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 5, slot: 'prefix', name: 'Steadfast', description: 'Adds +5 HP reduction to equipment' } },
-  { lootId: 'prefix_protection_epic', name: 'Bulwark Prefix Scroll', icon: '📜', description: 'Adds "Bulwark" prefix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'prefix', name: 'Bulwark', description: 'Adds +8 HP reduction to equipment' } },
-  { lootId: 'prefix_protection_legendary', name: 'Fortified Prefix Scroll', icon: '📜', description: 'Adds "Fortified" prefix: +12 HP reduction', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 12, slot: 'prefix', name: 'Fortified', description: 'Adds +12 HP reduction to equipment' } },
+  { lootId: 'prefix_protection_common', name: 'Guarded Prefix Scroll', icon: '📜', description: 'Adds "Guarded" prefix: +10 defense', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 10, slot: 'prefix', name: 'Guarded', description: 'Adds +10 defense to equipment' } },
+  { lootId: 'prefix_protection_rare', name: 'Steadfast Prefix Scroll', icon: '📜', description: 'Adds "Steadfast" prefix: +15 defense', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 15, slot: 'prefix', name: 'Steadfast', description: 'Adds +15 defense to equipment' } },
+  { lootId: 'prefix_protection_epic', name: 'Bulwark Prefix Scroll', icon: '📜', description: 'Adds "Bulwark" prefix: +25 defense', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 25, slot: 'prefix', name: 'Bulwark', description: 'Adds +25 defense to equipment' } },
+  { lootId: 'prefix_protection_legendary', name: 'Fortified Prefix Scroll', icon: '📜', description: 'Adds "Fortified" prefix: +35 defense', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 35, slot: 'prefix', name: 'Fortified', description: 'Adds +35 defense to equipment' } },
   // Suffixes
-  { lootId: 'suffix_protection_common', name: 'Suffix of Protection Scroll', icon: '📜', description: 'Adds "of Protection" suffix: +3 HP reduction', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 3, slot: 'suffix', name: 'of Protection', description: 'Adds +3 HP reduction to equipment' } },
-  { lootId: 'suffix_protection_rare', name: 'Suffix of Resilience Scroll', icon: '📜', description: 'Adds "of Resilience" suffix: +5 HP reduction', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 5, slot: 'suffix', name: 'of Resilience', description: 'Adds +5 HP reduction to equipment' } },
-  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +8 HP reduction', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 8, slot: 'suffix', name: 'of Warding', description: 'Adds +8 HP reduction to equipment' } },
-  { lootId: 'suffix_protection_legendary', name: 'Suffix of Safeguarding Scroll', icon: '📜', description: 'Adds "of Safeguarding" suffix: +12 HP reduction', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 12, slot: 'suffix', name: 'of Safeguarding', description: 'Adds +12 HP reduction to equipment' } },
+  { lootId: 'suffix_protection_common', name: 'Suffix of Protection Scroll', icon: '📜', description: 'Adds "of Protection" suffix: +10 defense', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 10, slot: 'suffix', name: 'of Protection', description: 'Adds +10 defense to equipment' } },
+  { lootId: 'suffix_protection_rare', name: 'Suffix of Resilience Scroll', icon: '📜', description: 'Adds "of Resilience" suffix: +15 defense', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 15, slot: 'suffix', name: 'of Resilience', description: 'Adds +15 defense to equipment' } },
+  { lootId: 'suffix_protection_epic', name: 'Suffix of Warding Scroll', icon: '📜', description: 'Adds "of Warding" suffix: +25 defense', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 25, slot: 'suffix', name: 'of Warding', description: 'Adds +25 defense to equipment' } },
+  { lootId: 'suffix_protection_legendary', name: 'Suffix of Safeguarding Scroll', icon: '📜', description: 'Adds "of Safeguarding" suffix: +35 defense', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'protection', statValue: 35, slot: 'suffix', name: 'of Safeguarding', description: 'Adds +35 defense to equipment' } },
 ];
 
 // Vitality Inscription Scrolls (+maxHpBonus)
 const INSCRIPTION_VITALITY: LootItem[] = [
   // Prefixes
-  { lootId: 'prefix_vitality_common', name: 'Vigorous Prefix Scroll', icon: '📜', description: 'Adds "Vigorous" prefix: +3 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 3, slot: 'prefix', name: 'Vigorous', description: 'Adds +3 maximum HP to equipment' } },
-  { lootId: 'prefix_vitality_rare', name: 'Stout Prefix Scroll', icon: '📜', description: 'Adds "Stout" prefix: +5 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 5, slot: 'prefix', name: 'Stout', description: 'Adds +5 maximum HP to equipment' } },
-  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'prefix', name: 'Robust', description: 'Adds +8 maximum HP to equipment' } },
-  { lootId: 'prefix_vitality_legendary', name: 'Hardy Prefix Scroll', icon: '📜', description: 'Adds "Hardy" prefix: +12 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'prefix', name: 'Hardy', description: 'Adds +12 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_common', name: 'Vigorous Prefix Scroll', icon: '📜', description: 'Adds "Vigorous" prefix: +12 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'prefix', name: 'Vigorous', description: 'Adds +12 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_rare', name: 'Stout Prefix Scroll', icon: '📜', description: 'Adds "Stout" prefix: +20 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 20, slot: 'prefix', name: 'Stout', description: 'Adds +20 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_epic', name: 'Robust Prefix Scroll', icon: '📜', description: 'Adds "Robust" prefix: +32 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 32, slot: 'prefix', name: 'Robust', description: 'Adds +32 maximum HP to equipment' } },
+  { lootId: 'prefix_vitality_legendary', name: 'Hardy Prefix Scroll', icon: '📜', description: 'Adds "Hardy" prefix: +50 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 50, slot: 'prefix', name: 'Hardy', description: 'Adds +50 maximum HP to equipment' } },
   // Suffixes
-  { lootId: 'suffix_vitality_common', name: 'Suffix of Vitality Scroll', icon: '📜', description: 'Adds "of Vitality" suffix: +3 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 3, slot: 'suffix', name: 'of Vitality', description: 'Adds +3 maximum HP to equipment' } },
-  { lootId: 'suffix_vitality_rare', name: 'Suffix of Life Scroll', icon: '📜', description: 'Adds "of Life" suffix: +5 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 5, slot: 'suffix', name: 'of Life', description: 'Adds +5 maximum HP to equipment' } },
-  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +8 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 8, slot: 'suffix', name: 'of Endurance', description: 'Adds +8 maximum HP to equipment' } },
-  { lootId: 'suffix_vitality_legendary', name: 'Suffix of the Titan Scroll', icon: '📜', description: 'Adds "of the Titan" suffix: +12 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'suffix', name: 'of the Titan', description: 'Adds +12 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_common', name: 'Suffix of Vitality Scroll', icon: '📜', description: 'Adds "of Vitality" suffix: +12 max HP', rarity: 'common', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 12, slot: 'suffix', name: 'of Vitality', description: 'Adds +12 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_rare', name: 'Suffix of Life Scroll', icon: '📜', description: 'Adds "of Life" suffix: +20 max HP', rarity: 'rare', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 20, slot: 'suffix', name: 'of Life', description: 'Adds +20 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_epic', name: 'Suffix of Endurance Scroll', icon: '📜', description: 'Adds "of Endurance" suffix: +32 max HP', rarity: 'epic', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 32, slot: 'suffix', name: 'of Endurance', description: 'Adds +32 maximum HP to equipment' } },
+  { lootId: 'suffix_vitality_legendary', name: 'Suffix of the Titan Scroll', icon: '📜', description: 'Adds "of the Titan" suffix: +50 max HP', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'vitality', statValue: 50, slot: 'suffix', name: 'of the Titan', description: 'Adds +50 maximum HP to equipment' } },
 ];
 
 // Haste Inscription Scrolls (+attackSpeed)
@@ -712,11 +735,11 @@ const INSCRIPTION_HEALING: LootItem[] = [
 // IMPORTANT: Cannot have both prefix AND suffix lifesteal on same item (exclusive)
 const INSCRIPTION_LIFESTEAL: LootItem[] = [
   // Prefixes
-  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +3% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'prefix', name: 'Vampiric', description: 'Adds +3% lifesteal to equipment - heals for 3% of manual click damage (exclusive with lifesteal suffix)' } },
-  { lootId: 'prefix_lifesteal_legendary_2', name: 'Bloodthirsty Prefix Scroll', icon: '📜', description: 'Adds "Bloodthirsty" prefix: +5% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 5, slot: 'prefix', name: 'Bloodthirsty', description: 'Adds +5% lifesteal to equipment - heals for 5% of manual click damage (exclusive with lifesteal suffix)' } },
+  { lootId: 'prefix_lifesteal_legendary', name: 'Vampiric Prefix Scroll', icon: '📜', description: 'Adds "Vampiric" prefix: +2% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 2, slot: 'prefix', name: 'Vampiric', description: 'Adds +2% lifesteal to equipment - heals for 2% of damage dealt (exclusive with lifesteal suffix)' } },
+  { lootId: 'prefix_lifesteal_legendary_2', name: 'Bloodthirsty Prefix Scroll', icon: '📜', description: 'Adds "Bloodthirsty" prefix: +3% lifesteal (cannot stack with lifesteal suffix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'prefix', name: 'Bloodthirsty', description: 'Adds +3% lifesteal to equipment - heals for 3% of damage dealt (exclusive with lifesteal suffix)' } },
   // Suffixes
-  { lootId: 'suffix_lifesteal_legendary', name: 'Suffix of the Vampire Scroll', icon: '📜', description: 'Adds "of the Vampire" suffix: +3% lifesteal (cannot stack with lifesteal prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'suffix', name: 'of the Vampire', description: 'Adds +3% lifesteal to equipment - heals for 3% of manual click damage (exclusive with lifesteal prefix)' } },
-  { lootId: 'suffix_lifesteal_legendary_2', name: 'Suffix of Sanguine Scroll', icon: '📜', description: 'Adds "of Sanguine" suffix: +5% lifesteal (cannot stack with lifesteal prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 5, slot: 'suffix', name: 'of Sanguine', description: 'Adds +5% lifesteal to equipment - heals for 5% of manual click damage (exclusive with lifesteal prefix)' } },
+  { lootId: 'suffix_lifesteal_legendary', name: 'Suffix of the Vampire Scroll', icon: '📜', description: 'Adds "of the Vampire" suffix: +2% lifesteal (cannot stack with lifesteal prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 2, slot: 'suffix', name: 'of the Vampire', description: 'Adds +2% lifesteal to equipment - heals for 2% of damage dealt (exclusive with lifesteal prefix)' } },
+  { lootId: 'suffix_lifesteal_legendary_2', name: 'Suffix of Sanguine Scroll', icon: '📜', description: 'Adds "of Sanguine" suffix: +3% lifesteal (cannot stack with lifesteal prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'lifesteal', statValue: 3, slot: 'suffix', name: 'of Sanguine', description: 'Adds +3% lifesteal to equipment - heals for 3% of damage dealt (exclusive with lifesteal prefix)' } },
 ];
 
 // Autoclick Inscription Scrolls (+autoClickRate) - LEGENDARY ONLY (Boss drops)
@@ -728,6 +751,28 @@ const INSCRIPTION_AUTOCLICK: LootItem[] = [
   // Suffixes
   { lootId: 'suffix_autoclick_legendary', name: 'Suffix of Perpetuity Scroll', icon: '📜', description: 'Adds "of Perpetuity" suffix: +0.5 auto-hits/sec (cannot stack with autoclick prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 0.5, slot: 'suffix', name: 'of Perpetuity', description: 'Adds +0.5 auto-hits per second to equipment (exclusive with autoclick prefix)' } },
   { lootId: 'suffix_autoclick_legendary_2', name: 'Suffix of Eternity Scroll', icon: '📜', description: 'Adds "of Eternity" suffix: +1 auto-hit/sec (cannot stack with autoclick prefix)', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'autoclick', statValue: 1, slot: 'suffix', name: 'of Eternity', description: 'Adds +1 auto-hit per second to equipment (exclusive with autoclick prefix)' } },
+];
+
+// Defensive Lifesteal Inscription Scrolls (+defensiveLifesteal) - LEGENDARY ONLY (Boss drops)
+// Heals for % of damage taken (works on all damage sources)
+const INSCRIPTION_DEFENSIVE_LIFESTEAL: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_defensive_lifesteal_legendary', name: 'Guardian Prefix Scroll', icon: '📜', description: 'Adds "Guardian" prefix: +12% defensive lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'defensiveLifesteal', statValue: 12, slot: 'prefix', name: 'Guardian', description: 'Adds +12% defensive lifesteal to equipment - heals for 12% of damage taken from all sources' } },
+  { lootId: 'prefix_defensive_lifesteal_legendary_2', name: 'Resilient Prefix Scroll', icon: '📜', description: 'Adds "Resilient" prefix: +18% defensive lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'defensiveLifesteal', statValue: 18, slot: 'prefix', name: 'Resilient', description: 'Adds +18% defensive lifesteal to equipment - heals for 18% of damage taken from all sources' } },
+  // Suffixes
+  { lootId: 'suffix_defensive_lifesteal_legendary', name: 'Suffix of the Juggernaut Scroll', icon: '📜', description: 'Adds "of the Juggernaut" suffix: +12% defensive lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'defensiveLifesteal', statValue: 12, slot: 'suffix', name: 'of the Juggernaut', description: 'Adds +12% defensive lifesteal to equipment - heals for 12% of damage taken from all sources' } },
+  { lootId: 'suffix_defensive_lifesteal_legendary_2', name: 'Suffix of the Fortress Scroll', icon: '📜', description: 'Adds "of the Fortress" suffix: +18% defensive lifesteal', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'defensiveLifesteal', statValue: 18, slot: 'suffix', name: 'of the Fortress', description: 'Adds +18% defensive lifesteal to equipment - heals for 18% of damage taken from all sources' } },
+];
+
+// Thorns Inscription Scrolls (+thorns) - LEGENDARY ONLY (Boss drops)
+// Reflects % of damage taken back to monster (uses pre-mitigation damage)
+const INSCRIPTION_THORNS: LootItem[] = [
+  // Prefixes
+  { lootId: 'prefix_thorns_legendary', name: 'Spiked Prefix Scroll', icon: '📜', description: 'Adds "Spiked" prefix: +8% thorns damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'thorns', statValue: 8, slot: 'prefix', name: 'Spiked', description: 'Adds +8% thorns damage to equipment - reflects 8% of damage taken back to attacker' } },
+  { lootId: 'prefix_thorns_legendary_2', name: 'Retaliating Prefix Scroll', icon: '📜', description: 'Adds "Retaliating" prefix: +12% thorns damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'thorns', statValue: 12, slot: 'prefix', name: 'Retaliating', description: 'Adds +12% thorns damage to equipment - reflects 12% of damage taken back to attacker' } },
+  // Suffixes
+  { lootId: 'suffix_thorns_legendary', name: 'Suffix of Vengeance Scroll', icon: '📜', description: 'Adds "of Vengeance" suffix: +8% thorns damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'thorns', statValue: 8, slot: 'suffix', name: 'of Vengeance', description: 'Adds +8% thorns damage to equipment - reflects 8% of damage taken back to attacker' } },
+  { lootId: 'suffix_thorns_legendary_2', name: 'Suffix of Retaliation Scroll', icon: '📜', description: 'Adds "of Retaliation" suffix: +12% thorns damage', rarity: 'legendary', type: 'inscription_scroll', inscriptionData: { inscriptionType: 'thorns', statValue: 12, slot: 'suffix', name: 'of Retaliation', description: 'Adds +12% thorns damage to equipment - reflects 12% of damage taken back to attacker' } },
 ];
 
 // Create a map of all loot items for easy lookup by lootId
@@ -792,6 +837,8 @@ const ALL_LOOT_ITEMS_MAP = new Map<string, LootItem>();
   ...INSCRIPTION_HEALING,
   ...INSCRIPTION_LIFESTEAL,  // Special legendary (boss drops)
   ...INSCRIPTION_AUTOCLICK,  // Special legendary (boss drops)
+  ...INSCRIPTION_DEFENSIVE_LIFESTEAL,  // Special legendary (boss drops)
+  ...INSCRIPTION_THORNS,  // Special legendary (boss drops)
 ].forEach(item => {
   ALL_LOOT_ITEMS_MAP.set(item.lootId, item);
 });

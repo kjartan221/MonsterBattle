@@ -21,6 +21,8 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const { selectedBiome, selectedTier } = useBiome();
 
+  console.log(`[PlayerStatsDisplay] Rendering - HP: ${playerStats?.currentHealth ?? 'null'}`);
+
   if (!playerStats) return null;
 
   // Helper function to calculate actual damage reduction from defense stat
@@ -75,7 +77,14 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
     });
   }
 
-  const totalDamage = (Number(playerStats.baseDamage) || 1) + (Number(equipmentStats.damageBonus) || 0);
+  const baseTotalDamage = (Number(playerStats.baseDamage) || 1) + (Number(equipmentStats.damageBonus) || 0);
+
+  // Calculate damage multiplier from buffs (Berserker Rage, etc.)
+  const buffDamageMultiplier = activeBuffs
+    .filter(buff => buff.buffType === BuffType.DAMAGE_MULT)
+    .reduce((sum, buff) => sum + buff.value, 0);
+  const totalDamageMultiplier = 1.0 + (buffDamageMultiplier / 100);
+  const totalDamage = Math.floor(baseTotalDamage * totalDamageMultiplier);
 
   // Calculate total shield HP from active buffs
   const totalShieldHP = activeBuffs
@@ -110,7 +119,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
       </div>
 
       {/* HP Bar */}
-      <div className="mb-1.5 sm:mb-2">
+      <div className="mb-1 sm:mb-1.5">
         <div className="flex justify-between text-white text-xs sm:text-sm mb-1">
           <span>HP</span>
           <span className="font-bold">
@@ -157,7 +166,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
       </div>
 
       {/* XP Bar */}
-      <div className="mb-2 sm:mb-3">
+      <div className="mb-1.5 sm:mb-2">
         <div className="flex justify-between text-white text-[10px] sm:text-xs mb-1">
           <span>XP</span>
           <span className="font-bold">
@@ -174,30 +183,35 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
 
       {/* Active Buffs */}
       {activeBuffs.length > 0 && (
-        <div className="mb-2 sm:mb-3 pt-1.5 sm:pt-2 border-t border-white/10">
-          <div className="text-white/60 text-[10px] sm:text-xs mb-1">Active Buffs:</div>
+        <div className="mb-1.5 pt-1.5 border-t border-white/10">
+          <div className="text-white/60 text-[10px] mb-0.5">Active Buffs:</div>
           <PlayerBuffIndicators buffs={activeBuffs} size="small" showDuration={true} />
         </div>
       )}
 
       {/* Active Debuffs */}
       {activeDebuffs.length > 0 && (
-        <div className={`mb-2 sm:mb-3 ${activeBuffs.length > 0 ? '' : 'pt-1.5 sm:pt-2 border-t border-white/10'}`}>
-          <div className="text-white/60 text-[10px] sm:text-xs mb-1">Active Debuffs:</div>
+        <div className={`mb-1.5 ${activeBuffs.length > 0 ? '' : 'pt-1.5 border-t border-white/10'}`}>
+          <div className="text-white/60 text-[10px] mb-0.5">Active Debuffs:</div>
           <DebuffIndicators debuffs={activeDebuffs} size="small" showDuration={true} />
         </div>
       )}
 
       {/* Stats (Total = Base + Equipment) */}
-      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+      <div className="grid grid-cols-2 gap-1 text-[10px] sm:text-xs">
         <div className="text-white/80">
           <span className="text-white/60">⚔️ Damage:</span>{' '}
-          <span className="text-white font-semibold">
+          <span className={`font-semibold ${buffDamageMultiplier > 0 ? 'text-red-400' : 'text-white'}`}>
             {totalDamage}
           </span>
           {(Number(equipmentStats.damageBonus) || 0) > 0 && (
             <span className="text-green-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
               (+{Number(equipmentStats.damageBonus) || 0})
+            </span>
+          )}
+          {buffDamageMultiplier > 0 && (
+            <span className="text-red-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
+              (×{totalDamageMultiplier.toFixed(1)})
             </span>
           )}
         </div>
@@ -244,6 +258,36 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
             <span className="text-white/60">0</span>
           )}
         </div>
+        {/* Offensive Lifesteal (from damage dealt) */}
+        {(Number(equipmentStats.lifesteal) || 0) > 0 && (
+          <div className="text-white/80">
+            <span className="text-white/60">🩸 Lifesteal:</span>{' '}
+            <span className="text-red-400 font-semibold">
+              {(Number(equipmentStats.lifesteal) || 0).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">(offense)</span>
+          </div>
+        )}
+        {/* Defensive Lifesteal (from damage taken) */}
+        {(Number(equipmentStats.defensiveLifesteal) || 0) > 0 && (
+          <div className="text-white/80">
+            <span className="text-white/60">💚 Tank Heal:</span>{' '}
+            <span className="text-green-400 font-semibold">
+              {(Number(equipmentStats.defensiveLifesteal) || 0).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">(defense)</span>
+          </div>
+        )}
+        {/* Thorns (damage reflection) */}
+        {(Number(equipmentStats.thorns) || 0) > 0 && (
+          <div className="text-white/80">
+            <span className="text-white/60">🔱 Thorns:</span>{' '}
+            <span className="text-orange-400 font-semibold">
+              {(Number(equipmentStats.thorns) || 0).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">(reflect)</span>
+          </div>
+        )}
       </div>
     </div>
   );

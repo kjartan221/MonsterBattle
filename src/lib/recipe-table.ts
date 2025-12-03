@@ -846,9 +846,9 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🗡️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'dragon_fang', quantity: 10 },
+      { lootTableId: 'dragon_fang', quantity: 8 },
       { lootTableId: 'demon_horn', quantity: 5 },
-      { lootTableId: 'rare_steel', quantity: 20 },
+      { lootTableId: 'rare_steel', quantity: 10 },
       { lootTableId: 'soul_stone', quantity: 1 }
     ],
     output: { lootTableId: 'vorpal_blade', quantity: 1 },
@@ -863,11 +863,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🔱',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'leviathan_scale', quantity: 15 },
+      { lootTableId: 'leviathan_scale', quantity: 10 },
       { lootTableId: 'ocean_heart', quantity: 2 },
-      { lootTableId: 'serpent_scale', quantity: 20 },
+      { lootTableId: 'serpent_scale', quantity: 12 },
       { lootTableId: 'lightning_core', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 25 }
+      { lootTableId: 'rare_steel', quantity: 10 }
     ],
     output: { lootTableId: 'tidal_reaver', quantity: 1 },
     rarity: 'legendary',
@@ -881,11 +881,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '⚔️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'ancient_dragon_scale', quantity: 20 },
+      { lootTableId: 'ancient_dragon_scale', quantity: 12 },
       { lootTableId: 'dragon_soul', quantity: 2 },
-      { lootTableId: 'drake_scale', quantity: 25 },
-      { lootTableId: 'golem_core', quantity: 10 },
-      { lootTableId: 'rare_steel', quantity: 30 }
+      { lootTableId: 'drake_scale', quantity: 10 },
+      { lootTableId: 'golem_core', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 10 }
     ],
     output: { lootTableId: 'infernal_claymore', quantity: 1 },
     rarity: 'legendary',
@@ -900,10 +900,10 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     category: 'weapon',
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 1 },
-      { lootTableId: 'void_essence', quantity: 10 },
-      { lootTableId: 'necrotic_essence', quantity: 15 },
+      { lootTableId: 'void_essence', quantity: 8 },
+      { lootTableId: 'necrotic_essence', quantity: 10 },
       { lootTableId: 'dark_crystal', quantity: 8 },
-      { lootTableId: 'dark_steel', quantity: 25 }
+      { lootTableId: 'dark_steel', quantity: 12 }
     ],
     output: { lootTableId: 'reaper_scythe', quantity: 1 },
     rarity: 'legendary',
@@ -920,8 +920,8 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
       { lootTableId: 'soul_stone', quantity: 2 },
       { lootTableId: 'phoenix_feather', quantity: 3 },
       { lootTableId: 'dragon_heart', quantity: 2 },
-      { lootTableId: 'rare_steel', quantity: 50 },
-      { lootTableId: 'rare_gem', quantity: 30 },
+      { lootTableId: 'rare_steel', quantity: 12 },
+      { lootTableId: 'rare_gem', quantity: 10 },
       { lootTableId: 'millennium_root', quantity: 5 }
     ],
     output: { lootTableId: 'excalibur', quantity: 1 },
@@ -935,11 +935,11 @@ const CRAFT_ONLY_WEAPON_RECIPES: CraftingRecipe[] = [
     icon: '🗡️',
     category: 'weapon',
     requiredMaterials: [
-      { lootTableId: 'vampire_blood', quantity: 20 },
+      { lootTableId: 'vampire_blood', quantity: 12 },
       { lootTableId: 'blood_chalice', quantity: 1 },
       { lootTableId: 'demon_horn', quantity: 8 },
-      { lootTableId: 'rare_steel', quantity: 35 },
-      { lootTableId: 'rare_gem', quantity: 20 },
+      { lootTableId: 'rare_steel', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 10 },
       { lootTableId: 'crimson_crown', quantity: 1 }
     ],
     output: { lootTableId: 'scarlet_dagger', quantity: 1 },
@@ -971,10 +971,10 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🧥',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'fairy_wing', quantity: 15 },
-      { lootTableId: 'pixie_dust', quantity: 20 },
+      { lootTableId: 'fairy_wing', quantity: 10 },
+      { lootTableId: 'pixie_dust', quantity: 12 },
       { lootTableId: 'spirit_crystal', quantity: 5 },
-      { lootTableId: 'common_cloth', quantity: 25 }
+      { lootTableId: 'common_cloth', quantity: 10 }
     ],
     output: { lootTableId: 'enchanted_silk_robes', quantity: 1 },
     rarity: 'epic',
@@ -987,8 +987,8 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'dragon_scale', quantity: 30 },
-      { lootTableId: 'rare_steel', quantity: 25 },
+      { lootTableId: 'dragon_scale', quantity: 12 },
+      { lootTableId: 'rare_steel', quantity: 10 },
       { lootTableId: 'treant_heart', quantity: 3 },
       { lootTableId: 'demon_horn', quantity: 5 }
     ],
@@ -1004,11 +1004,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'leviathan_scale', quantity: 25 },
+      { lootTableId: 'leviathan_scale', quantity: 10 },
       { lootTableId: 'ocean_heart', quantity: 1 },
-      { lootTableId: 'serpent_scale', quantity: 30 },
-      { lootTableId: 'frozen_scale', quantity: 20 },
-      { lootTableId: 'rare_steel', quantity: 30 }
+      { lootTableId: 'serpent_scale', quantity: 12 },
+      { lootTableId: 'frozen_scale', quantity: 10 },
+      { lootTableId: 'rare_steel', quantity: 10 }
     ],
     output: { lootTableId: 'abyssal_plate', quantity: 1 },
     rarity: 'legendary',
@@ -1022,11 +1022,11 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     icon: '🛡️',
     category: 'armor',
     requiredMaterials: [
-      { lootTableId: 'ancient_dragon_scale', quantity: 30 },
+      { lootTableId: 'ancient_dragon_scale', quantity: 12 },
       { lootTableId: 'dragon_soul', quantity: 1 },
-      { lootTableId: 'drake_scale', quantity: 35 },
-      { lootTableId: 'golem_core', quantity: 12 },
-      { lootTableId: 'rare_steel', quantity: 35 }
+      { lootTableId: 'drake_scale', quantity: 10 },
+      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'rare_steel', quantity: 10 }
     ],
     output: { lootTableId: 'dragonlord_armor', quantity: 1 },
     rarity: 'legendary',
@@ -1042,11 +1042,128 @@ const CRAFT_ONLY_ARMOR_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 1 },
       { lootTableId: 'void_essence', quantity: 8 },
-      { lootTableId: 'necrotic_essence', quantity: 20 },
-      { lootTableId: 'dark_steel', quantity: 35 },
-      { lootTableId: 'bone_shard', quantity: 40 }
+      { lootTableId: 'necrotic_essence', quantity: 10 },
+      { lootTableId: 'dark_steel', quantity: 12 },
+      { lootTableId: 'bone_shard', quantity: 12 }
     ],
     output: { lootTableId: 'dreadlord_plate', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 18
+  },
+  // NEW: Archetype-Specific Epic Armor
+  {
+    recipeId: 'craft_assassins_leathers',
+    name: 'Assassin\'s Leathers',
+    description: 'Light armor for precision strikes',
+    icon: '🥋',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'wolf_pelt', quantity: 8 },
+      { lootTableId: 'fairy_wing', quantity: 12 },
+      { lootTableId: 'rare_gem', quantity: 6 },
+      { lootTableId: 'pixie_dust', quantity: 10 }
+    ],
+    output: { lootTableId: 'assassins_leathers', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 12
+  },
+  {
+    recipeId: 'craft_battle_robes',
+    name: 'Battle Robes',
+    description: 'Balanced protection and utility',
+    icon: '🧥',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'spirit_crystal', quantity: 8 },
+      { lootTableId: 'boar_hide', quantity: 10 },
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'common_cloth', quantity: 12 }
+    ],
+    output: { lootTableId: 'battle_robes', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 11
+  },
+  {
+    recipeId: 'craft_bulwark_plate',
+    name: 'Bulwark Plate',
+    description: 'Impenetrable heavy armor',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'rare_steel', quantity: 12 },
+      { lootTableId: 'troll_hide', quantity: 8 },
+      { lootTableId: 'dragon_scale', quantity: 6 },
+      { lootTableId: 'demon_horn', quantity: 4 }
+    ],
+    output: { lootTableId: 'bulwark_plate', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 13
+  },
+  {
+    recipeId: 'craft_berserkers_vest',
+    name: 'Berserker\'s Vest',
+    description: 'Pure offensive power',
+    icon: '🎽',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'wolf_fang', quantity: 10 },
+      { lootTableId: 'viper_fang', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'blood_vial', quantity: 4 }
+    ],
+    output: { lootTableId: 'berserkers_vest', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 14
+  },
+  // NEW: Archetype-Specific Legendary Armor
+  {
+    recipeId: 'craft_shadowdancer_silk',
+    name: 'Shadowdancer Silk',
+    description: 'Ethereal armor of legendary assassins',
+    icon: '🥷',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'fairy_wing', quantity: 12 },
+      { lootTableId: 'pixie_dust', quantity: 12 },
+      { lootTableId: 'void_essence', quantity: 8 },
+      { lootTableId: 'soul_stone', quantity: 2 },
+      { lootTableId: 'rare_gem', quantity: 10 }
+    ],
+    output: { lootTableId: 'shadowdancer_silk', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 19
+  },
+  {
+    recipeId: 'craft_fortress_plate',
+    name: 'Fortress Plate',
+    description: 'Living citadel of impenetrable defense',
+    icon: '🛡️',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'dragon_scale', quantity: 12 },
+      { lootTableId: 'treant_heart', quantity: 3 },
+      { lootTableId: 'golem_core', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 12 },
+      { lootTableId: 'demon_horn', quantity: 6 }
+    ],
+    output: { lootTableId: 'fortress_plate', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
+  },
+  {
+    recipeId: 'craft_warlords_regalia',
+    name: 'Warlord\'s Regalia',
+    description: 'Armor of legendary commanders',
+    icon: '👑',
+    category: 'armor',
+    requiredMaterials: [
+      { lootTableId: 'dragon_scale', quantity: 10 },
+      { lootTableId: 'phoenix_feather', quantity: 3 },
+      { lootTableId: 'rare_steel', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 8 },
+      { lootTableId: 'soul_stone', quantity: 1 }
+    ],
+    output: { lootTableId: 'warlords_regalia', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 18
   }
@@ -1077,9 +1194,9 @@ const CRAFT_ONLY_CONSUMABLE_RECIPES: CraftingRecipe[] = [
     category: 'consumable',
     requiredMaterials: [
       { lootTableId: 'dragon_heart', quantity: 1 },
-      { lootTableId: 'fire_essence', quantity: 10 },
+      { lootTableId: 'fire_essence', quantity: 8 },
       { lootTableId: 'spirit_crystal', quantity: 5 },
-      { lootTableId: 'pixie_dust', quantity: 15 }
+      { lootTableId: 'pixie_dust', quantity: 10 }
     ],
     output: { lootTableId: 'transmutation_potion', quantity: 2 },
     rarity: 'epic',
@@ -1145,7 +1262,7 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
       { lootTableId: 'soul_stone', quantity: 3 },
       { lootTableId: 'chaos_orb', quantity: 1 },
       { lootTableId: 'phoenix_feather', quantity: 5 },
-      { lootTableId: 'rare_gem', quantity: 20 }
+      { lootTableId: 'rare_gem', quantity: 10 }
     ],
     output: { lootTableId: 'infinity_amulet', quantity: 1 },
     rarity: 'legendary',
@@ -1161,9 +1278,9 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'ocean_heart', quantity: 3 },
       { lootTableId: 'tidal_orb', quantity: 1 },
-      { lootTableId: 'lightning_core', quantity: 10 },
-      { lootTableId: 'serpent_scale', quantity: 25 },
-      { lootTableId: 'rare_gem', quantity: 15 }
+      { lootTableId: 'lightning_core', quantity: 8 },
+      { lootTableId: 'serpent_scale', quantity: 12 },
+      { lootTableId: 'rare_gem', quantity: 10 }
     ],
     output: { lootTableId: 'maelstrom_pendant', quantity: 1 },
     rarity: 'legendary',
@@ -1179,9 +1296,9 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'dragon_soul', quantity: 3 },
       { lootTableId: 'dragon_amulet', quantity: 1 },
-      { lootTableId: 'golem_core', quantity: 15 },
-      { lootTableId: 'drake_claw', quantity: 20 },
-      { lootTableId: 'rare_gem', quantity: 18 }
+      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'drake_claw', quantity: 12 },
+      { lootTableId: 'rare_gem', quantity: 10 }
     ],
     output: { lootTableId: 'volcanic_heart', quantity: 1 },
     rarity: 'legendary',
@@ -1197,13 +1314,179 @@ const CRAFT_ONLY_ARTIFACT_RECIPES: CraftingRecipe[] = [
     requiredMaterials: [
       { lootTableId: 'lich_crown', quantity: 2 },
       { lootTableId: 'death_orb', quantity: 1 },
-      { lootTableId: 'void_essence', quantity: 15 },
-      { lootTableId: 'dark_crystal', quantity: 12 },
-      { lootTableId: 'rare_gem', quantity: 20 }
+      { lootTableId: 'void_essence', quantity: 10 },
+      { lootTableId: 'dark_crystal', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 10 }
     ],
     output: { lootTableId: 'crown_of_eternity', quantity: 1 },
     rarity: 'legendary',
     unlocksAtLevel: 20
+  },
+  // NEW: Archetype-Specific Epic Artifacts
+  {
+    recipeId: 'craft_assassins_mark',
+    name: 'Assassin\'s Mark',
+    description: 'Cursed relic of deadly precision',
+    icon: '💀',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'demon_eye', quantity: 3 },
+      { lootTableId: 'vampire_blood', quantity: 8 },
+      { lootTableId: 'dark_crystal', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 8 }
+    ],
+    output: { lootTableId: 'assassins_mark', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 13
+  },
+  {
+    recipeId: 'craft_executioners_eye',
+    name: 'Executioner\'s Eye',
+    description: 'See enemy weaknesses',
+    icon: '👁️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'demon_eye', quantity: 2 },
+      { lootTableId: 'dragon_fang', quantity: 6 },
+      { lootTableId: 'viper_fang', quantity: 8 },
+      { lootTableId: 'rare_gem', quantity: 6 }
+    ],
+    output: { lootTableId: 'executioners_eye', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 14
+  },
+  {
+    recipeId: 'craft_guardians_talisman',
+    name: 'Guardian\'s Talisman',
+    description: 'Sacred relic of protectors',
+    icon: '🛡️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'treant_heart', quantity: 2 },
+      { lootTableId: 'dragon_scale', quantity: 8 },
+      { lootTableId: 'spirit_crystal', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 8 }
+    ],
+    output: { lootTableId: 'guardians_talisman', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 12
+  },
+  {
+    recipeId: 'craft_ironheart_stone',
+    name: 'Ironheart Stone',
+    description: 'Endurance of stone',
+    icon: '💎',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'golem_core', quantity: 6 },
+      { lootTableId: 'treant_heart', quantity: 2 },
+      { lootTableId: 'dragon_scale', quantity: 6 },
+      { lootTableId: 'rare_steel', quantity: 8 }
+    ],
+    output: { lootTableId: 'ironheart_stone', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 13
+  },
+  {
+    recipeId: 'craft_adventurers_compass',
+    name: 'Adventurer\'s Compass',
+    description: 'Guides to fortune and survival',
+    icon: '🧭',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'rare_gem', quantity: 8 },
+      { lootTableId: 'rare_steel', quantity: 6 },
+      { lootTableId: 'spirit_crystal', quantity: 6 },
+      { lootTableId: 'pixie_dust', quantity: 8 }
+    ],
+    output: { lootTableId: 'adventurers_compass', quantity: 1 },
+    rarity: 'epic',
+    unlocksAtLevel: 11
+  },
+  // NEW: Archetype-Specific Legendary Artifacts
+  {
+    recipeId: 'craft_heart_of_reaper',
+    name: 'Heart of the Reaper',
+    description: 'Ultimate offensive artifact',
+    icon: '💀',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'void_essence', quantity: 10 },
+      { lootTableId: 'demon_horn', quantity: 8 },
+      { lootTableId: 'soul_stone', quantity: 3 },
+      { lootTableId: 'lich_crown', quantity: 1 },
+      { lootTableId: 'rare_gem', quantity: 10 }
+    ],
+    output: { lootTableId: 'heart_of_reaper', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 21
+  },
+  {
+    recipeId: 'craft_perfect_prism',
+    name: 'Perfect Prism',
+    description: 'Focuses power into critical strikes',
+    icon: '🔷',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'rare_gem', quantity: 12 },
+      { lootTableId: 'spirit_crystal', quantity: 10 },
+      { lootTableId: 'phoenix_feather', quantity: 3 },
+      { lootTableId: 'soul_stone', quantity: 2 }
+    ],
+    output: { lootTableId: 'perfect_prism', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
+  },
+  {
+    recipeId: 'craft_aegis_of_titans',
+    name: 'Aegis of Titans',
+    description: 'Legendary shield of ancient giants',
+    icon: '🛡️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'dragon_scale', quantity: 12 },
+      { lootTableId: 'treant_heart', quantity: 3 },
+      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'soul_stone', quantity: 2 },
+      { lootTableId: 'rare_gem', quantity: 10 }
+    ],
+    output: { lootTableId: 'aegis_of_titans', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 22
+  },
+  {
+    recipeId: 'craft_bastion_core',
+    name: 'Bastion Core',
+    description: 'Mechanical heart of ancient guardian',
+    icon: '⚙️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'golem_core', quantity: 10 },
+      { lootTableId: 'dragon_scale', quantity: 10 },
+      { lootTableId: 'rare_steel', quantity: 12 },
+      { lootTableId: 'demon_horn', quantity: 6 },
+      { lootTableId: 'rare_gem', quantity: 10 }
+    ],
+    output: { lootTableId: 'bastion_core', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 20
+  },
+  {
+    recipeId: 'craft_equilibrium_orb',
+    name: 'Equilibrium Orb',
+    description: 'Perfect balance of offense and defense',
+    icon: '☯️',
+    category: 'artifact',
+    requiredMaterials: [
+      { lootTableId: 'soul_stone', quantity: 3 },
+      { lootTableId: 'phoenix_feather', quantity: 3 },
+      { lootTableId: 'dragon_heart', quantity: 2 },
+      { lootTableId: 'rare_steel', quantity: 10 },
+      { lootTableId: 'rare_gem', quantity: 10 }
+    ],
+    output: { lootTableId: 'equilibrium_orb', quantity: 1 },
+    rarity: 'legendary',
+    unlocksAtLevel: 19
   }
 ];
 

@@ -70,6 +70,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const [totalDamageReduction, setTotalDamageReduction] = useState(0); // Track all damage reduction buffs
   const [invulnerabilityTime, setInvulnerabilityTime] = useState(0); // Track boss invulnerability time (ms)
   const [summonDamage, setSummonDamage] = useState(0); // Track damage from summons (not reduced by armor)
+  const [thornsDamage, setThornsDamage] = useState(0); // Track damage from thorns reflection (for anti-cheat)
   const [clickCount, setClickCount] = useState(0);
   const [lastSavedClickCount, setLastSavedClickCount] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
@@ -312,6 +313,24 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   }, [damageShield, takeDamage]);
 
+  // Stable callback references for useMonsterAttack (prevent interval recreation)
+  const handleSummonDamage = useCallback((amount: number) => {
+    setSummonDamage(prev => prev + amount);
+  }, []);
+
+  const handleThornsDamage = useCallback((amount: number) => {
+    // Apply thorns damage to monster HP (doesn't count as click)
+    damagePhase(amount);
+    setThornsDamage(prev => prev + amount); // Track for anti-cheat
+    console.log(`🔱 [THORNS] Applied ${amount} thorns damage to monster`);
+  }, [damagePhase]);
+
+  const handleDefensiveLifesteal = useCallback((amount: number) => {
+    // Track defensive lifesteal healing for anti-cheat
+    setTotalHealing(prev => prev + amount);
+    console.log(`💚 [DEFENSIVE LIFESTEAL TRACKED] +${amount} HP added to totalHealing`);
+  }, []);
+
   // Monster attack system with debuff application
   const { isAttacking } = useMonsterAttack({
     monster: gameState.monster,
@@ -321,12 +340,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     isInvulnerable: isInvulnerable,
     playerStats,
     takeDamage: takeDamageWithShield,
+    healHealth,
     equipmentStats,
     applyDebuff,
     additionalDamage: getTotalSummonDamage(),
-    onSummonDamage: (amount) => {
-      setSummonDamage(prev => prev + amount);
-    }
+    onSummonDamage: handleSummonDamage,
+    onThornsDamage: handleThornsDamage,
+    onDefensiveLifesteal: handleDefensiveLifesteal
   });
 
   // Auto-start initial battle when player stats load
@@ -570,7 +590,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           damageReductionPercent: totalDamageReduction,
           actualHealing: totalHealing,
           invulnerabilityTimeMs: invulnerabilityTime,
-          summonDamage: summonDamage
+          summonDamage: summonDamage,
+          thornsDamage: thornsDamage
         }),
       });
 
@@ -696,6 +717,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
             { duration: 5000 }
           );
         }
+
+        // Show zone unlock notification
+        if (data.unlockReason) {
+          if (data.unlockReason === 'epic_boss') {
+            toast.success('👹 Epic Mini-Boss Defeated! Next zone unlocked!', { duration: 4000 });
+          } else if (data.unlockReason === '10_streak') {
+            toast.success('🎯 10 Win Streak! Next zone unlocked!', { duration: 4000 });
+          }
+        }
       } else if (!data.cheatingDetected && !data.hpCheatDetected) {
         // If we reach here without success, something went wrong
         console.error('Unexpected response from battle completion:', data);
@@ -720,6 +750,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Use player's base damage instead of defaulting to 1
     const baseDamage = playerStats?.baseDamage || 1;
 
+    // Calculate damage multiplier from buffs (Berserker Rage, etc.)
+    const buffDamageMultiplier = activeBuffs
+      .filter(buff => buff.buffType === BuffType.DAMAGE_MULT)
+      .reduce((sum, buff) => sum + buff.value, 0);
+    const totalDamageMultiplier = 1.0 + (buffDamageMultiplier / 100); // 1.0 + (50% = 0.5) = 1.5x
+
     // Calculate total crit chance (base 5% + equipment + buffs)
     const baseCritChance = 5;
     const buffCritBoost = activeBuffs
@@ -738,6 +774,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       critMultiplier
     );
 
+    // Apply damage multiplier from buffs (AFTER crit calculation)
+    damage = Math.floor(damage * totalDamageMultiplier);
+
     if (isCrit) {
       setCritTrigger(prev => prev + 1);
     }
@@ -751,8 +790,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
 
     // Phase 2.5: Apply lifesteal healing (% of damage dealt)
-    // Only trigger on manual clicks, NOT on auto-hits
-    if (!isAutoHit && equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
+    // Works on both manual clicks and auto-hits
+    if (equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
       healHealth(healAmount, equipmentStats.maxHpBonus);
       // Track healing for cheat detection

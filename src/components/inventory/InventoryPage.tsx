@@ -42,18 +42,28 @@ export default function InventoryPage() {
   const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
 
   // Stack items by name + tier + empowered status (exclude crafted items from stacking)
+  // For consumables, ignore tier/empowered since they don't have equipment stats
   const stackItems = (items: InventoryItem[]): StackedInventoryItem[] => {
     const stacks = new Map<string, InventoryItem[]>();
     const craftedItems: InventoryItem[] = [];
 
-    // Separate crafted items and group non-crafted items by name + tier + empowered status
+    // Separate crafted items and group non-crafted items
     items.forEach(item => {
       // Crafted items are not stacked (each has unique stat roll)
       if (item.crafted) {
         craftedItems.push(item);
       } else {
-        // Include isEmpowered in key to separate corrupted items from regular items
-        const key = `${item.name}_${item.tier}_${item.isEmpowered || false}`;
+        // For consumables: stack by lootId only (ignore tier/empowered)
+        // For equipment: stack by name + tier + empowered
+        let key: string;
+        if (item.type === 'consumable') {
+          // Consumables don't benefit from tier/empowered, so stack all together
+          key = `${item.lootId}`;
+        } else {
+          // Equipment benefits from tier/empowered, keep separate stacks
+          key = `${item.name}_${item.tier}_${item.isEmpowered || false}`;
+        }
+
         if (!stacks.has(key)) {
           stacks.set(key, []);
         }

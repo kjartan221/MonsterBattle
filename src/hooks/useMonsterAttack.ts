@@ -12,10 +12,13 @@ interface UseMonsterAttackProps {
   isInvulnerable?: boolean;
   playerStats: PlayerStats | null;
   takeDamage: (amount: number) => Promise<void>;
+  healHealth: (amount: number, maxHpBonus?: number) => Promise<void>; // For defensive lifesteal
   equipmentStats: TotalEquipmentStats;
   applyDebuff?: (effect: DebuffEffect, appliedBy?: string) => boolean;
   additionalDamage?: number; // Additional damage from summons, etc.
   onSummonDamage?: (amount: number) => void; // Report summon damage for cheat detection
+  onThornsDamage?: (amount: number) => void; // Apply thorns damage to monster
+  onDefensiveLifesteal?: (amount: number) => void; // Report defensive lifesteal healing for cheat detection
 }
 
 /**
@@ -31,10 +34,13 @@ export function useMonsterAttack({
   isInvulnerable = false,
   playerStats,
   takeDamage,
+  healHealth,
   equipmentStats,
   applyDebuff,
   additionalDamage = 0,
-  onSummonDamage
+  onSummonDamage,
+  onThornsDamage,
+  onDefensiveLifesteal
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -71,11 +77,37 @@ export function useMonsterAttack({
 
     // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
+      console.log(`[useMonsterAttack] Interval tick - dealing ${totalDamage} damage`);
+
       // Visual feedback: show attack animation
       setIsAttacking(true);
 
       // Deal total damage to player (monster + summons)
+      console.log(`[useMonsterAttack] Calling takeDamage with ${totalDamage}`);
       await takeDamage(totalDamage);
+      console.log(`[useMonsterAttack] takeDamage completed`);
+
+      // Apply defensive lifesteal healing (% of damage taken)
+      if (equipmentStats.defensiveLifesteal > 0) {
+        const healAmount = Math.ceil(totalDamage * (equipmentStats.defensiveLifesteal / 100));
+        await healHealth(healAmount, equipmentStats.maxHpBonus);
+
+        // Report healing to anti-cheat tracker
+        if (onDefensiveLifesteal) {
+          onDefensiveLifesteal(healAmount);
+        }
+
+        console.log(`💚 [DEFENSIVE LIFESTEAL] Healed ${healAmount} HP | Stat: ${equipmentStats.defensiveLifesteal}% | Damage Taken: ${totalDamage} | Calculation: ceil(${totalDamage} × ${equipmentStats.defensiveLifesteal}%)`);
+      }
+
+      // Apply thorns damage (% of pre-mitigation damage reflected back to monster)
+      if (equipmentStats.thorns > 0 && onThornsDamage) {
+        // Use monster's base attack damage (pre-mitigation) for thorns calculation
+        const preMitigationDamage = monster.attackDamage + additionalDamage;
+        const thornsDamage = Math.ceil(preMitigationDamage * (equipmentStats.thorns / 100));
+        onThornsDamage(thornsDamage);
+        console.log(`🔱 [THORNS] Reflected ${thornsDamage} damage to monster | Stat: ${equipmentStats.thorns}% | Pre-Mitigation Damage: ${preMitigationDamage} (Base: ${monster.attackDamage} + Summons: ${additionalDamage}) | Calculation: ceil(${preMitigationDamage} × ${equipmentStats.thorns}%)`);
+      }
 
       // Report summon damage separately for cheat detection (not reduced by armor)
       if (additionalDamage > 0 && onSummonDamage) {
@@ -95,9 +127,9 @@ export function useMonsterAttack({
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, isSubmitting, takeDamage, battleStarted, isInvulnerable, equipmentStats, applyDebuff, additionalDamage]);
+  }, [monster, session, isSubmitting, takeDamage, healHealth, battleStarted, isInvulnerable, equipmentStats, applyDebuff, additionalDamage, onSummonDamage, onThornsDamage, onDefensiveLifesteal]);
   // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
-  // when HP changes from takeDamage calls
+  // when HP changes from takeDamage/healHealth calls
 
   return { isAttacking };
 }
