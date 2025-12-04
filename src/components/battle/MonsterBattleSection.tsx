@@ -189,7 +189,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (attack.type === 'summon' && attack.summons && gameState.monster) {
       console.log(`✨ Boss summoned ${attack.summons.count} ${attack.summons.creature.name}(s)!`);
       console.log(`[handleSpecialAttack] Summon details:`, attack.summons);
-      addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired);
+      addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired, gameState.monster.tier);
     }
   }, [takeDamage, addSummons, spawnAttack, gameState.monster]);
 

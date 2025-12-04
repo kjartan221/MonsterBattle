@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SummonedCreature, SummonDefinition, MonsterFrontend } from '@/lib/types';
+import { TIER_DAMAGE_MULTIPLIERS, type Tier } from '@/lib/biome-config';
 
 interface UseSummonedCreaturesProps {
   monster: MonsterFrontend | null;
@@ -29,8 +30,11 @@ export function useSummonedCreatures({
   }, [monster, battleStarted]);
 
   // Add summons (called during phase transitions)
-  const addSummons = useCallback((count: number, definition: SummonDefinition, bossMaxHP: number) => {
+  const addSummons = useCallback((count: number, definition: SummonDefinition, bossMaxHP: number, tier: Tier) => {
     const newSummons: SummonedCreature[] = [];
+
+    // Apply tier scaling to summon attack damage
+    const scaledAttackDamage = Math.round(definition.attackDamage * TIER_DAMAGE_MULTIPLIERS[tier]);
 
     for (let i = 0; i < count; i++) {
       const hp = Math.ceil(bossMaxHP * (definition.hpPercent / 100));
@@ -41,14 +45,14 @@ export function useSummonedCreatures({
         name: definition.name,
         currentHP: hp,
         maxHP: hp,
-        attackDamage: definition.attackDamage,
+        attackDamage: scaledAttackDamage,
         imageUrl: definition.imageUrl,
         position
       });
     }
 
     setSummons(prev => [...prev, ...newSummons]);
-    console.log(`✨ Summoned ${count} ${definition.name}(s)!`);
+    console.log(`✨ Summoned ${count} ${definition.name}(s)! (Base: ${definition.attackDamage} DMG, Tier ${tier} Scaled: ${scaledAttackDamage} DMG)`);
   }, []);
 
   // Damage a specific summon
