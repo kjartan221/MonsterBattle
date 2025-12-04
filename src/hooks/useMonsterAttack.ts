@@ -82,13 +82,18 @@ export function useMonsterAttack({
       // Visual feedback: show attack animation
       setIsAttacking(true);
 
+      // Calculate what the player's HP will be after damage
+      const hpAfterDamage = Math.max(0, playerStats.currentHealth - totalDamage);
+      console.log(`[useMonsterAttack] HP calculation: ${playerStats.currentHealth} - ${totalDamage} = ${hpAfterDamage}`);
+
       // Deal total damage to player (monster + summons)
       console.log(`[useMonsterAttack] Calling takeDamage with ${totalDamage}`);
       await takeDamage(totalDamage);
       console.log(`[useMonsterAttack] takeDamage completed`);
 
       // Apply defensive lifesteal healing (% of damage taken)
-      if (equipmentStats.defensiveLifesteal > 0) {
+      // IMPORTANT: Only heal if player HP > 0 AFTER damage (don't revive dead players)
+      if (equipmentStats.defensiveLifesteal > 0 && hpAfterDamage > 0) {
         const healAmount = Math.ceil(totalDamage * (equipmentStats.defensiveLifesteal / 100));
         await healHealth(healAmount, equipmentStats.maxHpBonus);
 
@@ -98,6 +103,8 @@ export function useMonsterAttack({
         }
 
         console.log(`💚 [DEFENSIVE LIFESTEAL] Healed ${healAmount} HP | Stat: ${equipmentStats.defensiveLifesteal}% | Damage Taken: ${totalDamage} | Calculation: ceil(${totalDamage} × ${equipmentStats.defensiveLifesteal}%)`);
+      } else if (equipmentStats.defensiveLifesteal > 0 && hpAfterDamage <= 0) {
+        console.log(`💀 [DEFENSIVE LIFESTEAL] Skipped healing - player is defeated (HP after damage: ${hpAfterDamage})`);
       }
 
       // Apply thorns damage (% of pre-mitigation damage reflected back to monster)
