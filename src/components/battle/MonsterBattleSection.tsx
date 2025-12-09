@@ -18,7 +18,8 @@ import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
 import { useSkillShot } from '@/hooks/useSkillShot';
 import type { DebuffEffect, SpecialAttack } from '@/lib/types';
-import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate } from '@/utils/equipmentCalculations';
+import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate, calculateMonsterDamage } from '@/utils/equipmentCalculations';
+import { getSkillshotConfig } from '@/utils/skillshotUtils';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
@@ -148,12 +149,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearAttacks: clearInteractiveAttacks
   } = useInteractiveAttacks({
     onImpact: (damage, visualEffect) => {
-      console.log(`💥 Interactive Attack Impacted! Dealt ${damage} damage`);
-      takeDamage(damage);
+      // Apply defense reduction to interactive attack damage
+      const totalStats = calculateTotalEquipmentStats(
+        equippedWeapon,
+        equippedArmor,
+        equippedAccessory1,
+        equippedAccessory2
+      );
+      const damageAfterDefense = calculateMonsterDamage(damage, totalStats.defense);
+      console.log(`💥 Interactive Attack Impacted! Dealt ${damage} damage (${damageAfterDefense} after ${totalStats.defense} defense)`);
+      takeDamage(damageAfterDefense);
       // Trigger visual feedback
       setPhaseAttack({
         type: 'meteor',
-        damage,
+        damage: damageAfterDefense, // Show reduced damage
         cooldown: 0,
         visualEffect: visualEffect || 'red',
         message: '💥 Attack impacted!'
@@ -162,16 +171,45 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   });
 
-  // SkillShot system - Dual mode (simple = low risk/reward, chain = high risk/reward)
-  // Simple mode: Default for all monsters (20% chance, 10s cooldown, single circle, 2s window)
-  // Chain mode: Can be manually triggered by player or bosses (10% chance, 20s cooldown, 3 circles, 3s total)
+  // SkillShot system - Tier-based progression with challenge modifiers
+  // T1-2: Disabled (tutorial phase)
+  // T3-5: Progressively more circles based on rarity (common: 2-4, rare: 2-4, epic: 3-5, legendary: 3-5, bosses: +1)
+  // Challenge modifiers: +0-4 extra circles, 1.0-0.6x speed (faster)
+  const skillshotConfig = useMemo(() => {
+    if (!gameState.monster) {
+      return { enabled: false, circleCount: 3, circleDuration: 3000 };
+    }
+
+    const baseConfig = getSkillshotConfig(
+      gameState.monster.tier,
+      gameState.monster.rarity,
+      gameState.monster.isBoss || false
+    );
+
+    // Apply challenge modifiers
+    const challengeConfig = playerStats?.battleChallengeConfig || {
+      skillshotCircles: 0,
+      skillshotSpeed: 1.0
+    };
+
+    const modifiedCircleCount = baseConfig.circleCount + (challengeConfig.skillshotCircles || 0);
+    const baseDuration = 3000; // 3 seconds base
+    const modifiedDuration = Math.round(baseDuration * (challengeConfig.skillshotSpeed || 1.0));
+
+    return {
+      enabled: baseConfig.enabled,
+      circleCount: modifiedCircleCount,
+      circleDuration: modifiedDuration
+    };
+  }, [gameState.monster?.tier, gameState.monster?.rarity, gameState.monster?.isBoss, playerStats?.battleChallengeConfig?.skillshotCircles, playerStats?.battleChallengeConfig?.skillshotSpeed]);
+
   const skillShot = useSkillShot({
-    enabled: gameState.canAttackMonster() && !gameState.session?.isDefeated,
-    mode: 'simple', // Start with simple mode by default
-    // randomTriggerChance: Uses mode defaults (simple=20%, chain=10%)
-    // cooldown: Uses mode defaults (simple=10s, chain=20s)
-    // circleCount: Uses mode defaults (simple=1, chain=3)
-    // circleDuration: Uses mode defaults (simple=2s, chain=3s)
+    enabled: skillshotConfig.enabled && gameState.canAttackMonster() && !gameState.session?.isDefeated,
+    mode: 'chain', // Always use chain mode now (tier-based circle count)
+    circleCount: skillshotConfig.circleCount, // Tier/rarity-based count + challenge bonus
+    circleDuration: skillshotConfig.circleDuration, // Base duration × challenge speed
+    // randomTriggerChance: Uses chain mode default (10%)
+    // cooldown: Uses chain mode default (20s)
     isBoss: gameState.monster?.isBoss || false
   });
 
@@ -291,10 +329,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       return; // Don't deal instant damage
     }
 
-    // Non-interactive damage
+    // Non-interactive damage (apply defense reduction)
     if (attack.damage) {
-      console.log(`💥 Special Attack Hit! ${attack.type} dealt ${attack.damage} damage`);
-      takeDamage(attack.damage);
+      const totalStats = calculateTotalEquipmentStats(
+        equippedWeapon,
+        equippedArmor,
+        equippedAccessory1,
+        equippedAccessory2
+      );
+      const damageAfterDefense = calculateMonsterDamage(attack.damage, totalStats.defense);
+      console.log(`💥 Special Attack Hit! ${attack.type} dealt ${attack.damage} damage (${damageAfterDefense} after ${totalStats.defense} defense)`);
+      takeDamage(damageAfterDefense);
     }
     if (attack.healing) {
       console.log(`💚 Boss Healed! ${attack.type} restored ${attack.healing} HP (handled by useBossPhases)`);
@@ -1484,7 +1529,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       {/* SkillShot System - Dual mode (Simple/Chain) */}
       {(() => {
-        console.log(`[MonsterBattleSection] SkillShot render check - mode: ${skillShot.mode}, isActive: ${skillShot.isActive}`);
         return skillShot.mode === 'simple' ? (
           <SkillShotSingle
             isActive={skillShot.isActive}

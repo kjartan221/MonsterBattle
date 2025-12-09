@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
 import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
-import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable } from '@/lib/biome-config';
+import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable, applyTierSpecialAttackScaling } from '@/lib/biome-config';
 import { generateMonsterBuffs } from '@/utils/monsterBuffs';
 import { getCorruptionRateForStreak } from '@/utils/playerProgression';
 import { getStreakForZone } from '@/utils/streakHelpers';
@@ -259,16 +259,75 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Apply boss attack speed multiplier to special attacks
+    // Apply tier scaling and boss attack speed multiplier to special attacks
     let modifiedSpecialAttacks = monsterTemplate.specialAttacks?.filter(
       attack => !attack.minTier || tier >= attack.minTier
     );
-    if (modifiedSpecialAttacks && challengeConfig.bossAttackSpeed < 1.0) {
-      modifiedSpecialAttacks = modifiedSpecialAttacks.map(attack => ({
-        ...attack,
-        cooldown: Math.round(attack.cooldown * challengeConfig.bossAttackSpeed)
-      }));
-      console.log(`⚔️ [CHALLENGE] Boss attack speed: Cooldowns multiplied by ${challengeConfig.bossAttackSpeed}x`);
+    if (modifiedSpecialAttacks) {
+      modifiedSpecialAttacks = modifiedSpecialAttacks.map(attack => {
+        const scaledAttack = { ...attack };
+
+        // Apply lenient tier scaling to damage (1x, 1.5x, 2x, 3x, 4x - less aggressive than regular damage)
+        if (scaledAttack.damage !== undefined) {
+          const baseDamage = scaledAttack.damage;
+          scaledAttack.damage = applyTierSpecialAttackScaling(baseDamage, tier);
+          console.log(`⚔️ [TIER SCALING] Special attack "${attack.type}" damage: ${baseDamage} → ${scaledAttack.damage} (T${tier}, lenient scaling)`);
+        }
+
+        // Apply lenient tier scaling to healing (same as special attack damage scaling)
+        if (scaledAttack.healing !== undefined) {
+          const baseHealing = scaledAttack.healing;
+          scaledAttack.healing = applyTierSpecialAttackScaling(baseHealing, tier);
+          console.log(`⚔️ [TIER SCALING] Special attack "${attack.type}" healing: ${baseHealing} → ${scaledAttack.healing} (T${tier}, lenient scaling)`);
+        }
+
+        // NOTE: Summon attack damage is NOT scaled here - it's scaled in useSummonedCreatures.ts on the frontend
+
+        // Apply challenge mode boss attack speed to cooldown
+        if (challengeConfig.bossAttackSpeed < 1.0) {
+          scaledAttack.cooldown = Math.round(scaledAttack.cooldown * challengeConfig.bossAttackSpeed);
+        }
+
+        return scaledAttack;
+      });
+
+      if (challengeConfig.bossAttackSpeed < 1.0) {
+        console.log(`⚔️ [CHALLENGE] Boss attack speed: Cooldowns multiplied by ${challengeConfig.bossAttackSpeed}x`);
+      }
+    }
+
+    // Apply tier scaling to boss phase special attacks
+    let modifiedBossPhases = monsterTemplate.bossPhases;
+    if (modifiedBossPhases) {
+      modifiedBossPhases = modifiedBossPhases.map(phase => {
+        const scaledPhase = { ...phase };
+
+        if (scaledPhase.specialAttacks) {
+          scaledPhase.specialAttacks = scaledPhase.specialAttacks.map(attack => {
+            const scaledAttack = { ...attack };
+
+            // Apply lenient tier scaling to damage (1x, 1.5x, 2x, 3x, 4x)
+            if (scaledAttack.damage !== undefined) {
+              const baseDamage = scaledAttack.damage;
+              scaledAttack.damage = applyTierSpecialAttackScaling(baseDamage, tier);
+              console.log(`⚔️ [TIER SCALING] Phase ${phase.phaseNumber} "${attack.type}" damage: ${baseDamage} → ${scaledAttack.damage} (T${tier}, lenient scaling)`);
+            }
+
+            // Apply lenient tier scaling to healing
+            if (scaledAttack.healing !== undefined) {
+              const baseHealing = scaledAttack.healing;
+              scaledAttack.healing = applyTierSpecialAttackScaling(baseHealing, tier);
+              console.log(`⚔️ [TIER SCALING] Phase ${phase.phaseNumber} "${attack.type}" healing: ${baseHealing} → ${scaledAttack.healing} (T${tier}, lenient scaling)`);
+            }
+
+            // NOTE: Summon attack damage is NOT scaled here - it's scaled in useSummonedCreatures.ts on the frontend
+
+            return scaledAttack;
+          });
+        }
+
+        return scaledPhase;
+      });
     }
 
     const newMonster = {
@@ -284,8 +343,8 @@ export async function POST(request: NextRequest) {
       isCorrupted: finalIsCorrupted, // Mark corrupted monsters (drops empowered items) - includes forced corruption
       dotEffect: modifiedDotEffect, // Pass DoT effect to frontend (with challenge intensity applied)
       buffs, // Add monster buffs (initial + random, they stack!)
-      specialAttacks: modifiedSpecialAttacks, // Boss special attacks (with challenge cooldown applied)
-      bossPhases: monsterTemplate.bossPhases, // Boss phase system
+      specialAttacks: modifiedSpecialAttacks, // Boss special attacks (with tier scaling and challenge cooldown applied)
+      bossPhases: modifiedBossPhases, // Boss phase system (with tier-scaled special attacks)
       createdAt: new Date()
     };
 

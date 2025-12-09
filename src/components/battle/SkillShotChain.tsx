@@ -78,15 +78,13 @@ export default function SkillShotChain({
       });
     }
 
-    console.log('[SkillShotChain] Generated circle positions:', positions.map(p => `(${p.x.toFixed(0)}, ${p.y.toFixed(0)})`).join(', '));
     return positions;
   };
 
   // Initialize circles when skillshot becomes active
   useEffect(() => {
     if (isActive) {
-      // Reset and initialize on every activation (not just when circles.length === 0)
-      console.log(`[SkillShotChain] Initializing ${circleCount} circles`);
+      // Reset and initialize on every activation
       const newCircles = generateCirclePositions(circleCount);
       setCircles(newCircles);
       setCurrentIndex(0);
@@ -94,7 +92,6 @@ export default function SkillShotChain({
       setResult(null);
     } else {
       // Clear state when deactivated
-      console.log('[SkillShotChain] Clearing state (isActive = false)');
       setCircles([]);
       setCurrentIndex(0);
       setIsFinished(false);
@@ -123,25 +120,14 @@ export default function SkillShotChain({
 
   // Handle circle click
   const handleCircleClick = (id: string) => {
-    console.log(`[SkillShotChain] handleCircleClick called - id: ${id}, isFinished: ${isFinished}`);
-
-    if (isFinished) {
-      console.log('[SkillShotChain] Click ignored - already finished');
-      return;
-    }
+    if (isFinished) return;
 
     const clickedCircle = circles.find(c => c.id === id);
-    if (!clickedCircle) {
-      console.log('[SkillShotChain] Circle not found!');
-      return;
-    }
-
-    console.log(`[SkillShotChain] Clicked circle ${clickedCircle.order}, expected: ${currentIndex + 1}`);
+    if (!clickedCircle) return;
 
     // Check if it's the correct circle (in order)
     if (clickedCircle.order !== currentIndex + 1) {
       // Wrong order - failure
-      console.log('[SkillShotChain] ❌ WRONG ORDER! Triggering failure');
       setIsFinished(true);
       setResult('failure');
       onFailureRef.current();
@@ -152,8 +138,6 @@ export default function SkillShotChain({
       }, 500);
       return;
     }
-
-    console.log('[SkillShotChain] ✓ Correct order!');
 
     // Correct circle clicked
     const updatedCircles = circles.map(c =>
@@ -179,8 +163,6 @@ export default function SkillShotChain({
   };
 
   if (!isActive) return null;
-
-  console.log('[SkillShotChain] RENDERING - isActive:', isActive, 'circles:', circles.length, 'currentIndex:', currentIndex);
 
   return (
     <div className="absolute inset-0 z-50 pointer-events-auto">

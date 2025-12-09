@@ -133,6 +133,19 @@ export default function ChallengeSettingsModal({ isOpen, onClose }: ChallengeSet
       rareDropBonus += Math.floor(bossSteps) * 5;
     }
 
+    // Skillshot circles bonus (+25% per circle)
+    if (config.skillshotCircles > 0) {
+      xpCoinMultiplier += config.skillshotCircles * 0.25;
+      rareDropBonus += config.skillshotCircles * 5;
+    }
+
+    // Skillshot speed bonus (+30% per step)
+    if (config.skillshotSpeed < 1.0) {
+      const speedSteps = (1.0 - config.skillshotSpeed) / 0.1; // Each 0.1 reduction = 1 step
+      xpCoinMultiplier += speedSteps * 0.30;
+      rareDropBonus += Math.floor(speedSteps) * 5;
+    }
+
     // Boss spawn rate penalty (-3 loot cards when enabled)
     if (config.bossSpawnRate === 5.0) {
       extraLootCards -= 4;
@@ -408,6 +421,53 @@ export default function ChallengeSettingsModal({ isOpen, onClose }: ChallengeSet
                   }}
                   style={{
                     background: `linear-gradient(to right, #ea580c 0%, #dc2626 ${([1.0, 5.0].indexOf(config.bossSpawnRate) / 1) * 100}%, #4b5563 ${([1.0, 5.0].indexOf(config.bossSpawnRate) / 1) * 100}%, #4b5563 100%)`
+                  }}
+                  className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Skillshot Extra Circles */}
+              <div className="bg-gray-700/30 rounded-lg p-2 border-2 border-gray-600">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-lg">🎯</span>
+                  <h4 className="text-sm font-semibold text-white">Skillshot Circles</h4>
+                  <span className="ml-auto text-sm font-bold text-orange-400">+{config.skillshotCircles}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="1"
+                  value={config.skillshotCircles}
+                  onChange={(e) => {
+                    setConfig({ ...config, skillshotCircles: parseInt(e.target.value) });
+                  }}
+                  style={{
+                    background: `linear-gradient(to right, #ea580c 0%, #dc2626 ${(config.skillshotCircles / 4) * 100}%, #4b5563 ${(config.skillshotCircles / 4) * 100}%, #4b5563 100%)`
+                  }}
+                  className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Skillshot Speed */}
+              <div className="bg-gray-700/30 rounded-lg p-2 border-2 border-gray-600">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-lg">⚡</span>
+                  <h4 className="text-sm font-semibold text-white">Skillshot Speed</h4>
+                  <span className="ml-auto text-sm font-bold text-orange-400">{config.skillshotSpeed}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="1"
+                  value={[1.0, 0.9, 0.8, 0.7, 0.6].indexOf(config.skillshotSpeed)}
+                  onChange={(e) => {
+                    const values = [1.0, 0.9, 0.8, 0.7, 0.6];
+                    setConfig({ ...config, skillshotSpeed: values[parseInt(e.target.value)] });
+                  }}
+                  style={{
+                    background: `linear-gradient(to right, #ea580c 0%, #dc2626 ${([1.0, 0.9, 0.8, 0.7, 0.6].indexOf(config.skillshotSpeed) / 4) * 100}%, #4b5563 ${([1.0, 0.9, 0.8, 0.7, 0.6].indexOf(config.skillshotSpeed) / 4) * 100}%, #4b5563 100%)`
                   }}
                   className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
                 />

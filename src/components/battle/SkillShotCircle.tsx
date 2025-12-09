@@ -47,8 +47,6 @@ export default function SkillShotCircle({
 
   const handleClick = () => {
     if (!isCompleted) {
-      // Allow clicking any circle - parent will determine if it's correct order
-      console.log(`[SkillShotCircle] Circle ${order} clicked (isActive: ${isActive})`);
       onClick(id);
     }
   };

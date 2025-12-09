@@ -29,6 +29,16 @@ export const TIER_HP_MULTIPLIERS: Record<Tier, number> = {
   5: 240.0   // 240x HP - boss tier
 };
 
+// Tier multipliers for boss special attacks
+// Special attacks should scale less aggressively since they're unavoidable and ignore some defenses
+export const TIER_SPECIAL_ATTACK_MULTIPLIERS: Record<Tier, number> = {
+  1: 1.0,   // Base damage
+  2: 1.5,   // 1.5x damage
+  3: 2.0,   // 2x damage
+  4: 4.0,   // 4x damage
+  5: 6.0    // 6x damage
+};
+
 // Legacy: Keep for backwards compatibility, defaults to damage scaling
 export const TIER_MULTIPLIERS = TIER_DAMAGE_MULTIPLIERS;
 
@@ -186,6 +196,14 @@ export function applyTierHPScaling(baseHP: number, tier: Tier): number {
  */
 export function applyTierDamageScaling(baseDamage: number, tier: Tier): number {
   return Math.floor(baseDamage * TIER_DAMAGE_MULTIPLIERS[tier]);
+}
+
+/**
+ * Calculate boss special attack damage with tier scaling (lenient scaling)
+ * Special attacks scale less aggressively than regular damage (1x, 1.5x, 2x, 3x, 4x)
+ */
+export function applyTierSpecialAttackScaling(baseDamage: number, tier: Tier): number {
+  return Math.floor(baseDamage * TIER_SPECIAL_ATTACK_MULTIPLIERS[tier]);
 }
 
 /**

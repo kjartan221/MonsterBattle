@@ -86,30 +86,6 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
   const onFailureRef = useRef<(() => void) | null>(null);
   const onMissRef = useRef<(() => void) | null>(null);
 
-  // Log initial configuration (only on mount)
-  useEffect(() => {
-    console.log('========================================');
-    console.log('[SkillShot] Hook initialized with config:');
-    console.log(`  - enabled: ${enabled}`);
-    console.log(`  - mode: ${mode}`);
-    console.log(`  - isBoss: ${isBoss}`);
-    console.log(`  - triggerChance: ${actualTriggerChance} (${(actualTriggerChance * 100).toFixed(1)}%)`);
-    console.log(`  - cooldown: ${actualCooldown}ms`);
-    console.log(`  - circleCount: ${actualCircleCount}`);
-    console.log(`  - duration: ${actualDuration}ms`);
-    console.log('========================================');
-  }, []); // Empty deps = run once on mount
-
-  // Log when isActive changes (overlay should appear/disappear)
-  useEffect(() => {
-    if (state.isActive) {
-      console.log(`🎯 [SkillShot] isActive = TRUE! Overlay should now be VISIBLE`);
-      console.log(`🎯 [SkillShot] Current activeMode state: ${activeMode}`);
-      console.log(`🎯 [SkillShot] Component should render: ${activeMode === 'simple' ? 'SkillShotSingle' : 'SkillShotChain'}`);
-    } else {
-      console.log(`🎯 [SkillShot] isActive = FALSE. Overlay should be HIDDEN`);
-    }
-  }, [state.isActive, activeMode]);
 
   // Update cooldown timer
   useEffect(() => {
@@ -131,27 +107,12 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
 
   // Trigger skillshot manually or randomly
   const triggerSkillShot = useCallback((forceMode?: SkillShotMode) => {
-    console.log(`[SkillShot] triggerSkillShot called (forceMode: ${forceMode || 'none'})`);
-    console.log(`[SkillShot] Pre-trigger checks - enabled: ${enabled}, onCooldown: ${state.isOnCooldown}, isActive: ${state.isActive}`);
-
-    if (!enabled) {
-      console.log('[SkillShot] ❌ triggerSkillShot blocked: not enabled');
-      return false;
-    }
-    if (state.isOnCooldown) {
-      console.log('[SkillShot] ❌ triggerSkillShot blocked: on cooldown');
-      return false;
-    }
-    if (state.isActive) {
-      console.log('[SkillShot] ❌ triggerSkillShot blocked: already active');
-      return false;
-    }
+    if (!enabled) return false;
+    if (state.isOnCooldown) return false;
+    if (state.isActive) return false;
 
     const triggerMode = forceMode || mode;
     const triggerCooldown = triggerMode === 'simple' ? SIMPLE_COOLDOWN : CHAIN_COOLDOWN;
-
-    console.log(`[SkillShot] ✅ Triggering skillshot in ${triggerMode} mode (cooldown: ${triggerCooldown}ms)`);
-    console.log(`[SkillShot] Setting activeMode to: ${triggerMode}`);
 
     setActiveMode(triggerMode);
     setState(prev => ({
@@ -162,15 +123,11 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
       cooldownRemaining: triggerCooldown
     }));
 
-    console.log('[SkillShot] State updated - isActive should now be TRUE, activeMode should be:', triggerMode);
-
     return true;
   }, [enabled, state.isOnCooldown, state.isActive, mode]);
 
   // Handle skillshot success
   const handleSuccess = useCallback(() => {
-    console.log('[SkillShot] SUCCESS!');
-
     if (onSuccessRef.current) {
       onSuccessRef.current();
     }
@@ -178,8 +135,6 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
 
   // Handle skillshot failure (chain mode - has penalty)
   const handleFailure = useCallback(() => {
-    console.log('[SkillShot] FAILED!');
-
     if (onFailureRef.current) {
       onFailureRef.current();
     }
@@ -187,8 +142,6 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
 
   // Handle skillshot miss (simple mode - no penalty)
   const handleMiss = useCallback(() => {
-    console.log('[SkillShot] MISSED (no penalty)');
-
     if (onMissRef.current) {
       onMissRef.current();
     }
@@ -196,8 +149,6 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
 
   // Handle skillshot complete (cleanup)
   const handleComplete = useCallback(() => {
-    console.log('[SkillShot] Completed, clearing overlay');
-
     setState(prev => ({
       ...prev,
       isActive: false
@@ -207,36 +158,16 @@ export function useSkillShot(config: SkillShotConfig): UseSkillShotResult {
   // Random trigger on monster attack (for non-bosses)
   // This method can be called from monster attack hook
   const checkRandomTrigger = useCallback(() => {
-    console.log('[SkillShot] checkRandomTrigger called');
-    console.log(`[SkillShot] State check - enabled: ${enabled}, isBoss: ${isBoss}, onCooldown: ${state.isOnCooldown}, isActive: ${state.isActive}`);
-
-    if (!enabled) {
-      console.log('[SkillShot] ❌ Not enabled, skipping trigger check');
-      return;
-    }
-    if (isBoss) {
-      console.log('[SkillShot] ❌ Is boss, skipping trigger check (bosses use manual triggers)');
-      return;
-    }
-    if (state.isOnCooldown) {
-      console.log(`[SkillShot] ❌ On cooldown, skipping trigger check (${Math.ceil(state.cooldownRemaining / 1000)}s remaining)`);
-      return;
-    }
-    if (state.isActive) {
-      console.log('[SkillShot] ❌ Already active, skipping trigger check');
-      return;
-    }
+    if (!enabled) return;
+    if (isBoss) return; // Bosses use manual triggers
+    if (state.isOnCooldown) return;
+    if (state.isActive) return;
 
     const roll = Math.random();
-    console.log(`[SkillShot] 🎲 Rolling for trigger: ${roll.toFixed(4)} (need < ${actualTriggerChance.toFixed(2)} for ${mode} mode)`);
-
     if (roll < actualTriggerChance) {
-      console.log(`[SkillShot] ✅ SUCCESS! Triggering ${mode} skillshot! (roll: ${roll.toFixed(4)} < ${actualTriggerChance.toFixed(2)})`);
       triggerSkillShot();
-    } else {
-      console.log(`[SkillShot] ❌ Failed roll (${roll.toFixed(4)} >= ${actualTriggerChance.toFixed(2)})`);
     }
-  }, [enabled, isBoss, state.isOnCooldown, state.isActive, actualTriggerChance, mode, triggerSkillShot, state.cooldownRemaining]);
+  }, [enabled, isBoss, state.isOnCooldown, state.isActive, actualTriggerChance, triggerSkillShot]);
 
   // Calculate values based on ACTIVE mode (not initial mode)
   const activeCircleCount = circleCount ?? (activeMode === 'simple' ? 1 : CHAIN_CIRCLE_COUNT);

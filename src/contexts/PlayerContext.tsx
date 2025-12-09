@@ -50,6 +50,22 @@ export interface PlayerStats {
     legendariesFound: number;
   };
 
+  // Challenge Mode Configuration
+  battleChallengeConfig?: {
+    forceShield: boolean;
+    forceSpeed: boolean;
+    damageMultiplier: number;
+    hpMultiplier: number;
+    dotIntensity: number;
+    corruptionRate: number;
+    escapeTimerSpeed: number;
+    buffStrength: number;
+    bossAttackSpeed: number;
+    bossSpawnRate: number;
+    skillshotCircles: number;
+    skillshotSpeed: number;
+  };
+
   createdAt: Date | string;
   lastBattleAt?: Date | string;
 }
