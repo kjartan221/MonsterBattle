@@ -297,7 +297,8 @@ export type DebuffType =
   | 'bleed'     // Red - medium damage over time
   | 'slow'      // Blue - reduces attack/click speed
   | 'stun'      // Yellow - prevents actions temporarily
-  | 'freeze';   // Cyan - slows movement/attacks
+  | 'freeze'    // Cyan - slows movement/attacks
+  | 'defense_reduction'; // Gray - reduces player defense (skillshot failure penalty)
 
 export type DamageType = 'flat' | 'percentage';
 

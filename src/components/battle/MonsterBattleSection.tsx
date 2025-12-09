@@ -16,6 +16,7 @@ import { useSummonedCreatures } from '@/hooks/useSummonedCreatures';
 import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
+import { useSkillShot } from '@/hooks/useSkillShot';
 import type { DebuffEffect, SpecialAttack } from '@/lib/types';
 import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
@@ -32,6 +33,8 @@ import { BuffType } from '@/types/buffs';
 import SpecialAttackFlash from '@/components/battle/SpecialAttackFlash';
 import BossPhaseIndicator from '@/components/battle/BossPhaseIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
+import SkillShotSingle from '@/components/battle/SkillShotSingle';
+import SkillShotChain from '@/components/battle/SkillShotChain';
 
 interface SpellCastData {
   spellName: string;
@@ -52,13 +55,14 @@ interface MonsterBattleSectionProps {
   clearDebuffs: () => void;
   spellDamageHandler?: React.MutableRefObject<((spellData: SpellCastData) => void) | null>; // Phase 2.6: Ref to spell damage handler
   activeBuffs?: import('@/types/buffs').Buff[]; // Phase 2.6: Active player buffs for crit multiplier calculation
+  activeDebuffs?: import('@/lib/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
   damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
   healingReportHandler?: React.MutableRefObject<((amount: number) => void) | null>; // Report healing for cheat detection
   buffReportHandler?: React.MutableRefObject<((buffType: string, buffValue: number) => void) | null>; // Report buffs for cheat detection
   removeMonsterShieldHandler?: React.MutableRefObject<(() => boolean) | null>; // Phase 3+: Remove monster shield (Acid Vial)
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler, buffReportHandler, removeMonsterShieldHandler }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], activeDebuffs = [], damageShield, healingReportHandler, buffReportHandler, removeMonsterShieldHandler }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -72,6 +76,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const [invulnerabilityTime, setInvulnerabilityTime] = useState(0); // Track boss invulnerability time (ms)
   const [summonDamage, setSummonDamage] = useState(0); // Track damage from summons (not reduced by armor)
   const [thornsDamage, setThornsDamage] = useState(0); // Track damage from thorns reflection (for anti-cheat)
+  const [totalStunTime, setTotalStunTime] = useState(0); // Track time monster was stunned (ms)
+  const [skillshotBonusDamage, setSkillshotBonusDamage] = useState(0); // Track extra damage from skillshot boosts
   const [clickCount, setClickCount] = useState(0);
   const [lastSavedClickCount, setLastSavedClickCount] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
@@ -87,6 +93,14 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Monster buff tracking
   const [shieldHP, setShieldHP] = useState<number>(0);
   const [escapeTimer, setEscapeTimer] = useState<number | null>(null); // Seconds remaining
+
+  // SkillShot system state
+  const [isStunned, setIsStunned] = useState(false); // Monster is stunned
+  const [stunEndTime, setStunEndTime] = useState<number>(0); // When stun ends (timestamp)
+  const [damageWindow, setDamageWindow] = useState<number>(1.0); // Damage multiplier (1.0 = normal, 2.0 = double)
+  const [damageWindowEndTime, setDamageWindowEndTime] = useState<number>(0); // When damage window ends
+  const [lastHPPercent, setLastHPPercent] = useState<number>(100); // Track HP% for boss skillshot triggers
+  const [triggeredThresholds, setTriggeredThresholds] = useState<Set<number>>(new Set()); // Track which thresholds already triggered
 
   // Phase attack visual feedback (separate from regular special attacks)
   const [phaseAttack, setPhaseAttack] = useState<SpecialAttack | null>(null);
@@ -147,6 +161,105 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       setTimeout(() => setPhaseAttack(null), 3500);
     }
   });
+
+  // SkillShot system - Dual mode (simple = low risk/reward, chain = high risk/reward)
+  // Simple mode: Default for all monsters (20% chance, 10s cooldown, single circle, 2s window)
+  // Chain mode: Can be manually triggered by player or bosses (10% chance, 20s cooldown, 3 circles, 3s total)
+  const skillShot = useSkillShot({
+    enabled: gameState.canAttackMonster() && !gameState.session?.isDefeated,
+    mode: 'simple', // Start with simple mode by default
+    // randomTriggerChance: Uses mode defaults (simple=20%, chain=10%)
+    // cooldown: Uses mode defaults (simple=10s, chain=20s)
+    // circleCount: Uses mode defaults (simple=1, chain=3)
+    // circleDuration: Uses mode defaults (simple=2s, chain=3s)
+    isBoss: gameState.monster?.isBoss || false
+  });
+
+  // SkillShot success callback: Rewards based on mode
+  useEffect(() => {
+    skillShot.onSuccessRef.current = () => {
+      const now = Date.now();
+
+      if (skillShot.mode === 'simple') {
+        // Simple mode: Small damage boost, no stun
+        console.log('🎯 [SkillShot] SIMPLE SUCCESS! +25% damage boost');
+
+        const damageBoostDuration = 3000; // 3 seconds
+        setDamageWindow(1.25); // 25% damage boost
+        setDamageWindowEndTime(now + damageBoostDuration);
+
+        toast.success('✓ HIT! +25% damage for 3s!', { duration: 2000 });
+      } else {
+        // Chain mode: Big damage boost + stun
+        console.log('🎯 [SkillShot] CHAIN SUCCESS! Stunning monster + 2x damage');
+
+        const stunDuration = 2000; // 2 seconds stun
+        const damageWindowDuration = 5000; // 5 seconds of 2x damage
+
+        // Stun the monster (pause attacks)
+        setIsStunned(true);
+        setStunEndTime(now + stunDuration);
+
+        // Open damage window (2x damage)
+        setDamageWindow(2.0);
+        setDamageWindowEndTime(now + damageWindowDuration);
+
+        toast.success('💫 PERFECT! Stunned 2s + 2x damage for 5s!', { duration: 3000 });
+      }
+    };
+  }, [skillShot.mode]);
+
+  // SkillShot failure callback (chain mode only): Defense debuff penalty
+  useEffect(() => {
+    skillShot.onFailureRef.current = () => {
+      console.log('❌ [SkillShot] CHAIN FAILED! Applying -30 defense penalty');
+
+      // Apply defense reduction debuff using existing debuff system
+      const defenseDebuff: DebuffEffect = {
+        type: 'defense_reduction',
+        damageType: 'flat', // Flat reduction (not DoT)
+        damageAmount: 30, // -30 defense
+        tickInterval: 5000, // Doesn't tick, just duration tracker
+        duration: 5000, // 5 seconds
+        applyChance: 1.0 // Always apply (100%)
+      };
+
+      applyDebuff(defenseDebuff, 'skillshot_failure');
+      toast.error('❌ FAILED! -30 defense for 5s!', { duration: 2500 });
+    };
+  }, [applyDebuff]);
+
+  // SkillShot miss callback (simple mode only): No penalty
+  useEffect(() => {
+    skillShot.onMissRef.current = () => {
+      console.log('⊗ [SkillShot] SIMPLE MISSED (no penalty)');
+      // No toast needed, just missed opportunity
+    };
+  }, []);
+
+  // Clear stun and damage window when they expire
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      if (isStunned && now >= stunEndTime) {
+        // Calculate stun duration and add to total
+        const stunDuration = stunEndTime - (now - 100); // Approximate start time
+        setTotalStunTime(prev => prev + Math.max(0, stunDuration));
+        console.log(`🔓 [SkillShot] Stun expired (added ${stunDuration}ms to total: ${totalStunTime + stunDuration}ms)`);
+
+        setIsStunned(false);
+      }
+
+      if (damageWindow > 1.0 && now >= damageWindowEndTime) {
+        setDamageWindow(1.0);
+        console.log('⏱️ [SkillShot] Damage window expired');
+        toast('⏱️ Damage window ended', { duration: 2000 });
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isStunned, stunEndTime, damageWindow, damageWindowEndTime, totalStunTime]);
 
   // Callback for handling special attacks (damage, summon, heal, interactive)
   // Note: Healing is handled internally by useBossPhases hook
@@ -300,6 +413,47 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
   }, [currentPhaseHP, phasesRemaining, maxPhaseHP, gameState.monster, gameState.canAttackMonster, clickCount, totalDamage, gameState.gameState]);
 
+  // Boss skillshot triggers at HP thresholds (75%, 50%, 25%)
+  useEffect(() => {
+    if (!gameState.monster?.isBoss) return;
+    if (!gameState.canAttackMonster()) return;
+    if (skillShot.isActive || skillShot.isOnCooldown) return;
+
+    const currentHP = currentPhaseHP;
+    const maxHP = maxPhaseHP;
+    if (maxHP === 0) return;
+
+    const currentPercent = (currentHP / maxHP) * 100;
+    const thresholds = [75, 50, 25];
+
+    // Check if we crossed any threshold
+    for (const threshold of thresholds) {
+      // If we were above threshold and now below, and haven't triggered this one yet
+      if (lastHPPercent > threshold && currentPercent <= threshold && !triggeredThresholds.has(threshold)) {
+        console.log(`🎯 [Boss SkillShot] Crossed ${threshold}% HP threshold! Triggering chain skillshot.`);
+
+        // Trigger chain mode skillshot
+        const success = skillShot.triggerSkillShot('chain');
+        if (success) {
+          setTriggeredThresholds(prev => new Set(prev).add(threshold));
+          toast(`⚠️ Boss at ${threshold}% HP! Quick Time Event!`, { duration: 2000 });
+        }
+        break; // Only trigger one at a time
+      }
+    }
+
+    setLastHPPercent(currentPercent);
+  }, [currentPhaseHP, maxPhaseHP, lastHPPercent, triggeredThresholds, gameState.monster, gameState, skillShot]);
+
+  // Reset threshold tracking when new monster spawns
+  useEffect(() => {
+    if (gameState.monster) {
+      setLastHPPercent(100);
+      setTriggeredThresholds(new Set());
+      console.log('[Boss SkillShot] Reset threshold tracking for new monster');
+    }
+  }, [gameState.monster?._id]);
+
   // Handle regular monster defeat (from DoT, auto-hits, or manual clicks)
   useEffect(() => {
     // Skip if boss or no monster
@@ -362,6 +516,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     battleStarted: gameState.canAttackMonster(),
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     isInvulnerable: isInvulnerable,
+    isStunned: isStunned, // Pause attacks during skillshot stun
     playerStats,
     takeDamage: takeDamageWithShield,
     healHealth,
@@ -370,7 +525,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     additionalDamage: getTotalSummonDamage(),
     onSummonDamage: handleSummonDamage,
     onThornsDamage: handleThornsDamage,
-    onDefensiveLifesteal: handleDefensiveLifesteal
+    onDefensiveLifesteal: handleDefensiveLifesteal,
+    activeDebuffs: activeDebuffs, // Pass debuffs for defense reduction calculation
+    onSkillShotTrigger: skillShot.checkRandomTrigger // Trigger skillshot check on each attack
   });
 
   // Auto-start initial battle when player stats load
@@ -455,6 +612,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Clear all active debuffs and interactive attacks
     clearDebuffs();
     clearInteractiveAttacks();
+
+    // Clear skillshot mechanics
+    setIsStunned(false);
+    setStunEndTime(0);
+    setDamageWindow(1.0);
+    setDamageWindowEndTime(0);
+    if (skillShot.isActive) {
+      skillShot.handleComplete(); // Force close any active skillshot overlay
+    }
 
     // Calculate gold loss (10% of current gold, rounded)
     const goldLost = Math.floor(playerStats.coins * 0.10);
@@ -599,6 +765,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearDebuffs();
     clearInteractiveAttacks();
 
+    // Clear skillshot mechanics
+    setIsStunned(false);
+    setStunEndTime(0);
+    setDamageWindow(1.0);
+    setDamageWindowEndTime(0);
+    if (skillShot.isActive) {
+      skillShot.handleComplete(); // Force close any active skillshot overlay
+    }
+
     gameState.setBattleCompleting();
 
     try {
@@ -615,7 +790,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           actualHealing: totalHealing,
           invulnerabilityTimeMs: invulnerabilityTime,
           summonDamage: summonDamage,
-          thornsDamage: thornsDamage
+          thornsDamage: thornsDamage,
+          stunTimeMs: totalStunTime,
+          skillshotBonusDamage: skillshotBonusDamage
         }),
       });
 
@@ -643,8 +820,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         setTotalDamageReduction(0); // Reset damage reduction tracker on cheat reset
         setInvulnerabilityTime(0); // Reset invulnerability tracker
         setSummonDamage(0); // Reset summon damage tracker
+        setTotalStunTime(0); // Reset stun time tracker
+        setSkillshotBonusDamage(0); // Reset skillshot bonus damage tracker
         setMonsterDebuffs([]); // Clear debuffs on cheat reset
         clearInteractiveAttacks(); // Clear interactive attacks on cheat reset
+
+        // Clear skillshot mechanics
+        setIsStunned(false);
+        setStunEndTime(0);
+        setDamageWindow(1.0);
+        setDamageWindowEndTime(0);
+        if (skillShot.isActive) {
+          skillShot.handleComplete(); // Force close any active skillshot overlay
+        }
+
         gameState.setBattleInProgress();
         return;
       }
@@ -801,6 +990,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Apply damage multiplier from buffs (AFTER crit calculation)
     damage = Math.floor(damage * totalDamageMultiplier);
 
+    // Apply damage window multiplier from skillshot success (2x or 1.25x damage)
+    if (damageWindow > 1.0) {
+      const baseDamage = damage;
+      damage = Math.floor(damage * damageWindow);
+      const bonusDamage = damage - baseDamage;
+      setSkillshotBonusDamage(prev => prev + bonusDamage);
+      console.log(`🎯 [SkillShot] Damage window active! ${baseDamage} → ${damage} (${damageWindow}x), bonus: +${bonusDamage}`);
+    }
+
     if (isCrit) {
       setCritTrigger(prev => prev + 1);
     }
@@ -849,7 +1047,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         submitBattleCompletion(newClickCount, newTotalDamage);
       }
     }
-  }, [gameState, playerStats, equipmentStats, activeBuffs, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth]);
+  }, [gameState, playerStats, equipmentStats, activeBuffs, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth, damageWindow]);
 
   // Store applyDamageToMonster in ref to prevent interval resets
   useEffect(() => {
@@ -1182,9 +1380,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     setTotalDamageReduction(0); // Reset damage reduction tracker on new monster
     setInvulnerabilityTime(0); // Reset invulnerability tracker
     setSummonDamage(0); // Reset summon damage tracker
+    setTotalStunTime(0); // Reset stun time tracker
+    setSkillshotBonusDamage(0); // Reset skillshot bonus damage tracker
     setShieldHP(0);
     setEscapeTimer(null);
     setMonsterDebuffs([]); // Clear debuffs on new monster
+
+    // Clear skillshot mechanics
+    setIsStunned(false);
+    setStunEndTime(0);
+    setDamageWindow(1.0);
+    setDamageWindowEndTime(0);
+    if (skillShot.isActive) {
+      skillShot.handleComplete(); // Force close any active skillshot overlay
+    }
 
     // Determine which zone we're starting the battle in
     // Use override if provided (from BiomeMapWidget zone change), otherwise use current selection
@@ -1272,6 +1481,29 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       {/* Monster Special Attack Visual Feedback (phases > regular attacks) */}
       <SpecialAttackFlash attack={phaseAttack || lastAttack} />
+
+      {/* SkillShot System - Dual mode (Simple/Chain) */}
+      {(() => {
+        console.log(`[MonsterBattleSection] SkillShot render check - mode: ${skillShot.mode}, isActive: ${skillShot.isActive}`);
+        return skillShot.mode === 'simple' ? (
+          <SkillShotSingle
+            isActive={skillShot.isActive}
+            duration={skillShot.circleDuration}
+            onSuccess={skillShot.handleSuccess}
+            onMiss={skillShot.handleMiss}
+            onComplete={skillShot.handleComplete}
+          />
+        ) : (
+          <SkillShotChain
+            isActive={skillShot.isActive}
+            circleCount={skillShot.circleCount}
+            duration={skillShot.circleDuration}
+            onSuccess={skillShot.handleSuccess}
+            onFailure={skillShot.handleFailure}
+            onComplete={skillShot.handleComplete}
+          />
+        );
+      })()}
 
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
         <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>

@@ -437,6 +437,7 @@ export default function BattlePage() {
         clearDebuffs={clearDebuffs}
         spellDamageHandler={spellDamageHandlerRef}
         activeBuffs={activeBuffs}
+        activeDebuffs={activeDebuffs}
         damageShield={damageShield}
         healingReportHandler={healingReportHandlerRef}
         buffReportHandler={buffReportHandlerRef}

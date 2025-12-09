@@ -11,7 +11,7 @@ interface Circle {
   isCompleted: boolean;
 }
 
-interface SkillShotOverlayProps {
+interface SkillShotChainProps {
   isActive: boolean;
   circleCount: number; // How many circles to spawn
   duration: number; // Time limit per circle (ms)
@@ -20,14 +20,14 @@ interface SkillShotOverlayProps {
   onComplete: () => void; // Called after success/failure animation
 }
 
-export default function SkillShotOverlay({
+export default function SkillShotChain({
   isActive,
   circleCount,
   duration,
   onSuccess,
   onFailure,
   onComplete
-}: SkillShotOverlayProps) {
+}: SkillShotChainProps) {
   const [circles, setCircles] = useState<Circle[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
@@ -47,17 +47,17 @@ export default function SkillShotOverlay({
   // Generate random positions for circles (avoid edges and overlaps)
   const generateCirclePositions = (count: number): Circle[] => {
     const positions: Circle[] = [];
-    const minDistance = 15; // Minimum distance between circles (%)
+    const minDistance = 25; // Minimum distance between circles (%) - increased from 15
 
     for (let i = 0; i < count; i++) {
       let x: number, y: number;
       let attempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 100; // Increased attempts for better placement
 
       do {
-        // Generate position with safe margins (10% from edges)
-        x = 15 + Math.random() * 70; // 15-85%
-        y = 15 + Math.random() * 70; // 15-85%
+        // Generate position with safe margins (15% from edges, was 10%)
+        x = 20 + Math.random() * 60; // 20-80%
+        y = 20 + Math.random() * 60; // 20-80%
         attempts++;
 
         // Check if position is far enough from existing circles
@@ -78,19 +78,29 @@ export default function SkillShotOverlay({
       });
     }
 
+    console.log('[SkillShotChain] Generated circle positions:', positions.map(p => `(${p.x.toFixed(0)}, ${p.y.toFixed(0)})`).join(', '));
     return positions;
   };
 
   // Initialize circles when skillshot becomes active
   useEffect(() => {
-    if (isActive && circles.length === 0) {
+    if (isActive) {
+      // Reset and initialize on every activation (not just when circles.length === 0)
+      console.log(`[SkillShotChain] Initializing ${circleCount} circles`);
       const newCircles = generateCirclePositions(circleCount);
       setCircles(newCircles);
       setCurrentIndex(0);
       setIsFinished(false);
       setResult(null);
+    } else {
+      // Clear state when deactivated
+      console.log('[SkillShotChain] Clearing state (isActive = false)');
+      setCircles([]);
+      setCurrentIndex(0);
+      setIsFinished(false);
+      setResult(null);
     }
-  }, [isActive, circleCount, circles.length]);
+  }, [isActive, circleCount]);
 
   // Timeout for each circle
   useEffect(() => {
@@ -102,10 +112,10 @@ export default function SkillShotOverlay({
       setResult('failure');
       onFailureRef.current();
 
-      // Clear overlay after animation
+      // Clear overlay after animation (fast)
       setTimeout(() => {
         onCompleteRef.current();
-      }, 1500);
+      }, 500);
     }, duration);
 
     return () => clearTimeout(timeout);
@@ -113,24 +123,37 @@ export default function SkillShotOverlay({
 
   // Handle circle click
   const handleCircleClick = (id: string) => {
-    if (isFinished) return;
+    console.log(`[SkillShotChain] handleCircleClick called - id: ${id}, isFinished: ${isFinished}`);
+
+    if (isFinished) {
+      console.log('[SkillShotChain] Click ignored - already finished');
+      return;
+    }
 
     const clickedCircle = circles.find(c => c.id === id);
-    if (!clickedCircle) return;
+    if (!clickedCircle) {
+      console.log('[SkillShotChain] Circle not found!');
+      return;
+    }
+
+    console.log(`[SkillShotChain] Clicked circle ${clickedCircle.order}, expected: ${currentIndex + 1}`);
 
     // Check if it's the correct circle (in order)
     if (clickedCircle.order !== currentIndex + 1) {
       // Wrong order - failure
+      console.log('[SkillShotChain] ❌ WRONG ORDER! Triggering failure');
       setIsFinished(true);
       setResult('failure');
       onFailureRef.current();
 
-      // Clear overlay after animation
+      // Clear overlay after animation (fast)
       setTimeout(() => {
         onCompleteRef.current();
-      }, 1500);
+      }, 500);
       return;
     }
+
+    console.log('[SkillShotChain] ✓ Correct order!');
 
     // Correct circle clicked
     const updatedCircles = circles.map(c =>
@@ -145,10 +168,10 @@ export default function SkillShotOverlay({
       setResult('success');
       onSuccessRef.current();
 
-      // Clear overlay after animation
+      // Clear overlay after animation (fast)
       setTimeout(() => {
         onCompleteRef.current();
-      }, 1500);
+      }, 500);
     } else {
       // Move to next circle
       setCurrentIndex(prev => prev + 1);
@@ -156,6 +179,8 @@ export default function SkillShotOverlay({
   };
 
   if (!isActive) return null;
+
+  console.log('[SkillShotChain] RENDERING - isActive:', isActive, 'circles:', circles.length, 'currentIndex:', currentIndex);
 
   return (
     <div className="absolute inset-0 z-50 pointer-events-auto">

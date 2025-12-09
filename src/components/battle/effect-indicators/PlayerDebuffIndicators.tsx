@@ -133,6 +133,11 @@ function getDebuffConfig(type: DebuffType): {
       name: 'Freeze',
       icon: '❄️',
       color: '#06B6D4' // Cyan
+    },
+    defense_reduction: {
+      name: 'Weakened',
+      icon: '🛡️',
+      color: '#9CA3AF' // Gray
     }
   };
 

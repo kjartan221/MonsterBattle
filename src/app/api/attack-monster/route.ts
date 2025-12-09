@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { sessionId, clickCount, totalDamage, usedItems, currentShieldHP, damageReductionPercent, actualHealing, invulnerabilityTimeMs, summonDamage, thornsDamage } = body;
+    const { sessionId, clickCount, totalDamage, usedItems, currentShieldHP, damageReductionPercent, actualHealing, invulnerabilityTimeMs, summonDamage, thornsDamage, stunTimeMs, skillshotBonusDamage } = body;
 
     // Validate input
     if (!sessionId || typeof clickCount !== 'number' || typeof totalDamage !== 'number') {
@@ -198,9 +198,11 @@ export async function POST(request: NextRequest) {
     // Step 2: Calculate attack interval with speed bonuses (slower = less attacks per second)
     const attackInterval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
 
-    // Step 3: Calculate active attack time (total time - invulnerability time)
+    // Step 3: Calculate active attack time (total time - invulnerability time - stun time)
     const totalTimeMs = timeInSeconds * 1000;
-    const activeAttackTimeMs = totalTimeMs - invulnerabilityMs;
+    const reportedStunTimeMs = stunTimeMs || 0;
+    const activeAttackTimeMs = totalTimeMs - invulnerabilityMs - reportedStunTimeMs;
+    console.log(`Active attack time: ${activeAttackTimeMs}ms (total: ${totalTimeMs}ms - invulnerability: ${invulnerabilityMs}ms - stun: ${reportedStunTimeMs}ms)`);
 
     // Step 4: Calculate number of attacks that would have occurred (during active time only)
     const numberOfAttacks = Math.floor(activeAttackTimeMs / attackInterval);
@@ -273,7 +275,9 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ HP cheat detected! User ${userId} should have died but claims to have survived.`);
       console.warn(`   Expected HP: ${expectedHP} (below threshold: ${hpThreshold} with 20% tolerance)`);
       console.warn(`   Total Max HP: ${totalMaxHP} (base: ${playerStats.maxHealth} + equipment: ${equipmentStats.maxHpBonus})`);
-      console.warn(`   Active time: ${(activeAttackTimeMs / 1000).toFixed(2)}s (${invulnerabilityMs}ms invulnerable)`);
+      console.warn(`   Total time: ${(totalTimeMs / 1000).toFixed(2)}s`);
+      console.warn(`   Invulnerable: ${invulnerabilityMs}ms, Stunned monster: ${reportedStunTimeMs}ms`);
+      console.warn(`   Active time: ${(activeAttackTimeMs / 1000).toFixed(2)}s (after subtracting inactive periods)`);
       console.warn(`   Defense: ${equipmentStats.defense} (→ ${actualReductionPercent}% damage reduction)`);
       console.warn(`   Monster damage: ${numberOfAttacks} attacks × ${damagePerHit} dmg/hit = ${monsterDamage}`);
       console.warn(`   Summon damage: ${reportedSummonDamage} (not reduced by defense)`);
@@ -281,6 +285,9 @@ export async function POST(request: NextRequest) {
       console.warn(`   Healing used: ${totalHealing} (includes defensive lifesteal)`);
       if (reportedThornsDamage > 0) {
         console.warn(`   Thorns damage dealt to monster: ${reportedThornsDamage}`);
+      }
+      if (skillshotBonusDamage > 0) {
+        console.warn(`   Skillshot bonus damage: ${skillshotBonusDamage} (extra player damage, doesn't affect HP calc)`);
       }
 
       // End the battle session (mark as defeated, no loot)

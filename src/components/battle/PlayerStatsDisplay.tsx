@@ -21,8 +21,6 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const { selectedBiome, selectedTier } = useBiome();
 
-  console.log(`[PlayerStatsDisplay] Rendering - HP: ${playerStats?.currentHealth ?? 'null'}`);
-
   if (!playerStats) return null;
 
   // Helper function to calculate actual damage reduction from defense stat

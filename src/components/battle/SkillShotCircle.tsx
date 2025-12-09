@@ -46,15 +46,17 @@ export default function SkillShotCircle({
   const progress = timeLeft / duration;
 
   const handleClick = () => {
-    if (!isCompleted && isActive) {
+    if (!isCompleted) {
+      // Allow clicking any circle - parent will determine if it's correct order
+      console.log(`[SkillShotCircle] Circle ${order} clicked (isActive: ${isActive})`);
       onClick(id);
     }
   };
 
   // Circle size and colors
-  const outerSize = 80; // px
-  const innerSize = 50; // px
-  const numberSize = 24; // px
+  const innerSize = 60; // px
+  const outerSize = 120; // px (must be larger than inner to be visible outside)
+  const numberSize = 28; // px
 
   // Color based on state
   const getColor = () => {
@@ -67,12 +69,14 @@ export default function SkillShotCircle({
 
   return (
     <div
-      className="absolute cursor-pointer transition-all duration-200"
+      className="absolute transition-all duration-200"
       style={{
         left: `${x}%`,
         top: `${y}%`,
         transform: 'translate(-50%, -50%)',
-        pointerEvents: isCompleted ? 'none' : 'auto'
+        pointerEvents: isCompleted ? 'none' : 'auto',
+        cursor: isCompleted ? 'default' : 'pointer',
+        opacity: isCompleted ? 0.5 : (isActive ? 1 : 0.7) // Dim inactive circles slightly
       }}
       onClick={handleClick}
     >
@@ -83,8 +87,8 @@ export default function SkillShotCircle({
           width: outerSize,
           height: outerSize,
           borderRadius: '50%',
-          border: `4px solid ${color}`,
-          opacity: isCompleted ? 0.3 : 1,
+          border: `5px solid ${color}`, // Thicker border for better visibility
+          opacity: isCompleted ? 0.3 : 0.8,
           transform: `translate(-50%, -50%) scale(${isCompleted ? 0.5 : progress})`,
           transition: isCompleted ? 'all 0.3s ease-out' : 'none',
           boxShadow: isActive ? `0 0 20px ${color}` : 'none'

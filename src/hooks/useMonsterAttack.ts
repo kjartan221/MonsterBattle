@@ -10,6 +10,7 @@ interface UseMonsterAttackProps {
   battleStarted: boolean;
   isSubmitting: boolean;
   isInvulnerable?: boolean;
+  isStunned?: boolean; // Pause attacks when monster is stunned (skillshot)
   playerStats: PlayerStats | null;
   takeDamage: (amount: number) => Promise<void>;
   healHealth: (amount: number, maxHpBonus?: number) => Promise<void>; // For defensive lifesteal
@@ -19,12 +20,14 @@ interface UseMonsterAttackProps {
   onSummonDamage?: (amount: number) => void; // Report summon damage for cheat detection
   onThornsDamage?: (amount: number) => void; // Apply thorns damage to monster
   onDefensiveLifesteal?: (amount: number) => void; // Report defensive lifesteal healing for cheat detection
+  activeDebuffs?: import('@/lib/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
+  onSkillShotTrigger?: () => void; // Callback to check for skillshot triggers
 }
 
 /**
  * Handles monster attack interval and visual feedback
  * Isolates attack state to prevent BattlePage re-renders
- * Pauses attacks during boss invulnerability phases
+ * Pauses attacks during boss invulnerability phases and skillshot stuns
  */
 export function useMonsterAttack({
   monster,
@@ -32,6 +35,7 @@ export function useMonsterAttack({
   battleStarted,
   isSubmitting,
   isInvulnerable = false,
+  isStunned = false,
   playerStats,
   takeDamage,
   healHealth,
@@ -40,7 +44,9 @@ export function useMonsterAttack({
   additionalDamage = 0,
   onSummonDamage,
   onThornsDamage,
-  onDefensiveLifesteal
+  onDefensiveLifesteal,
+  activeDebuffs = [],
+  onSkillShotTrigger
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
@@ -51,9 +57,10 @@ export function useMonsterAttack({
     // - Currently submitting battle completion
     // - Battle hasn't started yet
     // - Boss is invulnerable (phase transition)
+    // - Monster is stunned (skillshot success)
     // Note: playerStats is checked for existence but NOT in dependency array
     // to prevent re-creating interval on every HP change
-    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted || isInvulnerable) return;
+    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted || isInvulnerable || isStunned) return;
 
     // Safety check for monster.attackDamage
     if (typeof monster.attackDamage !== 'number' || isNaN(monster.attackDamage)) {
@@ -61,10 +68,17 @@ export function useMonsterAttack({
       return;
     }
 
-    // Calculate reduced damage based on armor (defense)
+    // Calculate effective defense (equipment defense - debuff reductions)
+    const defenseReduction = activeDebuffs
+      .filter(debuff => debuff.type === 'defense_reduction')
+      .reduce((total, debuff) => total + debuff.damageAmount, 0);
+
+    const effectiveDefense = Math.max(0, equipmentStats.defense - defenseReduction);
+
+    // Calculate reduced damage based on effective armor (defense)
     const effectiveDamage = calculateMonsterDamage(
       monster.attackDamage,
-      equipmentStats.defense
+      effectiveDefense
     );
 
     // Add additional damage from summons (not reduced by armor)
@@ -73,7 +87,7 @@ export function useMonsterAttack({
     // Calculate attack interval based on attack speed bonuses
     const interval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
 
-    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, reduction: ${equipmentStats.defense}%, summons: +${additionalDamage})`);
+    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, defense: ${effectiveDefense}${defenseReduction > 0 ? ` (${equipmentStats.defense}-${defenseReduction})` : ''}, summons: +${additionalDamage})`);
 
     // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
@@ -116,6 +130,14 @@ export function useMonsterAttack({
         console.log(`🔱 [THORNS] Reflected ${thornsDamage} damage to monster | Stat: ${equipmentStats.thorns}% | Pre-Mitigation Damage: ${preMitigationDamage} (Base: ${monster.attackDamage} + Summons: ${additionalDamage}) | Calculation: ceil(${preMitigationDamage} × ${equipmentStats.thorns}%)`);
       }
 
+      // Check for skillshot trigger on monster attack
+      if (onSkillShotTrigger) {
+        console.log('⚔️ [useMonsterAttack] Monster attacked, calling onSkillShotTrigger()');
+        onSkillShotTrigger();
+      } else {
+        console.log('⚔️ [useMonsterAttack] Monster attacked, but onSkillShotTrigger is not defined');
+      }
+
       // Report summon damage separately for cheat detection (not reduced by armor)
       if (additionalDamage > 0 && onSummonDamage) {
         onSummonDamage(additionalDamage);
@@ -134,7 +156,7 @@ export function useMonsterAttack({
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, isSubmitting, takeDamage, healHealth, battleStarted, isInvulnerable, equipmentStats, applyDebuff, additionalDamage, onSummonDamage, onThornsDamage, onDefensiveLifesteal]);
+  }, [monster, session, isSubmitting, takeDamage, healHealth, battleStarted, isInvulnerable, isStunned, equipmentStats, applyDebuff, additionalDamage, onSummonDamage, onThornsDamage, onDefensiveLifesteal, activeDebuffs, onSkillShotTrigger]);
   // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
   // when HP changes from takeDamage/healHealth calls
 
