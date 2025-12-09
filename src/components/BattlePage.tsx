@@ -97,6 +97,9 @@ export default function BattlePage() {
   // Ref to MonsterBattleSection's buff tracker
   const buffReportHandlerRef = useRef<((buffType: string, buffValue: number) => void) | null>(null);
 
+  // Ref to MonsterBattleSection's shield removal handler
+  const removeMonsterShieldHandlerRef = useRef<(() => boolean) | null>(null);
+
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
   };
@@ -181,10 +184,28 @@ export default function BattlePage() {
       toast.success(`Restored ${consumableItem.healing} HP!`, { icon: '💚', duration: 2000 });
     }
 
-    // Debuff removal
-    if (itemName.includes('antidote') || itemName.includes('mana') || description.includes('remove')) {
+    // Debuff removal (explicit flag check)
+    if (consumableItem.cleansesDebuffs) {
+      clearDebuffs();
+      toast.success('All DoT effects removed!', { icon: '💫', duration: 2000 });
+    }
+
+    // Legacy debuff removal (backwards compatibility)
+    if (!consumableItem.cleansesDebuffs && (itemName.includes('antidote') || itemName.includes('mana') || description.includes('remove'))) {
       clearDebuffs();
       toast.success('Debuffs removed!', { icon: '✨', duration: 2000 });
+    }
+
+    // Monster shield removal (explicit flag check)
+    if (consumableItem.removesMonsterShield) {
+      if (removeMonsterShieldHandlerRef.current) {
+        const shieldRemoved = removeMonsterShieldHandlerRef.current();
+        if (shieldRemoved) {
+          toast.success('Monster shield destroyed!', { icon: '🧪', duration: 2000 });
+        } else {
+          toast('No shield to remove', { icon: '❌', duration: 2000 });
+        }
+      }
     }
 
     // Apply buff if consumable has buff data
@@ -210,6 +231,14 @@ export default function BattlePage() {
         toast.success(`+${buffValue}% ${resistanceType} resistance for ${duration}s!`, { icon: '🛡️', duration: 3000 });
       } else if (buffType === 'shield') {
         toast.success(`+${buffValue} HP shield for ${duration}s!`, { icon: '🛡️', duration: 3000 });
+      } else if (buffType === 'damage_reduction') {
+        toast.success(`${buffValue}% damage reduction for ${duration}s!`, { icon: '🛡️', duration: 3000 });
+      } else if (buffType === 'damage_mult' || buffType === 'damage_boost') {
+        toast.success(`+${buffValue}% damage for ${duration}s!`, { icon: '⚔️', duration: 3000 });
+      } else if (buffType === 'crit_boost') {
+        toast.success(`+${buffValue}% crit chance for ${duration}s!`, { icon: '🎯', duration: 3000 });
+      } else if (buffType === 'attack_speed') {
+        toast.success(`Monster attacks slowed ${buffValue}% for ${duration}s!`, { icon: '❄️', duration: 3000 });
       } else {
         toast.success(`${consumableItem.name} activated!`, { icon: '✨', duration: 2000 });
       }
@@ -411,6 +440,7 @@ export default function BattlePage() {
         damageShield={damageShield}
         healingReportHandler={healingReportHandlerRef}
         buffReportHandler={buffReportHandlerRef}
+        removeMonsterShieldHandler={removeMonsterShieldHandlerRef}
       />
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}

@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 /**
  * POST /api/consumables/use
  * Uses a consumable item from user's inventory
- * Body: { slotIndex: number (0-2) }
+ * Body: { slotIndex: number (0-3) }
  * Returns: { success: boolean, remainingQuantity: number, shouldUnequip: boolean }
  *
  * Uses MongoDB transactions to prevent race conditions
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         const { slotIndex } = body;
 
         // Validate input
-        if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 2) {
+        if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 3) {
             return NextResponse.json({ error: 'Invalid slot index' }, { status: 400 });
         }
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
                     throw new Error('Player stats not found');
                 }
 
-                const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
+                const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'];
                 const equippedItemId = equippedConsumables[slotIndex];
 
                 if (!equippedItemId || equippedItemId === 'empty') {

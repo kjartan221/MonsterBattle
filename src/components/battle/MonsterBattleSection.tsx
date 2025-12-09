@@ -17,7 +17,7 @@ import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
 import type { DebuffEffect, SpecialAttack } from '@/lib/types';
-import { calculateTotalEquipmentStats, calculateClickDamage } from '@/utils/equipmentCalculations';
+import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate } from '@/utils/equipmentCalculations';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
@@ -55,9 +55,10 @@ interface MonsterBattleSectionProps {
   damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
   healingReportHandler?: React.MutableRefObject<((amount: number) => void) | null>; // Report healing for cheat detection
   buffReportHandler?: React.MutableRefObject<((buffType: string, buffValue: number) => void) | null>; // Report buffs for cheat detection
+  removeMonsterShieldHandler?: React.MutableRefObject<(() => boolean) | null>; // Phase 3+: Remove monster shield (Acid Vial)
 }
 
-export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler, buffReportHandler }: MonsterBattleSectionProps) {
+export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], damageShield, healingReportHandler, buffReportHandler, removeMonsterShieldHandler }: MonsterBattleSectionProps) {
   const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
@@ -96,6 +97,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Phase 2.6: Monster debuffs from player spells
   const [monsterDebuffs, setMonsterDebuffs] = useState<MonsterDebuff[]>([]);
   const debuffIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ref to store applyDamageToMonster to prevent interval resets
+  const applyDamageRef = useRef<((isAutoHit: boolean) => void) | null>(null);
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -227,6 +231,26 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     };
   }, [buffReportHandler, totalShieldGained, totalDamageReduction]);
+
+  // Expose shield removal function via ref (for Acid Vial consumable)
+  useEffect(() => {
+    if (removeMonsterShieldHandler) {
+      removeMonsterShieldHandler.current = (): boolean => {
+        if (shieldHP > 0) {
+          console.log(`🧪 [Shield Removal] Removing ${shieldHP} shield HP`);
+          setShieldHP(0);
+          return true; // Shield was removed
+        }
+        console.log(`🧪 [Shield Removal] No shield to remove`);
+        return false; // No shield existed
+      };
+    }
+    return () => {
+      if (removeMonsterShieldHandler) {
+        removeMonsterShieldHandler.current = null;
+      }
+    };
+  }, [removeMonsterShieldHandler, shieldHP]);
 
   // Determine if this is a boss monster (before calling hooks)
   const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
@@ -790,8 +814,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }
 
     // Phase 2.5: Apply lifesteal healing (% of damage dealt)
-    // Works on both manual clicks and auto-hits
-    if (equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
+    // ONLY works on manual clicks (not auto-hits) to prevent immortality
+    if (!isAutoHit && equipmentStats.lifesteal && equipmentStats.lifesteal > 0) {
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
       healHealth(healAmount, equipmentStats.maxHpBonus);
       // Track healing for cheat detection
@@ -826,6 +850,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     }
   }, [gameState, playerStats, equipmentStats, activeBuffs, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion, healHealth]);
+
+  // Store applyDamageToMonster in ref to prevent interval resets
+  useEffect(() => {
+    applyDamageRef.current = applyDamageToMonster;
+  }, [applyDamageToMonster]);
 
   const handleClick = () => {
     applyDamageToMonster(false);
@@ -984,26 +1013,31 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (!gameState.canAttackMonster() || !gameState.session || gameState.session.isDefeated) return;
 
     // Calculate total auto-click rate from all equipped items (stacks)
-    const totalAutoClickRate = equipmentStats.autoClickRate || 0;
+    const rawAutoClickRate = equipmentStats.autoClickRate || 0;
 
     // If no auto-click rate, don't set up interval
-    if (totalAutoClickRate <= 0) return;
+    if (rawAutoClickRate <= 0) return;
+
+    // Apply diminishing returns to prevent autoclick abuse at high tiers
+    const effectiveAutoClickRate = calculateEffectiveAutoClickRate(rawAutoClickRate);
 
     // Calculate interval in milliseconds (1 / rate = seconds between hits)
-    const intervalMs = Math.floor(1000 / totalAutoClickRate);
+    const intervalMs = Math.floor(1000 / effectiveAutoClickRate);
 
-    console.log(`[Auto-Hit] Setting up interval: ${totalAutoClickRate}/sec (${intervalMs}ms)`);
+    console.log(`[Auto-Hit] Raw: ${rawAutoClickRate.toFixed(1)}/sec → Effective: ${effectiveAutoClickRate.toFixed(2)}/sec (${intervalMs}ms interval)`);
 
     const interval = setInterval(() => {
-      // Apply damage as auto-hit
-      applyDamageToMonster(true);
+      // Use ref to prevent interval resets when function updates
+      if (applyDamageRef.current) {
+        applyDamageRef.current(true);
+      }
     }, intervalMs);
 
     return () => {
       console.log('[Auto-Hit] Clearing interval');
       clearInterval(interval);
     };
-  }, [equipmentStats.autoClickRate, gameState.gameState, gameState.session, applyDamageToMonster]);
+  }, [equipmentStats.autoClickRate, gameState.gameState, gameState.session]);
 
   const handleSummonClick = (summonId: string) => {
     if (!gameState.canAttackMonster() || gameState.session?.isDefeated) return;

@@ -29,13 +29,13 @@ export async function GET(request: NextRequest) {
     // Try to find existing stats
     let playerStats = await playerStatsCollection.findOne({ userId });
 
-    // Migrate legacy data: ensure equippedConsumables is always ['empty', 'empty', 'empty'] format
-    if (playerStats && (!playerStats.equippedConsumables || !Array.isArray(playerStats.equippedConsumables) || playerStats.equippedConsumables.length !== 3)) {
+    // Migrate legacy data: ensure equippedConsumables is always ['empty', 'empty', 'empty', 'empty'] format
+    if (playerStats && (!playerStats.equippedConsumables || !Array.isArray(playerStats.equippedConsumables) || playerStats.equippedConsumables.length !== 4)) {
       await playerStatsCollection.updateOne(
         { userId },
-        { $set: { equippedConsumables: ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'] } }
+        { $set: { equippedConsumables: ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'] } }
       );
-      playerStats.equippedConsumables = ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
+      playerStats.equippedConsumables = ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'];
     }
 
     // Migrate legacy equipment: convert old separate fields to new equippedItems object
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
         // Equipment slots (empty initially)
         equippedItems: {},
-        equippedConsumables: ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'],
+        equippedConsumables: ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'],
 
         // Battle stats
         baseDamage: 1,
@@ -143,9 +143,9 @@ export async function GET(request: NextRequest) {
         accessory1: playerStats.equippedItems.accessory1?.toString(),
         accessory2: playerStats.equippedItems.accessory2?.toString(),
       } : {},
-      equippedConsumables: (playerStats.equippedConsumables && playerStats.equippedConsumables.length === 3)
+      equippedConsumables: (playerStats.equippedConsumables && playerStats.equippedConsumables.length === 4)
         ? playerStats.equippedConsumables.map(id => id === 'empty' ? 'empty' : id.toString())
-        : ['empty', 'empty', 'empty'],
+        : ['empty', 'empty', 'empty', 'empty'],
     };
 
     return NextResponse.json({

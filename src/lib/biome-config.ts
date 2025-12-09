@@ -19,13 +19,14 @@ export const TIER_DAMAGE_MULTIPLIERS: Record<Tier, number> = {
   5: 12.0   // 15x damage (boss tier)
 };
 
-// Tier multipliers for monster HP (aggressive scaling like rewards)
+// Tier multipliers for monster HP (VERY aggressive scaling for skillshot mechanics)
+// These high values anticipate upcoming skillshot mechanics and consumable usage
 export const TIER_HP_MULTIPLIERS: Record<Tier, number> = {
-  1: 1.0,   // Base HP
-  2: 3.0,   // 3x HP (increased from 3x)
-  3: 10.0,  // 10x HP (increased from 8x)
-  4: 30.0,  // 30x HP (increased from 20x)
-  5: 80.0   // 80x HP - boss tier (increased from 50x for harder endgame)
+  1: 1.0,    // Base HP
+  2: 5.0,    // 5x HP
+  3: 22.0,   // 22x HP
+  4: 80.0,  // 80x HP
+  5: 240.0   // 240x HP - boss tier
 };
 
 // Legacy: Keep for backwards compatibility, defaults to damage scaling

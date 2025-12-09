@@ -24,7 +24,7 @@ interface UseConsumableResult {
  * Manages player consumable hotbar slots (loaded from playerStats.equippedConsumables)
  *
  * Features:
- * - Loads 3 consumable slots from playerStats
+ * - Loads 4 consumable slots from playerStats (expanded from 3 for complex loadout strategies)
  * - Tracks quantity of each equipped consumable type
  * - Handles equip/unequip via API
  * - Auto-unequips when quantity reaches 0
@@ -33,12 +33,13 @@ export function usePlayerConsumable(): UseConsumableResult {
   const [consumableSlots, setConsumableSlots] = useState<ConsumableSlot[]>([
     { itemId: null, inventoryId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null },
     { itemId: null, inventoryId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null },
+    { itemId: null, inventoryId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null },
     { itemId: null, inventoryId: null, name: '', icon: '', quantity: 0, cooldown: 0, lastUsed: null }
   ]);
 
   // Ref to track lastUsed timestamps without causing re-renders or dependency issues
   // This persists across re-renders but doesn't trigger them when updated
-  const lastUsedRef = useRef<(number | null)[]>([null, null, null]);
+  const lastUsedRef = useRef<(number | null)[]>([null, null, null, null]);
 
   // Load equipped consumables from playerStats
   const loadEquippedConsumables = useCallback(async () => {
@@ -50,10 +51,10 @@ export function usePlayerConsumable(): UseConsumableResult {
       }
 
       const data = await response.json();
-      // Ensure we always have exactly 3 slots, handle empty arrays and falsy values
+      // Ensure we always have exactly 4 slots, handle empty arrays and falsy values
       let equippedConsumables = data.playerStats?.equippedConsumables;
-      if (!equippedConsumables || !Array.isArray(equippedConsumables) || equippedConsumables.length !== 3) {
-        equippedConsumables = ['empty', 'empty', 'empty'];
+      if (!equippedConsumables || !Array.isArray(equippedConsumables) || equippedConsumables.length !== 4) {
+        equippedConsumables = ['empty', 'empty', 'empty', 'empty'];
       }
 
       // Fetch all inventory items to count quantities

@@ -8,7 +8,7 @@ import { getLootItemById } from '@/lib/loot-table';
 /**
  * POST /api/consumables/equip
  * Equips a consumable item to a hotbar slot
- * Body: { inventoryId: string, slotIndex: number (0-2) }
+ * Body: { inventoryId: string, slotIndex: number (0-3) }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const { inventoryId, slotIndex } = body;
 
     // Validate input
-    if (!inventoryId || typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 2) {
+    if (!inventoryId || typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 3) {
       return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize equippedConsumables if it doesn't exist
-    const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
+    const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'];
 
     // Check if this item is already equipped in any slot (prevent duplicates)
     const inventoryIdObj = new ObjectId(inventoryId);

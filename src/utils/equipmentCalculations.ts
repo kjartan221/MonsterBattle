@@ -293,3 +293,39 @@ export function calculateMonsterAttackInterval(
   const slowdownMultiplier = 1 + (actualSlowdownPercent / 100);
   return Math.round(baseInterval * slowdownMultiplier);
 }
+
+/**
+ * Calculate effective auto-click rate with diminishing returns
+ * Uses diminishing returns formula to prevent autoclick from becoming too powerful at high tiers
+ *
+ * Formula: effectiveRate = (autoClickRate / (autoClickRate + K)) * maxRate
+ * - K = 8 (diminishing returns constant - faster curve than defense)
+ * - maxRate = 7 hits/sec (soft cap, prevents trivializing combat)
+ *
+ * Examples:
+ * - 0 autoClickRate → 0 hits/sec
+ * - 2 autoClickRate → 1.4 hits/sec (70% efficiency)
+ * - 4 autoClickRate → 2.33 hits/sec (58% efficiency)
+ * - 8 autoClickRate → 3.5 hits/sec (43.75% efficiency)
+ * - 12 autoClickRate → 4.2 hits/sec (35% efficiency)
+ * - 16 autoClickRate → 4.67 hits/sec (29% efficiency)
+ * - ∞ autoClickRate → approaches 7 hits/sec
+ *
+ * @param autoClickRate - Raw auto-click rate from equipment (stacks additively)
+ * @returns Effective auto-click rate per second (with diminishing returns applied)
+ */
+export function calculateEffectiveAutoClickRate(
+  autoClickRate: number
+): number {
+  // No autoclick, no effect
+  if (autoClickRate <= 0) return 0;
+
+  // Diminishing returns formula constants
+  const K = 8; // Diminishing returns constant (faster curve than defense/attackSpeed)
+  const MAX_RATE = 7; // Soft cap at 7 hits/sec
+
+  // Calculate effective rate with diminishing returns
+  const effectiveRate = (autoClickRate / (autoClickRate + K)) * MAX_RATE;
+
+  return effectiveRate;
+}

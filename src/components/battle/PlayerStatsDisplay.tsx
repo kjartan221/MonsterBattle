@@ -3,7 +3,7 @@
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
 import { useBiome } from '@/contexts/BiomeContext';
-import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
+import { calculateTotalEquipmentStats, calculateEffectiveAutoClickRate } from '@/utils/equipmentCalculations';
 import { getXPForLevel, getBaseCritChance } from '@/utils/playerProgression';
 import DebuffIndicators from '@/components/battle/effect-indicators/PlayerDebuffIndicators';
 import PlayerBuffIndicators from '@/components/battle/effect-indicators/PlayerBuffIndicators';
@@ -286,6 +286,15 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
               {(Number(equipmentStats.thorns) || 0).toFixed(1)}%
             </span>
             <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">(reflect)</span>
+          </div>
+        )}
+        {/* AutoClick Rate (auto-hits per second) */}
+        {(Number(equipmentStats.autoClickRate) || 0) > 0 && (
+          <div className="text-white/80">
+            <span className="text-white/60">🤖 AutoClick:</span>{' '}
+            <span className="text-cyan-400 font-semibold">
+              {(Number(equipmentStats.autoClickRate) || 0).toFixed(1)} <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">({calculateEffectiveAutoClickRate(Number(equipmentStats.autoClickRate) || 0).toFixed(2)}/sec)</span>
+            </span>
           </div>
         )}
       </div>

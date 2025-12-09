@@ -6,7 +6,7 @@ import { connectToMongo } from '@/lib/mongodb';
 /**
  * POST /api/consumables/unequip
  * Unequips a consumable from a hotbar slot
- * Body: { slotIndex: number (0-2) }
+ * Body: { slotIndex: number (0-3) }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const { slotIndex } = body;
 
     // Validate input
-    if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 2) {
+    if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 3) {
       return NextResponse.json({ error: 'Invalid slot index' }, { status: 400 });
     }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize equippedConsumables if it doesn't exist
-    const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty'] as ['empty', 'empty', 'empty'];
+    const equippedConsumables = playerStats.equippedConsumables || ['empty', 'empty', 'empty', 'empty'] as ['empty', 'empty', 'empty', 'empty'];
 
     // Unequip from slot
     equippedConsumables[slotIndex] = 'empty';

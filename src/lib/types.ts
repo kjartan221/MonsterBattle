@@ -130,7 +130,7 @@ export interface PlayerStats {
     accessory1?: ObjectId;
     accessory2?: ObjectId;
   };
-  equippedConsumables?: [ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty']; // Array of 3 ('empty' for empty slots)
+  equippedConsumables?: [ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty', ObjectId | 'empty']; // Array of 4 ('empty' for empty slots) - Enables complex loadout strategies
   equippedSpell?: ObjectId | 'empty'; // Phase 2.6: Spell scroll slot (Q key)
   lastSpellCast?: number; // Phase 2.6: Server-side spell cooldown tracking (timestamp in ms)
 
