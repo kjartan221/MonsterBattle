@@ -113,10 +113,21 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
       const data = await response.json();
       const filterType = getFilterType();
 
+      // Get all currently equipped inventory IDs (from all slots)
+      const equippedInventoryIds = [
+        equippedWeapon?.inventoryId,
+        equippedArmor?.inventoryId,
+        equippedAccessory1?.inventoryId,
+        equippedAccessory2?.inventoryId
+      ].filter(Boolean); // Remove undefined/null values
+
       // Filter items by type that can be equipped in this slot
+      // AND exclude items already equipped in ANY slot
       const filteredItems = (data.inventory || []).filter((item: any) => {
         const lootItem = getLootItemById(item.lootId);
-        return lootItem && lootItem.type === filterType && lootItem.equipmentStats;
+        const isCorrectType = lootItem && lootItem.type === filterType && lootItem.equipmentStats;
+        const isNotEquippedElsewhere = !equippedInventoryIds.includes(item.inventoryId);
+        return isCorrectType && isNotEquippedElsewhere;
       });
 
       // Map to UserInventoryItem format

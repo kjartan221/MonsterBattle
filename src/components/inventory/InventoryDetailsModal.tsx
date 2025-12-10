@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LootItem } from '@/lib/loot-table';
 import toast from 'react-hot-toast';
 import { tierToRoman } from '@/utils/tierUtils';
@@ -50,6 +50,19 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
   const { updateMaterialToken, isUpdating } = useUpdateMaterialToken();
   const { userWallet, isAuthenticated, initializeWallet } = useAuthContext();
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    // Save original overflow style
+    const originalOverflow = document.body.style.overflow;
+    // Disable body scroll
+    document.body.style.overflow = 'hidden';
+
+    // Restore original overflow on cleanup
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   // Detect if this is a material item
   const isMaterial = item.type === 'material';
 
@@ -57,7 +70,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
   const isRefinable = item.crafted && item.statRoll !== undefined &&
     (item.type === 'weapon' || item.type === 'armor' || item.type === 'artifact');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isRefinable) {
       fetch('/api/inventory/get')
         .then(res => res.json())
@@ -413,7 +426,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer z-10"
           aria-label="Close modal"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -421,21 +434,23 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           </svg>
         </button>
 
-        {/* Item icon and name */}
-        <div className="text-center mb-6">
-          <div className="text-7xl mb-3">{item.icon}</div>
-          <h2 className={`text-2xl font-bold ${rarityColors[item.rarity].split(' ')[0]}`}>
-            {getInscribedItemName(item.name, item.prefix, item.suffix)}
-          </h2>
-          {item.count && item.count > 1 && (
-            <div className="mt-2 inline-block bg-gray-800 border-2 border-white text-white text-sm font-bold px-3 py-1 rounded-full">
-              You have {item.count} of these
-            </div>
-          )}
-        </div>
+        {/* Scrollable content container */}
+        <div className="max-h-[calc(90vh-8rem)] overflow-y-auto pr-2">
+          {/* Item icon and name */}
+          <div className="text-center mb-6">
+            <div className="text-7xl mb-3">{item.icon}</div>
+            <h2 className={`text-2xl font-bold ${rarityColors[item.rarity].split(' ')[0]}`}>
+              {getInscribedItemName(item.name, item.prefix, item.suffix)}
+            </h2>
+            {item.count && item.count > 1 && (
+              <div className="mt-2 inline-block bg-gray-800 border-2 border-white text-white text-sm font-bold px-3 py-1 rounded-full">
+                You have {item.count} of these
+              </div>
+            )}
+          </div>
 
-        {/* Metadata grid */}
-        <div className="space-y-4">
+          {/* Metadata grid */}
+          <div className="space-y-4">
           {/* Rarity */}
           <div className="flex justify-between items-center pb-3 border-b border-gray-700">
             <span className="text-gray-400 text-sm font-medium">Rarity</span>
@@ -867,7 +882,9 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           <div className="pt-3 border-t border-gray-700">
             <span className="text-gray-500 text-xs font-mono block">ID: {item.lootId}</span>
           </div>
+          </div>
         </div>
+        {/* End scrollable content container */}
 
         {/* Close button at bottom */}
         <button
