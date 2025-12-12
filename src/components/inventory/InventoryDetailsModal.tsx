@@ -66,6 +66,19 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
   // Detect if this is a material item
   const isMaterial = item.type === 'material';
 
+  // Detect if item can be minted
+  // Regular consumables CANNOT be minted (only enhanced ones can)
+  // Spells CAN be minted (they're not single-use)
+  const canMint =
+    item.type === 'weapon' ||
+    item.type === 'armor' ||
+    item.type === 'artifact' ||
+    item.type === 'spell_scroll' ||
+    item.type === 'inscription_scroll' ||
+    (item.type === 'consumable' && item.enhanced); // Only enhanced consumables
+
+  const isBlockedConsumable = item.type === 'consumable' && !item.enhanced;
+
   // Fetch refine stone count on mount (for crafted equipment)
   const isRefinable = item.crafted && item.statRoll !== undefined &&
     (item.type === 'weapon' || item.type === 'armor' || item.type === 'artifact');
@@ -771,7 +784,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
 
                 <button
                   onClick={isMaterial ? () => setShowMaterialModal(true) : handleMintNFT}
-                  disabled={isMinting || !userWallet || !isAuthenticated}
+                  disabled={isMinting || !userWallet || !isAuthenticated || isBlockedConsumable}
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                 >
                   {isMinting ? (
@@ -783,6 +796,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
                     <>
                       <span>🔒</span>
                       <span>Connect Wallet to Mint</span>
+                    </>
+                  ) : isBlockedConsumable ? (
+                    <>
+                      <span>⚠️</span>
+                      <span>Enhance to Mint (5 copies required)</span>
                     </>
                   ) : isMaterial ? (
                     <>

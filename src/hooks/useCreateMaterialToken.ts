@@ -1,24 +1,23 @@
 import { useState, useCallback } from 'react';
-import { WalletClient, Transaction } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX } from './useOverlayFunctions';
+import { WalletClient } from '@bsv/sdk';
 
 /**
  * Hook for creating material tokens on the BSV blockchain
  *
  * Material tokens are fungible-like tokens that track quantities of materials.
- * Instead of creating 35 separate NFTs for 35 iron ore, this creates a single
- * token with quantity=35 that can be updated as materials are collected/consumed.
+ * Uses SERVER-SIDE minting architecture where:
+ * 1. Server wallet mints material tokens (single source of truth)
+ * 2. Server stores mintOutpoint (proof of legitimate mint)
+ * 3. Server immediately transfers to user
+ * 4. Server stores transferTransactionId
  *
- * Uses a unified metadata structure with useUpdateMaterialToken.
- * All material operations use name: 'material_token' regardless of create/update.
+ * This prevents fraudulent materials and simplifies SIGHASH handling.
  *
  * Features:
  * - One token per material type per user (e.g., one "Iron Ore" token with quantity)
  * - Quantity tracking on-chain
  * - Batch creation for multiple material types
  * - Provenance tracking via acquiredFrom array
- * - Same metadata structure for create and update operations
  *
  * @example
  * const { createMaterialToken, isCreating, error } = useCreateMaterialToken();
@@ -77,15 +76,13 @@ export function useCreateMaterialToken() {
   /**
    * Create material tokens on the BSV blockchain
    *
-   * Process:
-   * 1. Validate wallet connection and authentication
-   * 2. For each material type:
-   *    a. Prepare token metadata with quantity
-   *    b. Create locking script with ordinalP2PKH (deploy+mint)
-   *    c. Create BSV transaction via wallet.createAction()
-   *    d. Broadcast transaction to BSV network
-   * 3. Create MaterialToken documents in database
-   * 4. Return token IDs and quantities
+   * Server-side minting process:
+   * 1. Validate wallet connection and get user's public key
+   * 2. Call server API with materials data and user's public key
+   * 3. Server mints each material token (proof via mintOutpoint)
+   * 4. Server immediately transfers each token to user
+   * 5. Server creates MaterialToken documents
+   * 6. Return token IDs and quantities
    *
    * @param params - Material data and wallet
    * @returns Results for each material token created
@@ -115,7 +112,7 @@ export function useCreateMaterialToken() {
         keyID: "0",
       });
 
-      console.log('Creating material tokens:', {
+      console.log('Requesting server-side mint for materials:', {
         materialCount: materials.length,
         materials: materials.map(m => `${m.itemName} x${m.quantity}`),
         publicKey,
@@ -132,104 +129,44 @@ export function useCreateMaterialToken() {
         }
       }
 
-      const results: MaterialTokenResult[] = [];
-
-      // Process each material
-      for (const material of materials) {
-        console.log(`Creating token for ${material.itemName} x${material.quantity}`);
-
-        // Prepare token metadata (unified structure for all material tokens)
-        const tokenMetadata = {
-          name: 'material_token',
-          lootTableId: material.lootTableId,
-          itemName: material.itemName,
-          description: material.description,
-          icon: material.icon,
-          rarity: material.rarity,
-          tier: material.tier || 1,
-          quantity: material.quantity,
-          owner: publicKey,
-          acquiredFrom: material.acquiredFrom || [],
-        };
-
-        console.log(`Token metadata for ${material.itemName}:`, tokenMetadata);
-
-        // Create locking script for material token
-        const ordinalP2PKH = new OrdinalsP2PKH();
-        const lockingScript = ordinalP2PKH.lock(
-          publicKey,
-          '',                              // Empty for minting
-          tokenMetadata,
-          "deploy+mint"
-        );
-
-        // Create transaction
-        const tokenCreationAction = await wallet.createAction({
-          description: "Minting material token",
-          outputs: [
-            {
-              outputDescription: "New material token",
-              lockingScript: lockingScript.toHex(),
-              satoshis: 1,
-            }
-          ],
-          options: {
-            randomizeOutputs: false,
-          }
-        });
-
-        if (!tokenCreationAction.tx) {
-          throw new Error('Failed to create material token transaction');
-        }
-        console.log('Token creation action:', tokenCreationAction);
-
-        // Broadcast transaction
-        const tx = Transaction.fromAtomicBEEF(tokenCreationAction.tx);
-        const broadcastResponse = await broadcastTX(tx);
-
-        // Extract token ID
-        const txId = broadcastResponse.txid;
-        const tokenId = `${txId}.0`;
-
-        console.log(`Material token created for ${material.itemName}:`, {
-          txId,
-          tokenId,
-          quantity: material.quantity,
-        });
-
-        results.push({
-          lootTableId: material.lootTableId,
-          tokenId: tokenId,
-          transactionId: txId,
-          quantity: material.quantity,
-          success: true,
-        });
-      }
-
-      // Call backend API to save material tokens
-      const apiResult = await fetch('/api/materials/create-tokens', {
+      // Call server API for mint-and-transfer
+      const apiResult = await fetch('/api/materials/mint-and-transfer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tokens: results.map((result, index) => ({
-            lootTableId: materials[index].lootTableId,
-            itemName: materials[index].itemName,
-            tokenId: result.tokenId,
-            transactionId: result.transactionId,
-            quantity: result.quantity,
-            metadata: materials[index],
+          materials: materials.map(material => ({
+            lootTableId: material.lootTableId,
+            itemName: material.itemName,
+            description: material.description,
+            icon: material.icon,
+            rarity: material.rarity,
+            tier: material.tier || 1,
+            quantity: material.quantity,
+            acquiredFrom: material.acquiredFrom || [],
           })),
+          userPublicKey: publicKey,
         }),
       });
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
-        throw new Error(errorData.error || 'Failed to save material tokens to database');
+        throw new Error(errorData.error || 'Failed to mint and transfer materials');
       }
 
-      console.log(`Material tokens created: ${results.length} tokens`);
+      const response = await apiResult.json();
+
+      console.log('Server minted and transferred materials:', response.results);
+
+      // Transform server response to match expected format
+      const results: MaterialTokenResult[] = response.results.map((result: any) => ({
+        lootTableId: result.lootTableId,
+        tokenId: result.tokenId,
+        transactionId: result.transactionId,
+        quantity: result.quantity,
+        success: true,
+      }));
 
       return {
         results,

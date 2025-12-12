@@ -6,15 +6,24 @@ import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
 /**
  * Hook for crafting items on the BSV blockchain
  *
- * This hook creates a new crafted item NFT by consuming input item NFTs and/or materials.
- * Uses the SAME unified metadata structure as useMintItemNFT.
- * Blockchain transaction inputs provide immutable provenance (what was consumed, when, by whom).
+ * Hybrid CLIENT + SERVER architecture with provable on-chain link:
  *
- * The crafting process:
- * 1. Burns/consumes the input item NFTs and materials (unlocks and spends inputs)
- * 2. Creates a new crafted item NFT at output index 0
- * 3. Creates material "change" tokens if materials had remaining quantity
- * 4. Transaction structure shows complete provenance
+ * CLIENT TRANSACTION: Material consumption + Auth output
+ *   - Unlocks material tokens (multi-input)
+ *   - Creates material change outputs (if any)
+ *   - Creates auth output locked to server public key (proves consumption)
+ *   - Signs and broadcasts transaction
+ *
+ * SERVER TRANSACTION: Crafted item minting
+ *   - Unlocks auth output (proves server control + links to materials)
+ *   - Mints crafted item
+ *   - Transfers to user
+ *
+ * This architecture:
+ * - Proves on-chain link between material consumption and crafted item
+ * - Server validates auth output before minting
+ * - Client controls material consumption logic
+ * - Server controls item minting (single source of truth)
  *
  * @example
  * const { craftItemNFT, isCrafting, error } = useCraftItemNFT();
@@ -91,30 +100,24 @@ export function useCraftItemNFT() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Craft a new item NFT by consuming input item NFTs
+   * Craft a new item NFT by consuming input items
    *
-   * Process:
-   * 1. Validate wallet connection and authentication
-   * 2. For each input item that's an NFT:
-   *    - Fetch previous transaction from overlay
-   *    - Create unlocking script with ordinalP2PKH.unlock()
-   * 3. Merge all input BEEFs using Beef class
-   * 4. Prepare crafted item metadata:
-   *    - Include recipe ID and input item references
-   *    - Include stat roll data (if equipment)
-   *    - Add crafting provenance (when, what was used)
-   * 5. Create locking script for new crafted item with ordinalP2PKH.lock()
-   * 6. Create BSV transaction with:
-   *    - Inputs: All consumed item tokens (with unlocking scripts)
-   *    - Output: New crafted item NFT inscription
-   * 7. Broadcast transaction to BSV network
-   * 8. Create NFTLoot document for new crafted item
-   * 9. Update input items as consumed in database
-   * 10. Update output item with nftLootId reference
-   * 11. Return new NFT ID and transaction ID
+   * Hybrid CLIENT + SERVER process:
+   * 1. Validate wallet and get user's public key
+   * 2. Fetch server public key for auth output
+   * 3. CLIENT: Create transaction consuming materials
+   *    - Unlock material tokens (multi-input)
+   *    - Create material change outputs (if any)
+   *    - Create auth output locked to server (1 satoshi)
+   * 4. CLIENT: Sign and broadcast material consumption transaction
+   * 5. SERVER: Validate auth output and mint crafted item
+   *    - Unlock auth output (proves link to materials)
+   *    - Mint crafted item
+   *    - Transfer to user
+   * 6. Return NFT ID, token ID, and material changes
    *
    * @param params - Crafting parameters including wallet, recipe, inputs, and output
-   * @returns Result with new NFT ID and consumed token IDs
+   * @returns Result with new NFT ID and material changes
    */
   const craftItemNFT = useCallback(async (
     params: CraftItemNFTParams
@@ -141,56 +144,44 @@ export function useCraftItemNFT() {
         keyID: "0",
       });
 
-      console.log('Crafting item NFT:', {
+      console.log('Crafting item NFT (hybrid flow):', {
         recipeId,
         inputCount: inputItems.length,
         outputName: outputItem.name,
         publicKey,
       });
 
-      // Prepare crafted item NFT metadata
-      // Uses same unified structure as useMintItemNFT - transaction inputs show provenance
-      const craftedNFTMetadata = {
-        name: 'game_item',
-        itemName: outputItem.name,
-        description: outputItem.description,
-        icon: outputItem.icon,
-        rarity: outputItem.rarity,
-        itemType: outputItem.type,
-        tier: outputItem.tier || 1,
-        stats: outputItem.equipmentStats || {},
-        crafted: outputItem.crafted || null,  // { statRoll, craftedBy } for crafted items, null for drops
-        enhancements: {
-          prefix: null,
-          suffix: null,
-        },
-        visual: {
-          borderGradient: outputItem.borderGradient,
-        },
-        acquiredFrom: null,  // Crafted items don't have monster drop data
-      };
+      // Fetch server public key for auth output
+      const serverKeyResponse = await fetch('/api/server-public-key');
+      if (!serverKeyResponse.ok) {
+        throw new Error('Failed to fetch server public key');
+      }
+      const { publicKey: serverPublicKey } = await serverKeyResponse.json();
 
-      console.log('Crafted NFT metadata:', craftedNFTMetadata);
+      // ===================================================
+      // CLIENT TRANSACTION: Material consumption + Auth
+      // ===================================================
 
-      // Prepare inputs by unlocking all input item NFTs and calculate material changes
-      const inputs: any[] = [];
-      const consumedTokenIds: string[] = [];
+      const ordinalP2PKH = new OrdinalsP2PKH();
       const materialChanges: Array<{
         lootTableId: string;
         itemName: string;
+        previousTokenId: string;
+        previousQuantity: number;
+        remainingQuantity: number;
         description: string;
         icon: string;
         rarity: string;
         tier: number;
-        previousTokenId: string;
-        previousQuantity: number;
-        remainingQuantity: number;
       }> = [];
-      const ordinalP2PKH = new OrdinalsP2PKH();
+
+      // Build inputs from material tokens
+      const inputs: any[] = [];
+      const consumedTokenIds: string[] = [];
 
       for (const input of inputItems) {
         if (input.tokenId) {
-          // Get previous token transaction from overlay
+          // Fetch material token transaction
           const previousTxid = input.tokenId.split('.')[0];
           const oldTx = await getTransactionByTxID(previousTxid);
 
@@ -198,190 +189,204 @@ export function useCraftItemNFT() {
             throw new Error(`Could not find input transaction: ${previousTxid}`);
           }
 
-          // Parse transaction from BEEF
           const tx = Transaction.fromBEEF(oldTx.outputs[0].beef);
 
-          // Create unlocking script template
-          const template = ordinalP2PKH.unlock(wallet);
-
-          // Generate actual unlocking script
+          // Create unlocking script
+          const template = ordinalP2PKH.unlock(wallet, "single"); // Use "single" for createAction
           const unlockingScript = await template.sign(tx, 0);
-
-          // Outpoint string (uses period separator)
-          const outpoint = `${previousTxid}.0`;
 
           inputs.push({
             inputDescription: `Consuming ${input.name}`,
-            outpoint,
+            outpoint: input.tokenId,
             unlockingScript: unlockingScript.toHex(),
             inputBEEF: oldTx.outputs[0].beef,
           });
 
           consumedTokenIds.push(input.tokenId);
 
-          // Calculate material change (if this is a material token)
+          // Calculate material change if needed
           if (input.itemType === 'material' && input.currentQuantity && input.currentQuantity > input.quantityNeeded) {
-            const remainingQuantity = input.currentQuantity - input.quantityNeeded;
             materialChanges.push({
               lootTableId: input.lootTableId!,
               itemName: input.name,
+              previousTokenId: input.tokenId,
+              previousQuantity: input.currentQuantity,
+              remainingQuantity: input.currentQuantity - input.quantityNeeded,
               description: input.description!,
               icon: input.icon!,
               rarity: input.rarity as 'common' | 'rare' | 'epic' | 'legendary',
               tier: input.tier || 1,
-              previousTokenId: input.tokenId,
-              previousQuantity: input.currentQuantity,
-              remainingQuantity: remainingQuantity,
             });
           }
         }
       }
 
-      // Create locking script for new crafted item (reuse ordinalP2PKH instance)
-      const craftedItemLockingScript = ordinalP2PKH.lock(
-        publicKey,
-        '',                    // Empty for minting new item
-        craftedNFTMetadata,
-        "deploy+mint"          // Type: creating new crafted item
-      );
+      // Build outputs: material changes + auth output
+      const outputs: any[] = [];
 
-      // Build outputs array starting with crafted item (output index 0)
-      const outputs: any[] = [
-        {
-          outputDescription: "Crafted NFT item",
-          lockingScript: craftedItemLockingScript.toHex(),
-          satoshis: 1,
-        }
-      ];
+      // Add material change outputs
+      for (const change of materialChanges) {
+        const assetId = change.previousTokenId.replace('.', '_');
 
-      // Create locking scripts for material change outputs (output indices 1, 2, 3, etc.)
-      for (const materialChange of materialChanges) {
-        // Convert to BSV-21 format for assetId
-        const assetId = materialChange.previousTokenId.replace('.', '_');
-
-        // Prepare material token update metadata
         const materialUpdateMetadata = {
-          name: 'material_token_update',
-          lootTableId: materialChange.lootTableId,
-          itemName: materialChange.itemName,
-          description: materialChange.description,
-          icon: materialChange.icon,
-          rarity: materialChange.rarity,
-          tier: materialChange.tier,
-          quantity: materialChange.remainingQuantity,
-          previousQuantity: materialChange.previousQuantity,
-          owner: publicKey,
-          previousTokenId: materialChange.previousTokenId,
+          name: 'material_token',
+          lootTableId: change.lootTableId,
+          itemName: change.itemName,
+          description: change.description,
+          icon: change.icon,
+          rarity: change.rarity,
+          tier: change.tier,
+          quantity: change.remainingQuantity,
+          previousQuantity: change.previousQuantity,
           operation: 'subtract',
-          changeAmount: materialChange.previousQuantity - materialChange.remainingQuantity,
+          changeAmount: change.previousQuantity - change.remainingQuantity,
           reason: `Consumed in crafting recipe: ${recipeId}`,
           updatedAt: new Date().toISOString(),
         };
 
-        // Create locking script for material change
-        const materialLockingScript = ordinalP2PKH.lock(
+        const changeLockingScript = ordinalP2PKH.lock(
           publicKey,
-          assetId,                    // Reference previous token
+          assetId,
           materialUpdateMetadata,
-          "transfer"                  // Type: transfer/update
+          'transfer'
         );
 
         outputs.push({
-          outputDescription: `Material change: ${materialChange.itemName}`,
-          lockingScript: materialLockingScript.toHex(),
+          outputDescription: `Material change: ${change.itemName}`,
+          lockingScript: changeLockingScript.toHex(),
           satoshis: 1,
         });
       }
 
-      // Build the inputs array with BEEF data
-      const inputsForAction = inputs.map(input => ({
-        inputDescription: input.inputDescription,
-        outpoint: input.outpoint,
-        unlockingScript: input.unlockingScript,
-      }));
+      // Add auth output locked to server (last output)
+      // Using OrdinalP2PKH to satisfy overlay requirements
+      const authMetadata = {
+        name: 'auth_token',
+        purpose: 'crafting_authentication',
+        recipeId: recipeId,
+        timestamp: new Date().toISOString(),
+      };
+      const authLockingScript = ordinalP2PKH.lock(
+        serverPublicKey,
+        '', // Empty assetId for new auth token
+        authMetadata,
+        'deploy+mint'
+      );
+      outputs.push({
+        outputDescription: "Auth output for server minting",
+        lockingScript: authLockingScript.toHex(),
+        satoshis: 1,
+      });
 
-      // Merge all BEEF data from input transactions
-      let combinedBEEF: number[] | undefined = undefined;
-      if (inputs.length > 0) {
-        const beef = new Beef();
-        for (const input of inputs) {
-          beef.mergeBeef(input.inputBEEF);
-        }
-        combinedBEEF = beef.toBinary();
+      // Merge all BEEF data
+      const beef = new Beef();
+      for (const input of inputs) {
+        beef.mergeBeef(input.inputBEEF);
       }
+      const combinedBEEF = beef.toBinary();
 
-      // Create crafting transaction (consumes inputs, creates crafted item + material changes)
-      const craftingAction = await wallet.createAction({
-        description: "Crafting new item NFT",
+      // Create material consumption transaction
+      const consumptionAction = await wallet.createAction({
+        description: "Consuming materials for crafting",
         inputBEEF: combinedBEEF,
-        inputs: inputsForAction,
+        inputs: inputs.map(i => ({
+          inputDescription: i.inputDescription,
+          outpoint: i.outpoint,
+          unlockingScript: i.unlockingScript,
+        })),
         outputs: outputs,
         options: {
           randomizeOutputs: false,
         }
       });
 
-      if (!craftingAction.tx) {
-        throw new Error('Failed to create crafting transaction');
+      if (!consumptionAction.tx) {
+        throw new Error('Failed to create material consumption transaction');
       }
-      console.log('Crafting action:', craftingAction);
 
-      // Broadcast transaction
-      const tx = Transaction.fromAtomicBEEF(craftingAction.tx);
-      const broadcastResponse = await broadcastTX(tx);
+      // Broadcast consumption transaction
+      const consumptionTx = Transaction.fromAtomicBEEF(consumptionAction.tx);
+      const consumptionBroadcast = await broadcastTX(consumptionTx);
+      const consumptionTxId = consumptionBroadcast.txid;
 
-      // Extract new token IDs with correct output indices
-      const txId = broadcastResponse.txid;
-      const craftedItemTokenId = `${txId}.0`; // Crafted item is always output 0
+      // Calculate auth outpoint (last output)
+      const authOutputIndex = outputs.length - 1;
+      const authOutpoint = `${consumptionTxId}.${authOutputIndex}`;
 
-      // Build material change results with correct output indices (starting at 1)
+      console.log('Material consumption transaction:', {
+        txId: consumptionTxId,
+        authOutpoint,
+        materialChanges: materialChanges.length,
+      });
+
+      // Build material change results
       const materialChangeResults = materialChanges.map((change, index) => ({
         lootTableId: change.lootTableId,
         itemName: change.itemName,
         previousTokenId: change.previousTokenId,
-        newTokenId: `${txId}.${index + 1}`, // Output indices 1, 2, 3, etc.
+        newTokenId: `${consumptionTxId}.${index}`,
         previousQuantity: change.previousQuantity,
         newQuantity: change.remainingQuantity,
       }));
 
-      console.log('Crafted item NFT created on blockchain:', {
-        txId,
-        craftedItemTokenId,
-        consumedTokenIds,
-        materialChanges: materialChangeResults,
-      });
+      // ===================================================
+      // SERVER TRANSACTION: Mint crafted item using auth
+      // ===================================================
 
-      // Call backend API to handle database updates
-      const apiResult = await fetch('/api/crafting/blockchain-craft', {
+      // Call server API with auth outpoint
+      const apiResult = await fetch('/api/crafting/mint-and-transfer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          inventoryItemId: outputItem.inventoryItemId,
-          transactionId: txId,
-          tokenId: craftedItemTokenId,
-          metadata: craftedNFTMetadata,
-          consumedItems: inputItems.map(i => ({
-            inventoryItemId: i.inventoryItemId,
-            tokenId: i.tokenId,
-          })),
+          recipeId,
+          authOutpoint,  // Proves link to material consumption
+          consumptionTxId,
           materialChanges: materialChangeResults,
+          inputItems: inputItems.map(input => ({
+            inventoryItemId: input.inventoryItemId,
+            tokenId: input.tokenId,
+            name: input.name,
+            rarity: input.rarity,
+            itemType: input.itemType,
+            quantityNeeded: input.quantityNeeded,
+          })),
+          outputItem: {
+            inventoryItemId: outputItem.inventoryItemId,
+            lootTableId: outputItem.lootTableId,
+            name: outputItem.name,
+            description: outputItem.description,
+            icon: outputItem.icon,
+            rarity: outputItem.rarity,
+            type: outputItem.type,
+            tier: outputItem.tier || 1,
+            equipmentStats: outputItem.equipmentStats || {},
+            crafted: outputItem.crafted || null,
+            borderGradient: outputItem.borderGradient,
+          },
+          userPublicKey: publicKey,
         }),
       });
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
-        throw new Error(errorData.error || 'Failed to save crafted item to database');
+        throw new Error(errorData.error || 'Failed to craft item');
       }
 
-      const { nftId } = await apiResult.json();
+      const result = await apiResult.json();
+
+      console.log('Server crafted item:', {
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        mintOutpoint: result.mintOutpoint,
+      });
 
       return {
-        nftId: nftId,
-        tokenId: craftedItemTokenId,
-        transactionId: txId,
-        consumedTokenIds: consumedTokenIds,
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        transactionId: result.transferTransactionId,
+        consumedTokenIds,
         materialChanges: materialChangeResults,
         success: true,
       };

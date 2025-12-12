@@ -43,7 +43,9 @@ export interface NFTLoot {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
   attributes?: Record<string, any>; // Custom NFT attributes (supports nested objects like borderGradient)
-  mintTransactionId?: string; // BSV transaction ID when minted to blockchain
+  mintTransactionId?: string; // DEPRECATED: Use mintOutpoint instead (redundant, can be extracted from mintOutpoint)
+  mintOutpoint?: string; // Server mint outpoint (txid.vout) - proves item was minted by server
+  transferTransactionId?: string; // DEPRECATED: UserInventory.tokenId contains transfer outpoint (redundant)
   createdAt: Date;
 }
 
@@ -365,15 +367,17 @@ export interface MaterialToken {
   userId: string;          // Reference to User.userId
   lootTableId: string;     // Reference to loot-table.ts (e.g., "iron_ore")
   itemName: string;        // Material name (e.g., "Iron Ore")
-  tokenId: string;         // Blockchain token ID (format: "txid.vout")
-  transactionId: string;   // BSV transaction ID
+  tokenId: string;         // Current blockchain outpoint (format: "txid.vout")
+  transactionId?: string;  // DEPRECATED: Use tokenId instead (redundant, can be extracted from tokenId)
   quantity: number;        // Current quantity of this material
   metadata?: Record<string, any>; // Token metadata
+  mintOutpoint?: string;   // Server mint outpoint (txid.vout) - proves server minted token
+  transferTransactionId?: string; // DEPRECATED: Use mintOutpoint/tokenId instead (redundant)
   consumed?: boolean;      // True if token was burned (quantity reached 0)
   consumedAt?: Date;       // When token was burned
-  consumeTransactionId?: string; // Transaction ID of burn
+  consumeTransactionId?: string; // Transaction ID of burn (no vout needed - item is consumed)
   previousTokenId?: string; // Previous token ID (for update history)
-  lastTransactionId?: string; // Most recent transaction ID
+  lastTransactionId?: string; // DEPRECATED: Use tokenId instead (redundant)
   updateHistory?: Array<{  // History of all quantity updates
     operation: 'add' | 'subtract' | 'set';
     previousQuantity: number;

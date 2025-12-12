@@ -1,14 +1,17 @@
 import { useState, useCallback } from 'react';
-import { WalletClient, Transaction } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX } from './useOverlayFunctions';
+import { WalletClient } from '@bsv/sdk';
 
 /**
  * Hook for minting a dropped item as an NFT on the BSV blockchain
  *
  * This hook converts an inventory item (dropped from monsters) into a blockchain NFT.
- * Users collect items from battles, and can choose to mint valuable items as NFTs
- * by paying a BSV transaction fee.
+ * Uses SERVER-SIDE minting architecture where:
+ * 1. Server wallet mints the item (single source of truth)
+ * 2. Server stores mintOutpoint (proof of legitimate mint)
+ * 3. Server immediately transfers to user
+ * 4. Server stores transferTransactionId
+ *
+ * This prevents fraudulent items and simplifies SIGHASH handling.
  *
  * NOTE: This hook does NOT handle material tokens. Use useCreateMaterialToken for materials.
  *
@@ -64,18 +67,16 @@ export function useMintItemNFT() {
   /**
    * Mint an inventory item as an NFT on the BSV blockchain
    *
-   * Process:
-   * 1. Validate wallet connection and authentication
-   * 2. Prepare NFT metadata (item stats, provenance, gradient colors)
-   * 3. Create locking script with ordinalP2PKH (deploy+mint)
-   * 4. Create BSV transaction via wallet.createAction()
-   * 5. Broadcast transaction to BSV network
-   * 6. Create NFTLoot document in database with transaction ID
-   * 7. Update UserInventory with nftLootId reference
-   * 8. Return NFT ID and transaction ID
+   * Server-side minting process:
+   * 1. Validate wallet connection and get user's public key
+   * 2. Call server API with item data and user's public key
+   * 3. Server mints item (proof via mintOutpoint)
+   * 4. Server immediately transfers to user
+   * 5. Server creates NFTLoot document and updates UserInventory
+   * 6. Return NFT ID and token ID
    *
    * @param params - Minting parameters including wallet and item data
-   * @returns Result with NFT ID, token ID, and transaction ID
+   * @returns Result with NFT ID, token ID, and transaction IDs
    */
   const mintItemNFT = useCallback(async (
     params: MintItemNFTParams
@@ -96,21 +97,21 @@ export function useMintItemNFT() {
         throw new Error('Wallet not authenticated');
       }
 
-      // Get player public key for NFT ownership
+      // Get player public key for NFT transfer
       const { publicKey } = await wallet.getPublicKey({
         protocolID: [0, "monsterbattle"],
         keyID: "0",
       });
 
-      console.log('Minting item NFT:', {
+      console.log('Requesting server-side mint for item:', {
         itemName: itemData.name,
         rarity: itemData.rarity,
         type: itemData.type,
         publicKey,
       });
 
-      // Prepare NFT metadata for blockchain inscription
-      const nftMetadata = {
+      // Prepare item data for server minting
+      const serverMintData = {
         name: 'game_item',
         itemName: itemData.name,
         description: itemData.description,
@@ -130,75 +131,38 @@ export function useMintItemNFT() {
         acquiredFrom: itemData.acquiredFrom || null,
       };
 
-      console.log('NFT metadata:', nftMetadata);
-
-      // Create the locking script for new NFT token
-      const ordinalP2PKH = new OrdinalsP2PKH();
-      const lockingScript = ordinalP2PKH.lock(
-        publicKey,        // Lock to user's public key
-        '',               // Empty string for minting (no previous token)
-        nftMetadata,      // Token metadata
-        "deploy+mint"     // Type: creating new token
-      );
-
-      // Create the transaction
-      const tokenCreationAction = await wallet.createAction({
-        description: "Minting new item NFT",
-        outputs: [
-          {
-            outputDescription: "New NFT item",
-            lockingScript: lockingScript.toHex(),
-            satoshis: 1,
-          }
-        ],
-        options: {
-          randomizeOutputs: false,
-        }
-      });
-
-      if (!tokenCreationAction.tx) {
-        throw new Error('Failed to create minting transaction');
-      }
-      console.log('Token creation action:', tokenCreationAction);
-
-      // Broadcast to blockchain using overlay functions
-      const tx = Transaction.fromAtomicBEEF(tokenCreationAction.tx);
-      const broadcastResponse = await broadcastTX(tx);
-
-      // Extract txid from response
-      const txId = broadcastResponse.txid;
-      const tokenId = `${txId}.0`;
-
-      console.log('Item NFT minted on blockchain:', {
-        txId,
-        tokenId,
-      });
-
-      // Call backend API to create NFTLoot document and update UserInventory
-      const apiResult = await fetch('/api/nft/mint', {
+      // Call server API for mint-and-transfer
+      const apiResult = await fetch('/api/items/mint-and-transfer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           inventoryItemId: itemData.inventoryItemId,
-          transactionId: txId,
-          tokenId: tokenId,
-          metadata: nftMetadata,
+          itemData: serverMintData,
+          userPublicKey: publicKey,
         }),
       });
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
-        throw new Error(errorData.error || 'Failed to save NFT to database');
+        throw new Error(errorData.error || 'Failed to mint and transfer item');
       }
 
-      const { nftId } = await apiResult.json();
+      const result = await apiResult.json();
+
+      console.log('Server minted and transferred item:', {
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        mintOutpoint: result.mintOutpoint,
+        mintTransactionId: result.mintTransactionId,
+        transferTransactionId: result.transferTransactionId,
+      });
 
       return {
-        nftId: nftId,
-        tokenId: tokenId,
-        transactionId: txId,
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        transactionId: result.transferTransactionId,
         success: true,
       };
 

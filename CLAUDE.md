@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Claude agents are stored in the following directory:
 C:\Users\user\.claude\agents
 
+{"accepted":true,"isMerge":false,"txid":"db51e146cf910318030ffe4630583b8bf4e475ef3e9a4c4a45028ab1cc35aef4","satoshis":10000}
+
 ---
 
 ## 📚 Documentation Workflow
