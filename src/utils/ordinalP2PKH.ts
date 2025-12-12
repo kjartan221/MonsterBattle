@@ -78,9 +78,12 @@ export class OrdinalsP2PKH implements ScriptTemplate {
         return lockingScript;
     }
 
+    /**
+     * Note: "single" default allows wallet.createAction() to add change outputs after pre-signing
+     */
     unlock(
         wallet: WalletInterface,
-        signOutputs: "all" | "none" | "single" = "all",
+        signOutputs: "all" | "none" | "single" = "single",
         anyoneCanPay = false,
         sourceSatoshis?: number,
         lockingScript?: Script,

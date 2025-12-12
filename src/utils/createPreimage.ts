@@ -19,7 +19,8 @@ export function calculatePreimage(
     if (anyoneCanPay) signatureScope |= TransactionSignature.SIGHASH_ANYONECANPAY;
 
     const input = tx.inputs[inputIndex];
-    const otherInputs = tx.inputs.filter((_, i) => i !== inputIndex);
+    // When anyoneCanPay is true, otherInputs should be empty
+    const otherInputs = anyoneCanPay ? [] : tx.inputs.filter((_, i) => i !== inputIndex);
 
     const sourceTXID = input.sourceTXID || input.sourceTransaction?.id("hex");
     if (!sourceTXID) throw new Error("sourceTXID or sourceTransaction required for signing");

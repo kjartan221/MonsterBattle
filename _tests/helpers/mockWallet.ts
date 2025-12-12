@@ -7,7 +7,8 @@
 import {
   PrivateKey,
   KeyDeriver,
-  WalletInterface
+  WalletInterface,
+  WalletClient
 } from '@bsv/sdk';
 import { WalletStorageManager, Services, Wallet, StorageClient, WalletSigner } from '@bsv/wallet-toolbox-client';
 
@@ -17,13 +18,13 @@ import { WalletStorageManager, Services, Wallet, StorageClient, WalletSigner } f
  * @param chain - Blockchain network ('test' or 'main')
  * @param storageURL - Storage provider URL
  * @param privateKey - Private key as hex string
- * @returns WalletInterface instance
+ * @returns WalletClient instance (cast from WalletInterface)
  */
 export async function makeWallet(
   chain: 'test' | 'main',
   storageURL: string,
   privateKey: string
-): Promise<WalletInterface> {
+): Promise<WalletClient> {
   const keyDeriver = new KeyDeriver(new PrivateKey(privateKey, 'hex'));
   const storageManager = new WalletStorageManager(keyDeriver.identityKey);
   const signer = new WalletSigner(chain, keyDeriver, storageManager);
@@ -34,7 +35,8 @@ export async function makeWallet(
   await client.makeAvailable();
   await storageManager.addWalletStorageProvider(client);
 
-  return wallet as WalletInterface;
+  // Cast to WalletClient for test compatibility
+  return wallet as unknown as WalletClient;
 }
 
 /**

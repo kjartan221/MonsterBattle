@@ -10,4 +10,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  // Increase timeout for blockchain transaction tests
+  testTimeout: 30000, // 30 seconds
 }
