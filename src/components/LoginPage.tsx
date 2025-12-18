@@ -76,60 +76,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleManualLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!username.trim()) {
-      toast.error('Please enter a username');
-      return;
-    }
-
-    if (!identityKey.trim()) {
-      toast.error('Please enter your identity key');
-      return;
-    }
-
-    if (identityKey.trim().length < 32) {
-      toast.error('Identity key must be at least 32 characters');
-      return;
-    }
-
-    setIsLoading(true);
-    const loadingToast = toast.loading('Logging in...');
-
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: identityKey,
-          username: username,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      toast.success('Login successful!', { id: loadingToast });
-
-      // Refresh equipment after successful login
-      await refreshEquipment();
-
-      router.push('/battle');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
-      toast.error(errorMessage, { id: loadingToast });
-      console.error('Manual login error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950">
       <div className="w-full max-w-md px-8">
@@ -152,49 +98,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/20"></div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-white/50">Or login manually</span>
-            </div>
           </div>
-
-          {/* Manual Login Form */}
-          <form onSubmit={handleManualLogin} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-white text-sm font-medium mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="identityKey" className="block text-white text-sm font-medium mb-2">
-                Identity Key
-              </label>
-              <input
-                type="text"
-                id="identityKey"
-                value={identityKey}
-                onChange={(e) => setIdentityKey(e.target.value)}
-                placeholder="Enter your identity key"
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || !isManualLoginValid}
-              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg border border-white/20 transition-all duration-200 hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:border-white/20 cursor-pointer"
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
         </div>
       </div>
     </div>
