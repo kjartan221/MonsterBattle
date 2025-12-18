@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       sighashType: 'single',
     });
 
-    const authUnlockTemplate = ordinalP2PKH.unlock(serverWallet, "single");
+    const authUnlockTemplate = ordinalP2PKH.unlock(serverWallet, "single", true);
     const authUnlockingScript = await authUnlockTemplate.sign(authTransaction, authOutputIndex);
 
     console.log('🔓 [AUTH-UNLOCK] Auth unlocking script created:', {
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
       sighashType: 'single',
     });
 
-    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "single");
+    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "single", true);
     const unlockingScript = await unlockTemplate.sign(mintTransaction, 0);
 
     console.log('🔓 [TRANSFER-CRAFT] Unlocking script created:', {

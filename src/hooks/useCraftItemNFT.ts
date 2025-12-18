@@ -192,7 +192,7 @@ export function useCraftItemNFT() {
           const tx = Transaction.fromBEEF(oldTx.outputs[0].beef);
 
           // Create unlocking script
-          const template = ordinalP2PKH.unlock(wallet, "single"); // Use "single" for createAction
+          const template = ordinalP2PKH.unlock(wallet, "single", true); // Use "single" and anyoneCanPay for createAction
           const unlockingScript = await template.sign(tx, 0);
 
           inputs.push({

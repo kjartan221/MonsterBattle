@@ -172,7 +172,7 @@ export function useUpdateEquipmentNFT() {
       }
 
       const equipmentTransaction = Transaction.fromBEEF(equipmentTx.outputs[0].beef);
-      const equipmentTemplate = ordinalP2PKH.unlock(wallet);
+      const equipmentTemplate = ordinalP2PKH.unlock(wallet, "single", true);
       const equipmentUnlockingScript = await equipmentTemplate.sign(equipmentTransaction, 0);
 
       inputs.push({
@@ -191,7 +191,7 @@ export function useUpdateEquipmentNFT() {
       }
 
       const scrollTransaction = Transaction.fromBEEF(scrollTx.outputs[0].beef);
-      const scrollTemplate = ordinalP2PKH.unlock(wallet);
+      const scrollTemplate = ordinalP2PKH.unlock(wallet, "single", true);
       const scrollUnlockingScript = await scrollTemplate.sign(scrollTransaction, 0);
 
       inputs.push({

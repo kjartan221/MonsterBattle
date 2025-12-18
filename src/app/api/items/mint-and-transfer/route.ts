@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create unlocking script for server wallet
-    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "single");
+    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "single", true);
     const unlockingScript = await unlockTemplate.sign(mintTransaction, 0);
 
     console.log('🔓 [TRANSFER] Unlocking script created:', {

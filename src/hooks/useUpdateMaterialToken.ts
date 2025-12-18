@@ -216,7 +216,7 @@ export function useUpdateMaterialToken() {
 
         // Create unlocking script template
         const ordinalP2PKH = new OrdinalsP2PKH();
-        const template = ordinalP2PKH.unlock(wallet);
+        const template = ordinalP2PKH.unlock(wallet, "single", true);
 
         // Generate actual unlocking script
         const unlockingScript = await template.sign(tx, 0);
