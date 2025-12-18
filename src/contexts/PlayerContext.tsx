@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import toast from 'react-hot-toast';
 import type { BiomeId, Tier } from '@/lib/biome-config';
 import { getStreakForZone, incrementStreakForZone, resetStreakForZone, initializeStreaks, migrateLegacyStreak } from '@/utils/streakHelpers';
+import { useAuthContext } from './WalletContext';
 
 export interface PlayerStats {
   _id?: string;
@@ -92,8 +93,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuthContext();
 
   const fetchPlayerStats = useCallback(async () => {
+    if (isAuthenticated !== true) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -114,14 +120,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Fetch player stats on mount
   useEffect(() => {
-    fetchPlayerStats();
-  }, [fetchPlayerStats]);
+    if (isAuthenticated === true) {
+      fetchPlayerStats();
+      return;
+    }
+
+    if (isAuthenticated === false) {
+      setPlayerStats(null);
+      setError(null);
+      setLoading(false);
+    }
+  }, [fetchPlayerStats, isAuthenticated]);
 
   const updatePlayerStats = async (updates: Partial<PlayerStats>) => {
+    if (isAuthenticated !== true) return;
     if (!playerStats) return;
 
     try {

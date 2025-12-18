@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getLootItemById, LootItem } from '@/lib/loot-table';
 import type { Inscription } from '@/lib/types';
+import { useAuthContext } from './WalletContext';
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
 
@@ -38,13 +39,19 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
   const [equippedAccessory1, setEquippedAccessory1] = useState<EquippedItem | null>(null);
   const [equippedAccessory2, setEquippedAccessory2] = useState<EquippedItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated } = useAuthContext();
 
   /**
    * Fetch equipped items from the server
    * Memoized with useCallback to prevent infinite loops in hooks that depend on this function
    */
   const refreshEquipment = useCallback(async () => {
+    if (isAuthenticated !== true) {
+      return;
+    }
+
     try {
+      setIsLoading(true);
       const response = await fetch('/api/equipment/get');
       if (!response.ok) {
         throw new Error('Failed to fetch equipment');
@@ -138,13 +145,17 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Empty deps - uses setState directly, no external dependencies
+  }, [isAuthenticated]);
 
   /**
    * Equip an item to a specific slot
    * Memoized with useCallback to prevent infinite loops
    */
   const equipItem = useCallback(async (inventoryId: string, lootTableId: string, slot: EquipmentSlot) => {
+    if (isAuthenticated !== true) {
+      throw new Error('Not authenticated');
+    }
+
     try {
       const response = await fetch('/api/equipment/equip', {
         method: 'POST',
@@ -190,13 +201,17 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to equip item:', error);
       throw error;
     }
-  }, [refreshEquipment]); // Depends on refreshEquipment (which is memoized)
+  }, [isAuthenticated, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   /**
    * Unequip an item from a specific slot
    * Memoized with useCallback to prevent infinite loops
    */
   const unequipItem = useCallback(async (slot: EquipmentSlot) => {
+    if (isAuthenticated !== true) {
+      throw new Error('Not authenticated');
+    }
+
     try {
       const response = await fetch('/api/equipment/unequip', {
         method: 'POST',
@@ -231,12 +246,23 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to unequip item:', error);
       throw error;
     }
-  }, [refreshEquipment]); // Depends on refreshEquipment (which is memoized)
+  }, [isAuthenticated, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   // Load equipment on mount
   useEffect(() => {
-    refreshEquipment();
-  }, [refreshEquipment]); // Include refreshEquipment in deps (it's memoized, so won't cause re-runs)
+    if (isAuthenticated === true) {
+      refreshEquipment();
+      return;
+    }
+
+    if (isAuthenticated === false) {
+      setEquippedWeapon(null);
+      setEquippedArmor(null);
+      setEquippedAccessory1(null);
+      setEquippedAccessory2(null);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, refreshEquipment]); // Include refreshEquipment in deps (it's memoized, so won't cause re-runs)
 
   return (
     <EquipmentContext.Provider

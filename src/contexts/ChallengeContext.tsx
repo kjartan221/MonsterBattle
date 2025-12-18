@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useAuthContext } from './WalletContext';
 
 export interface ChallengeConfig {
   forceShield: boolean;
@@ -44,13 +45,13 @@ const DEFAULT_CONFIG: ChallengeConfig = {
 export function ChallengeProvider({ children }: { children: ReactNode }) {
   const [challengeConfig, setChallengeConfig] = useState<ChallengeConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuthContext();
 
-  // Fetch challenge config on mount
-  useEffect(() => {
-    refreshChallengeConfig();
-  }, []);
+  const refreshChallengeConfig = useCallback(async () => {
+    if (isAuthenticated !== true) {
+      return;
+    }
 
-  const refreshChallengeConfig = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/challenge/get');
@@ -65,9 +66,13 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const updateChallengeConfig = async (config: ChallengeConfig) => {
+  const updateChallengeConfig = useCallback(async (config: ChallengeConfig) => {
+    if (isAuthenticated !== true) {
+      throw new Error('Not authenticated');
+    }
+
     try {
       const response = await fetch('/api/challenge/update', {
         method: 'POST',
@@ -84,7 +89,20 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
       console.error('Error updating challenge config:', error);
       throw error;
     }
-  };
+  }, [isAuthenticated]);
+
+  // Fetch challenge config on mount
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      refreshChallengeConfig();
+      return;
+    }
+
+    if (isAuthenticated === false) {
+      setChallengeConfig(DEFAULT_CONFIG);
+      setLoading(false);
+    }
+  }, [isAuthenticated, refreshChallengeConfig]);
 
   return (
     <ChallengeContext.Provider
