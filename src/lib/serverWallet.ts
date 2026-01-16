@@ -6,7 +6,7 @@
  * then transferred to users. This prevents users from creating fraudulent items.
  */
 
-import { WalletClient } from '@bsv/sdk';
+import { WalletClient, PrivateKey } from '@bsv/sdk';
 import { makeWallet } from '../../_tests/helpers/mockWallet';
 
 let serverWallet: WalletClient | null = null;
@@ -36,7 +36,7 @@ export async function getServerWallet(): Promise<WalletClient> {
 }
 
 /**
- * Get server wallet public key for verification
+ * Get server wallet public key for verification (derived key)
  */
 export async function getServerPublicKey(): Promise<string> {
   const wallet = await getServerWallet();
@@ -46,4 +46,30 @@ export async function getServerPublicKey(): Promise<string> {
     counterparty: "self",
   });
   return publicKey;
+}
+
+/**
+ * Get server wallet identity public key (derived from env private key)
+ * Use this for payment transactions to avoid BIP32 counterparty derivation issues
+ */
+export function getServerIdentityPublicKey(): string {
+  const privateKeyHex = process.env.SERVER_WALLET_PRIVATE_KEY;
+  if (!privateKeyHex) {
+    throw new Error('SERVER_WALLET_PRIVATE_KEY environment variable not set');
+  }
+  const privateKey = PrivateKey.fromString(privateKeyHex, 'hex');
+  return privateKey.toPublicKey().toString();
+}
+
+/**
+ * Get server wallet identity private key (from env)
+ * BACKEND ONLY - Never expose to client!
+ * Use this for unlocking plain P2PKH payment inputs
+ */
+export function getServerIdentityPrivateKey(): PrivateKey {
+  const privateKeyHex = process.env.SERVER_WALLET_PRIVATE_KEY;
+  if (!privateKeyHex) {
+    throw new Error('SERVER_WALLET_PRIVATE_KEY environment variable not set');
+  }
+  return PrivateKey.fromString(privateKeyHex, 'hex');
 }

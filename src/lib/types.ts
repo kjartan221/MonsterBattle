@@ -383,6 +383,7 @@ export interface MaterialToken {
     previousQuantity: number;
     newQuantity: number;
     transactionId: string;
+    mergedFrom?: string[];   // Array of tokenIds that were merged (for 'add' operations using server merge)
     reason?: string;
     timestamp: Date;
   }>;

@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Backup files
 *BACKUP*
+
+# Failed txs
+failedtxs.txt

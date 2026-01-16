@@ -1,17 +1,24 @@
 import { useState, useCallback } from 'react';
 import { WalletClient } from '@bsv/sdk';
+import { createWalletPayment } from '@/utils/createWalletPayment';
 
 /**
  * Hook for minting a dropped item as an NFT on the BSV blockchain
  *
  * This hook converts an inventory item (dropped from monsters) into a blockchain NFT.
  * Uses SERVER-SIDE minting architecture where:
- * 1. Server wallet mints the item (single source of truth)
- * 2. Server stores mintOutpoint (proof of legitimate mint)
- * 3. Server immediately transfers to user
- * 4. Server stores transferTransactionId
+ * 1. Client creates WalletP2PKH payment to server (with derivation params)
+ * 2. Server wallet mints the item (single source of truth)
+ * 3. Server stores mintOutpoint (proof of legitimate mint)
+ * 4. Server immediately transfers to user
+ * 5. Server stores transferTransactionId
  *
  * This prevents fraudulent items and simplifies SIGHASH handling.
+ *
+ * Payment System:
+ * - Uses WalletP2PKH (not plain P2PKH) for proper derivation
+ * - Client provides protocolID, keyID, and counterparty for unlocking
+ * - Server can unlock using wallet parameters and source transaction
  *
  * NOTE: This hook does NOT handle material tokens. Use useCreateMaterialToken for materials.
  *
@@ -103,11 +110,36 @@ export function useMintItemNFT() {
         keyID: "0",
       });
 
+      // Fetch server identity key for payment counterparty
+      const serverPubKeyResponse = await fetch('/api/server-identity-key');
+      if (!serverPubKeyResponse.ok) {
+        throw new Error('Failed to fetch server identity key');
+      }
+      const { publicKey: serverIdentityKey } = await serverPubKeyResponse.json();
+
+      console.log('Creating WalletP2PKH payment transaction (100 sats)...');
+
+      // Create WalletP2PKH payment with derivation params
+      const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
+        wallet,
+        serverIdentityKey,
+        100,
+        'Payment for item minting fees'
+      );
+
+      console.log('WalletP2PKH payment transaction created:', {
+        txid: paymentTxId,
+        satoshis: 100,
+        walletParams,
+      });
+
       console.log('Requesting server-side mint for item:', {
         itemName: itemData.name,
         rarity: itemData.rarity,
         type: itemData.type,
         publicKey,
+        paymentTxId,
+        walletParams,
       });
 
       // Prepare item data for server minting
@@ -141,6 +173,8 @@ export function useMintItemNFT() {
           inventoryItemId: itemData.inventoryItemId,
           itemData: serverMintData,
           userPublicKey: publicKey,
+          paymentTx,          // WalletP2PKH payment BEEF
+          walletParams,       // Derivation params for unlocking
         }),
       });
 

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { WalletClient, Transaction, Beef } from '@bsv/sdk';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { createWalletPayment } from '@/utils/createWalletPayment';
 import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
 
 /**
@@ -103,25 +104,18 @@ export function useUpdateEquipmentNFT() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Update equipment NFT with inscription scroll
+   * Update equipment NFT with inscription scroll (Server-Side Pattern)
    *
-   * Process:
+   * Process (similar to crafting):
    * 1. Validate wallet connection and authentication
-   * 2. Fetch previous transactions for equipment and scroll from overlay
-   * 3. Create unlocking scripts for both tokens
-   * 4. Merge BEEFs from both input transactions
-   * 5. Prepare updated equipment metadata (same structure as mint, only prefix/suffix change)
-   * 6. Create locking script with ordinalP2PKH.lock() using "transfer" type
-   * 7. Create BSV transaction with:
-   *    - Input 0: Original equipment token (unlocking script)
-   *    - Input 1: Inscription scroll token (unlocking script)
-   *    - Output 0: New equipment NFT with updated prefix/suffix
-   * 8. Broadcast transaction to BSV network
-   * 9. Update database:
-   *    - Mark old equipment as consumed
-   *    - Mark inscription scroll as consumed
-   *    - Create new NFTLoot for updated equipment (same structure as mint)
-   *    - Create new UserInventory entry with updated prefix/suffix
+   * 2. CLIENT: Transfer equipment token to server
+   * 3. CLIENT: Transfer inscription scroll token to server
+   * 4. CLIENT: Create WalletP2PKH payment for fees
+   * 5. SERVER: Validates transferred tokens
+   * 6. SERVER: Unlocks equipment + scroll + payment
+   * 7. SERVER: Creates updated equipment token with new prefix/suffix
+   * 8. SERVER: Broadcasts transaction
+   * 9. SERVER: Updates database
    * 10. Return new NFT ID and transaction ID
    *
    * @param params - Update parameters including wallet, equipment, and scroll
@@ -152,18 +146,54 @@ export function useUpdateEquipmentNFT() {
         keyID: "0",
       });
 
-      console.log('Updating equipment NFT:', {
+      // Fetch server identity key for payment counterparty
+      const serverIdentityKeyResponse = await fetch('/api/server-identity-key');
+      if (!serverIdentityKeyResponse.ok) {
+        throw new Error('Failed to fetch server identity key');
+      }
+      const { publicKey: serverIdentityKey } = await serverIdentityKeyResponse.json();
+
+      console.log('Creating WalletP2PKH payment transaction (100 sats)...');
+
+      // Create WalletP2PKH payment with derivation params
+      const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
+        wallet,
+        serverIdentityKey,
+        100,
+        'Payment for equipment update fees'
+      );
+
+      console.log('WalletP2PKH payment transaction created:', {
+        txid: paymentTxId,
+        satoshis: 100,
+        walletParams,
+      });
+
+      console.log('Updating equipment NFT (transfer-to-server flow):', {
         equipmentName: equipmentItem.name,
         scrollName: inscriptionScroll.name,
         inscriptionType,
         publicKey,
+        paymentTxId,
+        walletParams,
       });
 
-      // Prepare inputs by unlocking both tokens
-      const inputs: any[] = [];
+      // Fetch server public key for token transfers
+      const serverKeyResponse = await fetch('/api/server-public-key');
+      if (!serverKeyResponse.ok) {
+        throw new Error('Failed to fetch server public key');
+      }
+      const { publicKey: serverPublicKey } = await serverKeyResponse.json();
+
+      // ===================================================
+      // CLIENT TRANSACTIONS: Transfer tokens to server
+      // ===================================================
+
       const ordinalP2PKH = new OrdinalsP2PKH();
 
-      // Input 0: Unlock original equipment token
+      // TRANSFER 1: Equipment token to server
+      console.log(`[TRANSFER] Transferring ${equipmentItem.name} to server for update`);
+
       const equipmentTxid = equipmentItem.tokenId.split('.')[0];
       const equipmentTx = await getTransactionByTxID(equipmentTxid);
 
@@ -172,17 +202,52 @@ export function useUpdateEquipmentNFT() {
       }
 
       const equipmentTransaction = Transaction.fromBEEF(equipmentTx.outputs[0].beef);
-      const equipmentTemplate = ordinalP2PKH.unlock(wallet, "single", true);
-      const equipmentUnlockingScript = await equipmentTemplate.sign(equipmentTransaction, 0);
+      const transferEquipmentTx = new Transaction();
 
-      inputs.push({
-        inputDescription: `Consuming ${equipmentItem.name}`,
-        outpoint: `${equipmentTxid}.0`,
-        unlockingScript: equipmentUnlockingScript.toHex(),
-        inputBEEF: equipmentTx.outputs[0].beef,
+      transferEquipmentTx.addInput({
+        sourceTransaction: equipmentTransaction,
+        sourceOutputIndex: 0,
+        unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
       });
 
-      // Input 1: Unlock inscription scroll token
+      const equipmentAssetId = equipmentItem.tokenId.replace('.', '_');
+      transferEquipmentTx.addOutput({
+        lockingScript: ordinalP2PKH.lock(
+          serverPublicKey,
+          equipmentAssetId,
+          {
+            name: 'game_item',
+            itemName: equipmentItem.name,
+            description: equipmentItem.description,
+            icon: equipmentItem.icon,
+            rarity: equipmentItem.rarity,
+            itemType: equipmentItem.type,
+            tier: equipmentItem.tier,
+            stats: equipmentItem.equipmentStats,
+            crafted: equipmentItem.crafted || null,
+            enhancements: {
+              prefix: equipmentItem.prefix || null,
+              suffix: equipmentItem.suffix || null,
+            },
+            visual: {
+              borderGradient: equipmentItem.borderGradient,
+            },
+          },
+          'transfer',
+          undefined  // No amt field for equipment
+        ),
+        satoshis: 1,
+      });
+
+      await transferEquipmentTx.sign();
+      const equipmentTransferBroadcast = await broadcastTX(transferEquipmentTx);
+      const transferredEquipmentTokenId = `${equipmentTransferBroadcast.txid}.0`;
+
+      console.log(`[TRANSFER] Equipment transferred to server: ${transferredEquipmentTokenId}`);
+
+      // TRANSFER 2: Inscription scroll token to server
+      console.log(`[TRANSFER] Transferring ${inscriptionScroll.name} to server for consumption`);
+
       const scrollTxid = inscriptionScroll.tokenId.split('.')[0];
       const scrollTx = await getTransactionByTxID(scrollTxid);
 
@@ -191,26 +256,44 @@ export function useUpdateEquipmentNFT() {
       }
 
       const scrollTransaction = Transaction.fromBEEF(scrollTx.outputs[0].beef);
-      const scrollTemplate = ordinalP2PKH.unlock(wallet, "single", true);
-      const scrollUnlockingScript = await scrollTemplate.sign(scrollTransaction, 0);
+      const transferScrollTx = new Transaction();
 
-      inputs.push({
-        inputDescription: `Consuming ${inscriptionScroll.name}`,
-        outpoint: `${scrollTxid}.0`,
-        unlockingScript: scrollUnlockingScript.toHex(),
-        inputBEEF: scrollTx.outputs[0].beef,
+      transferScrollTx.addInput({
+        sourceTransaction: scrollTransaction,
+        sourceOutputIndex: 0,
+        unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
       });
 
-      // Merge BEEFs from both inputs
-      const beef = new Beef();
-      for (const input of inputs) {
-        beef.mergeBeef(input.inputBEEF);
-      }
-      const combinedBEEF = beef.toBinary();
+      const scrollAssetId = inscriptionScroll.tokenId.replace('.', '_');
+      transferScrollTx.addOutput({
+        lockingScript: ordinalP2PKH.lock(
+          serverPublicKey,
+          scrollAssetId,
+          {
+            name: 'inscription_scroll',
+            itemName: inscriptionScroll.name,
+            description: inscriptionScroll.description,
+            icon: inscriptionScroll.icon,
+            rarity: inscriptionScroll.rarity,
+            inscriptionData: inscriptionScroll.inscriptionData,
+          },
+          'transfer',
+          undefined  // No amt field for scrolls
+        ),
+        satoshis: 1,
+      });
 
-      // Prepare updated equipment metadata with new inscription
-      // Uses same structure as useMintItemNFT - only prefix/suffix fields change
-      // Preserves craftedStats if item was crafted
+      await transferScrollTx.sign();
+      const scrollTransferBroadcast = await broadcastTX(transferScrollTx);
+      const transferredScrollTokenId = `${scrollTransferBroadcast.txid}.0`;
+
+      console.log(`[TRANSFER] Scroll transferred to server: ${transferredScrollTokenId}`);
+
+      // ===================================================
+      // SERVER TRANSACTION: Update equipment
+      // ===================================================
+
+      // Prepare updated inscription data
       const updatedPrefix = inscriptionType === 'prefix'
         ? {
             type: inscriptionScroll.inscriptionData.inscriptionType,
@@ -227,111 +310,73 @@ export function useUpdateEquipmentNFT() {
           }
         : equipmentItem.suffix || null;
 
-      const updatedEquipmentMetadata = {
-        name: 'game_item',
-        itemName: equipmentItem.name,
-        description: equipmentItem.description,
-        icon: equipmentItem.icon,
-        rarity: equipmentItem.rarity,
-        itemType: equipmentItem.type,
-        tier: equipmentItem.tier,
-        stats: equipmentItem.equipmentStats,
-        crafted: equipmentItem.crafted || null,  // Preserve crafted data { statRoll, craftedBy }
-        enhancements: {
-          prefix: updatedPrefix,
-          suffix: updatedSuffix,
-        },
-        visual: {
-          borderGradient: equipmentItem.borderGradient,
-        },
-        acquiredFrom: null,  // Equipment from updates don't have monster drop data
-      };
-
-      console.log('Updated equipment metadata:', updatedEquipmentMetadata);
-
-      // Create locking script for updated equipment (use "transfer" type with assetId)
-      const assetId = equipmentItem.tokenId.replace('.', '_'); // Convert to BSV-21 format
-
-      const updatedEquipmentLockingScript = ordinalP2PKH.lock(
-        publicKey,
-        assetId,                 // Reference previous equipment token
-        updatedEquipmentMetadata,
-        "transfer"               // Type: updating existing equipment
-      );
-
-      // Build inputs array for createAction
-      const inputsForAction = inputs.map(input => ({
-        inputDescription: input.inputDescription,
-        outpoint: input.outpoint,
-        unlockingScript: input.unlockingScript,
-      }));
-
-      // Build outputs array (updated equipment at output 0)
-      const outputs = [{
-        outputDescription: "Updated equipment NFT",
-        lockingScript: updatedEquipmentLockingScript.toHex(),
-        satoshis: 1,
-      }];
-
-      // Create update transaction (consumes equipment + scroll, creates updated equipment)
-      const updateAction = await wallet.createAction({
-        description: "Updating equipment with inscription",
-        inputBEEF: combinedBEEF,
-        inputs: inputsForAction,
-        outputs: outputs,
-        options: {
-          randomizeOutputs: false,
-        }
-      });
-
-      if (!updateAction.tx) {
-        throw new Error('Failed to create update transaction');
-      }
-      console.log('Update action:', updateAction);
-
-      // Broadcast transaction
-      const tx = Transaction.fromAtomicBEEF(updateAction.tx);
-      const broadcastResponse = await broadcastTX(tx);
-
-      // Extract new token ID
-      const txId = broadcastResponse.txid;
-      const updatedEquipmentTokenId = `${txId}.0`;
-
-      console.log('Equipment NFT updated on blockchain:', {
-        txId,
-        updatedEquipmentTokenId,
-        previousEquipmentTokenId: equipmentItem.tokenId,
-        consumedScrollTokenId: inscriptionScroll.tokenId,
-      });
-
-      // Call backend API to handle database updates
+      // Call server API to update equipment
       const apiResult = await fetch('/api/equipment/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // Original item IDs for database tracking
           originalEquipmentInventoryId: equipmentItem.inventoryItemId,
           originalEquipmentTokenId: equipmentItem.tokenId,
           inscriptionScrollInventoryId: inscriptionScroll.inventoryItemId,
           inscriptionScrollTokenId: inscriptionScroll.tokenId,
-          transactionId: txId,
-          tokenId: updatedEquipmentTokenId,
-          metadata: updatedEquipmentMetadata,
+
+          // Transferred tokens (server will unlock these)
+          transferredEquipmentTokenId,
+          transferredEquipmentTransactionId: equipmentTransferBroadcast.txid,
+          transferredScrollTokenId,
+          transferredScrollTransactionId: scrollTransferBroadcast.txid,
+
+          // Equipment data
+          equipmentData: {
+            lootTableId: equipmentItem.lootTableId,
+            name: equipmentItem.name,
+            description: equipmentItem.description,
+            icon: equipmentItem.icon,
+            rarity: equipmentItem.rarity,
+            type: equipmentItem.type,
+            tier: equipmentItem.tier,
+            equipmentStats: equipmentItem.equipmentStats,
+            crafted: equipmentItem.crafted || null,
+            borderGradient: equipmentItem.borderGradient,
+          },
+
+          // Scroll data
+          scrollData: inscriptionScroll.inscriptionData,
+          inscriptionType,
+
+          // Updated inscriptions
+          updatedPrefix,
+          updatedSuffix,
+
+          // User public key (for final transfer back)
+          userPublicKey: publicKey,
+
+          // Payment
+          paymentTx,          // WalletP2PKH payment BEEF
+          walletParams,       // Derivation params for unlocking
         }),
       });
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
-        throw new Error(errorData.error || 'Failed to save updated equipment to database');
+        throw new Error(errorData.error || 'Failed to update equipment');
       }
 
-      const { nftId } = await apiResult.json();
+      const result = await apiResult.json();
+
+      console.log('Server updated equipment:', {
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        transactionId: result.transactionId,
+      });
 
       return {
-        nftId: nftId,
-        tokenId: updatedEquipmentTokenId,
-        transactionId: txId,
+        nftId: result.nftId,
+        tokenId: result.tokenId,
+        transactionId: result.transactionId,
         previousEquipmentTokenId: equipmentItem.tokenId,
         consumedScrollTokenId: inscriptionScroll.tokenId,
         success: true,

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { WalletClient, Transaction } from '@bsv/sdk';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { createWalletPayment } from '@/utils/createWalletPayment';
 import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
 
 /**
@@ -157,16 +158,142 @@ export function useUpdateMaterialToken() {
 
       const results: MaterialUpdateResult[] = [];
 
+      // Get server keys (needed for 'add' operations)
+      const serverPubKeyResponse = await fetch('/api/server-public-key');
+      if (!serverPubKeyResponse.ok) {
+        throw new Error('Failed to fetch server public key');
+      }
+      const { publicKey: serverPublicKey } = await serverPubKeyResponse.json();
+
+      const serverIdentityKeyResponse = await fetch('/api/server-identity-key');
+      if (!serverIdentityKeyResponse.ok) {
+        throw new Error('Failed to fetch server identity key');
+      }
+      const { publicKey: serverIdentityKey } = await serverIdentityKeyResponse.json();
+
       // Process each update
       for (const update of updates) {
         console.log(`Processing ${update.operation} for ${update.lootTableId}`);
 
-        // Calculate new quantity based on operation
+        // For 'add' operations, use transfer-to-server pattern
+        if (update.operation === 'add') {
+          console.log(`[ADD] Transferring ${update.lootTableId} to server for merge`);
+
+          // Get previous token transaction from overlay
+          const previousTxid = update.currentTokenId.split('.')[0];
+          const oldTx = await getTransactionByTxID(previousTxid);
+
+          if (!oldTx || !oldTx.outputs || !oldTx.outputs[0]) {
+            throw new Error(`Could not find previous transaction: ${previousTxid}`);
+          }
+
+          // Parse transaction from BEEF
+          const previousTransaction = Transaction.fromBEEF(oldTx.outputs[0].beef);
+
+          // Create transfer transaction to server
+          const ordinalP2PKH = new OrdinalsP2PKH();
+          const transferTx = new Transaction();
+
+          transferTx.addInput({
+            sourceTransaction: previousTransaction,
+            sourceOutputIndex: 0,
+            unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
+          });
+
+          // Transfer entire token to server
+          const assetId = update.currentTokenId.replace('.', '_');
+          transferTx.addOutput({
+            lockingScript: ordinalP2PKH.lock(
+              serverPublicKey,
+              assetId,
+              {
+                name: 'material_token',
+                lootTableId: update.lootTableId,
+                itemName: update.itemName,
+                description: update.description,
+                icon: update.icon,
+                rarity: update.rarity,
+                tier: update.tier || 1,
+              },
+              'transfer',
+              update.currentQuantity  // Transfer current amt to server
+            ),
+            satoshis: 1,
+          });
+
+          // Sign and broadcast transfer transaction
+          await transferTx.sign();
+          const transferBroadcast = await broadcastTX(transferTx);
+          const transferredToServerTokenId = `${transferBroadcast.txid}.0`;
+
+          console.log(`[ADD] Transferred to server: ${transferredToServerTokenId}`);
+
+          // Create WalletP2PKH payment for server mint + merge
+          console.log('Creating WalletP2PKH payment transaction (100 sats)...');
+          const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
+            wallet,
+            serverIdentityKey,
+            100,
+            'Payment for material add and merge'
+          );
+
+          console.log('WalletP2PKH payment transaction created:', {
+            txid: paymentTxId,
+            satoshis: 100,
+            walletParams,
+          });
+
+          // Call server API to mint + merge
+          const mergeResponse = await fetch('/api/materials/add-and-merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transferredTokenId: transferredToServerTokenId,
+              transferTransactionId: transferBroadcast.txid,
+              lootTableId: update.lootTableId,
+              itemName: update.itemName,
+              description: update.description,
+              icon: update.icon,
+              rarity: update.rarity,
+              tier: update.tier || 1,
+              addedQuantity: update.quantity,
+              currentQuantity: update.currentQuantity,
+              userPublicKey: publicKey,
+              paymentTx,          // WalletP2PKH payment BEEF
+              walletParams,       // Derivation params for unlocking
+              reason: update.reason,
+              acquiredFrom: update.acquiredFrom,
+            }),
+          });
+
+          if (!mergeResponse.ok) {
+            const errorData = await mergeResponse.json();
+            throw new Error(errorData.error || 'Failed to merge materials');
+          }
+
+          const mergeData = await mergeResponse.json();
+
+          console.log(`[ADD] Server merged: ${mergeData.mergedTokenId}`);
+
+          results.push({
+            lootTableId: update.lootTableId,
+            itemName: update.itemName,
+            previousTokenId: update.currentTokenId,
+            newTokenId: mergeData.mergedTokenId,
+            transactionId: mergeData.mergeTransactionId,
+            previousQuantity: update.currentQuantity,
+            newQuantity: mergeData.newQuantity,
+            operation: 'add',
+            success: true,
+          });
+
+          // Skip rest of loop - server handled everything
+          continue;
+        }
+
+        // Calculate new quantity based on operation (for subtract/set)
         let newQuantity: number;
         switch (update.operation) {
-          case 'add':
-            newQuantity = update.currentQuantity + update.quantity;
-            break;
           case 'subtract':
             newQuantity = update.currentQuantity - update.quantity;
             if (newQuantity < 0) {
@@ -187,7 +314,7 @@ export function useUpdateMaterialToken() {
 
         console.log(`${update.lootTableId}: ${update.currentQuantity} → ${newQuantity}`);
 
-        // Prepare update metadata (same unified structure as create)
+        // Prepare update metadata (quantity is in amt field, not metadata)
         const updateMetadata = {
           name: 'material_token',
           lootTableId: update.lootTableId,
@@ -196,7 +323,6 @@ export function useUpdateMaterialToken() {
           icon: update.icon,
           rarity: update.rarity,
           tier: update.tier || 1,
-          quantity: newQuantity,            // New quantity after update
           owner: publicKey,
           acquiredFrom: update.acquiredFrom ? [update.acquiredFrom] : [],
         };
@@ -277,7 +403,8 @@ export function useUpdateMaterialToken() {
             publicKey,
             assetId,                 // Reference previous token (BSV-21 format)
             updateMetadata,
-            "transfer"               // Type: transfer/update
+            "transfer",              // Type: transfer/update
+            newQuantity              // Pass quantity as amt parameter
           );
 
           // Create update transaction

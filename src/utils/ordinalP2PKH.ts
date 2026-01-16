@@ -19,7 +19,8 @@ export class OrdinalsP2PKH implements ScriptTemplate {
         address: string | number[], // Just pubkey of user to send token to
         assetId: string, // AssetID = txid_vout
         data: Record<string, any>, // Dropped loot data
-        type: "deploy+mint" | "transfer"
+        type: "deploy+mint" | "transfer",
+        amt?: number // Optional amount (defaults to 1). Materials use this for quantities, items/equipment default to 1
     ): LockingScript {
         let pubKeyHash: number[];
         if (typeof address === "string") {
@@ -28,19 +29,21 @@ export class OrdinalsP2PKH implements ScriptTemplate {
             pubKeyHash = address;
         }
 
-        // For inscriptions, we always have 1 token per item
+        // For inscriptions, amt represents quantity (materials) or uniqueness (items/equipment)
+        // Materials: amt > 1 possible (stackable quantities)
+        // Items/Equipment: amt = 1 (each is unique NFT)
         let inscription: any;
         if (type === "deploy+mint") {
             inscription = {
                 p: "bsv-20",
                 op: type,
-                amt: 1,
+                amt: amt ?? 1,
             }
         } else {
             inscription = {
                 p: "bsv-20",
                 op: type,
-                amt: 1,
+                amt: amt ?? 1,
                 id: assetId,
             }
         }

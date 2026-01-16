@@ -4,8 +4,8 @@ import { getServerPublicKey } from '@/lib/serverWallet';
 /**
  * GET /api/server-public-key
  *
- * Returns the server wallet's public key for crafting auth outputs
- * This allows clients to create auth outputs locked to the server
+ * Returns the server wallet's DERIVED public key (with protocolID/keyID/counterparty)
+ * Used for OrdinalsP2PKH material transfers to the server
  */
 export async function GET() {
   try {

@@ -18,6 +18,7 @@ import { connectToMongo } from '@/lib/mongodb';
 import { getServerWallet, getServerPublicKey } from '@/lib/serverWallet';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
 import { Transaction } from '@bsv/sdk';
+import { WalletP2PKH } from '@bsv/wallet-helper';
 import { ObjectId } from 'mongodb';
 import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 
@@ -43,12 +44,28 @@ export async function POST(request: NextRequest) {
       inventoryItemId,  // UserInventory document ID (validate ownership)
       itemData,         // Full item metadata for minting
       userPublicKey,    // User's public key for transfer
+      paymentTx,        // User's payment transaction BEEF (WalletP2PKH locked)
+      walletParams,     // Wallet derivation params for unlocking { protocolID, keyID, counterparty }
     } = body;
 
     // Validate required fields
     if (!inventoryItemId || !itemData || !userPublicKey) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (!paymentTx) {
+      return NextResponse.json(
+        { error: 'Missing payment transaction' },
+        { status: 400 }
+      );
+    }
+
+    if (!walletParams || !walletParams.protocolID || !walletParams.keyID || !walletParams.counterparty) {
+      return NextResponse.json(
+        { error: 'Missing wallet derivation parameters' },
         { status: 400 }
       );
     }
@@ -79,13 +96,60 @@ export async function POST(request: NextRequest) {
     const serverWallet = await getServerWallet();
     const serverPublicKey = await getServerPublicKey();
 
+    // 5. Parse and validate payment transaction
+    const paymentTransaction = Transaction.fromBEEF(paymentTx);
+    const paymentTxId = paymentTransaction.id('hex');
+
+    console.log('📥 [PAYMENT] Received WalletP2PKH payment transaction:', {
+      txid: paymentTxId,
+      walletParams,
+    });
+
+    console.log('📥 [PAYMENT] Parsed payment transaction:', {
+      txid: paymentTxId,
+      inputs: paymentTransaction.inputs.length,
+      outputs: paymentTransaction.outputs.length,
+      output0Satoshis: paymentTransaction.outputs[0]?.satoshis,
+      output0Script: paymentTransaction.outputs[0]?.lockingScript.toHex(),
+    });
+
+    // Find output locked to server with WalletP2PKH (should be output 0)
+    const paymentOutput = paymentTransaction.outputs[0];
+    if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
+      return NextResponse.json(
+        { error: 'Invalid payment: must be at least 100 satoshis' },
+        { status: 400 }
+      );
+    }
+
+    const paymentOutpoint = `${paymentTxId}.0`;
+
+    // Create WalletP2PKH unlocking script template using wallet params from client
+    const walletp2pkh = new WalletP2PKH(serverWallet);
+    const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
+      protocolID: walletParams.protocolID,
+      keyID: walletParams.keyID,
+      counterparty: walletParams.counterparty,
+    });
+    const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
+
+    console.log('🔓 [PAYMENT] Created WalletP2PKH unlock template:', {
+      unlockingScriptLength: walletP2pkhUnlockingLength,
+      paymentOutpoint,
+      protocolID: walletParams.protocolID,
+      keyID: walletParams.keyID,
+      counterparty: walletParams.counterparty,
+    });
+
     console.log('Server minting item:', {
       itemName: itemData.name,
       userId,
       serverPublicKey,
+      paymentAmount: paymentOutput.satoshis,
+      paymentOutpoint,
     });
 
-    // 5. STEP 1: Server mints the item
+    // 6. STEP 1: Server mints the item (with payment input for fees)
     const ordinalP2PKH = new OrdinalsP2PKH();
     const mintLockingScript = ordinalP2PKH.lock(
       serverPublicKey,
@@ -94,7 +158,7 @@ export async function POST(request: NextRequest) {
       'deploy+mint'
     );
 
-    console.log('🔨 [MINT] Creating mint locking script:', {
+    console.log('🔨 [MINT-ITEM] Creating mint locking script:', {
       operation: 'deploy+mint',
       publicKey: serverPublicKey,
       itemName: itemData.itemName || itemData.name,
@@ -102,8 +166,17 @@ export async function POST(request: NextRequest) {
       scriptHex: mintLockingScript.toHex(),
     });
 
-    const mintAction = await serverWallet.createAction({
-      description: "Server minting item NFT",
+    // Step 1: Call createAction with unlockingScriptLength
+    const mintActionRes = await serverWallet.createAction({
+      description: "Server minting item NFT with user WalletP2PKH payment",
+      inputBEEF: paymentTx,
+      inputs: [
+        {
+          inputDescription: "User WalletP2PKH payment for fees",
+          outpoint: paymentOutpoint,
+          unlockingScriptLength: walletP2pkhUnlockingLength,
+        }
+      ],
       outputs: [
         {
           outputDescription: "New NFT item",
@@ -116,8 +189,42 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    if (!mintActionRes.signableTransaction) {
+      throw new Error('Failed to create signable mint transaction');
+    }
+
+    // Step 2: Extract signable transaction and sign it
+    const mintReference = mintActionRes.signableTransaction.reference;
+    const mintTxToSign = Transaction.fromBEEF(mintActionRes.signableTransaction.tx);
+
+    // Add WalletP2PKH unlocking script template and source transaction
+    mintTxToSign.inputs[0].unlockingScriptTemplate = walletP2pkhUnlockTemplate;
+    mintTxToSign.inputs[0].sourceTransaction = paymentTransaction;
+
+    // Sign the transaction
+    await mintTxToSign.sign();
+
+    // Extract the unlocking script
+    const mintUnlockingScript = mintTxToSign.inputs[0].unlockingScript;
+    if (!mintUnlockingScript) {
+      throw new Error('Missing unlocking script after signing');
+    }
+
+    console.log('🔓 [MINT-ITEM] Transaction signed, WalletP2PKH unlocking script generated:', {
+      scriptLength: mintUnlockingScript.toHex().length,
+      scriptHex: mintUnlockingScript.toHex(),
+    });
+
+    // Step 3: Sign the action with actual unlocking scripts
+    const mintAction = await serverWallet.signAction({
+      reference: mintReference,
+      spends: {
+        '0': { unlockingScript: mintUnlockingScript.toHex() }
+      }
+    });
+
     if (!mintAction.tx) {
-      throw new Error('Failed to create mint transaction');
+      throw new Error('Failed to sign mint action');
     }
 
     // Broadcast mint transaction
@@ -156,18 +263,18 @@ export async function POST(request: NextRequest) {
 
     const mintTransaction = Transaction.fromBEEF(mintTxData.outputs[0].beef!);
 
-    console.log('🔓 [TRANSFER] Creating unlocking script for mint output:', {
+    console.log('🔓 [TRANSFER] Creating unlocking script template for mint output:', {
       mintOutpoint,
-      sighashType: 'single',
+      sighashType: 'all',
+      anyoneCanPay: false,
     });
 
-    // Create unlocking script for server wallet
-    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "single", true);
-    const unlockingScript = await unlockTemplate.sign(mintTransaction, 0);
+    // Create unlocking script template for server wallet (using 'all' and false)
+    const unlockTemplate = ordinalP2PKH.unlock(serverWallet, "all", false);
+    const unlockingScriptLength = await unlockTemplate.estimateLength();
 
-    console.log('🔓 [TRANSFER] Unlocking script created:', {
-      scriptLength: unlockingScript.toHex().length,
-      scriptHex: unlockingScript.toHex(),
+    console.log('🔓 [TRANSFER] Unlocking script template created:', {
+      unlockingScriptLength,
     });
 
     // Create transfer locking script to user
@@ -187,14 +294,15 @@ export async function POST(request: NextRequest) {
       scriptHex: transferLockingScript.toHex(),
     });
 
-    const transferAction = await serverWallet.createAction({
+    // Step 1: Call createAction with unlockingScriptLength
+    const transferActionRes = await serverWallet.createAction({
       description: "Transferring minted item to user",
       inputBEEF: mintTxData.outputs[0].beef,
       inputs: [
         {
           inputDescription: "Server minted item",
           outpoint: mintOutpoint,
-          unlockingScript: unlockingScript.toHex(),
+          unlockingScriptLength,
         }
       ],
       outputs: [
@@ -209,8 +317,42 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    if (!transferActionRes.signableTransaction) {
+      throw new Error('Failed to create signable transaction');
+    }
+
+    // Step 2: Extract signable transaction and sign it
+    const reference = transferActionRes.signableTransaction.reference;
+    const txToSign = Transaction.fromBEEF(transferActionRes.signableTransaction.tx);
+
+    // Add unlocking script template and source transaction
+    txToSign.inputs[0].unlockingScriptTemplate = unlockTemplate;
+    txToSign.inputs[0].sourceTransaction = mintTransaction;
+
+    // Sign the transaction
+    await txToSign.sign();
+
+    // Extract the unlocking script
+    const unlockingScript = txToSign.inputs[0].unlockingScript;
+    if (!unlockingScript) {
+      throw new Error('Missing unlocking script after signing');
+    }
+
+    console.log('🔓 [TRANSFER] Transaction signed, unlocking script generated:', {
+      scriptLength: unlockingScript.toHex().length,
+      scriptHex: unlockingScript.toHex(),
+    });
+
+    // Step 3: Sign the action with actual unlocking scripts
+    const transferAction = await serverWallet.signAction({
+      reference,
+      spends: {
+        '0': { unlockingScript: unlockingScript.toHex() }
+      }
+    });
+
     if (!transferAction.tx) {
-      throw new Error('Failed to create transfer transaction');
+      throw new Error('Failed to sign transfer action');
     }
 
     // Broadcast transfer transaction
