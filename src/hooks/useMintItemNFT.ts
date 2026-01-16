@@ -49,12 +49,10 @@ export interface MintItemNFTParams {
       color1: string;
       color2: string;
     };
-    acquiredFrom?: {              // Provenance data (from monster drop)
-      monsterId: string;
+    acquiredFrom?: {              // Provenance data (from monster drop - game data only)
       monsterName: string;
       biome: string;
       tier: number;
-      acquiredAt: string;         // ISO timestamp
     };
   };
 }
@@ -187,16 +185,14 @@ export function useMintItemNFT() {
 
       console.log('Server minted and transferred item:', {
         nftId: result.nftId,
-        tokenId: result.tokenId,
-        mintOutpoint: result.mintOutpoint,
-        mintTransactionId: result.mintTransactionId,
-        transferTransactionId: result.transferTransactionId,
+        tokenId: result.tokenId,        // Current location (after transfer)
+        mintOutpoint: result.mintOutpoint, // Proof of original mint
       });
 
       return {
         nftId: result.nftId,
-        tokenId: result.tokenId,
-        transactionId: result.transferTransactionId,
+        tokenId: result.tokenId,         // Current location
+        transactionId: result.tokenId?.split('.')[0], // Extract txid from outpoint
         success: true,
       };
 

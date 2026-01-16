@@ -52,13 +52,12 @@ export async function getServerPublicKey(): Promise<string> {
  * Get server wallet identity public key (derived from env private key)
  * Use this for payment transactions to avoid BIP32 counterparty derivation issues
  */
-export function getServerIdentityPublicKey(): string {
-  const privateKeyHex = process.env.SERVER_WALLET_PRIVATE_KEY;
-  if (!privateKeyHex) {
-    throw new Error('SERVER_WALLET_PRIVATE_KEY environment variable not set');
-  }
-  const privateKey = PrivateKey.fromString(privateKeyHex, 'hex');
-  return privateKey.toPublicKey().toString();
+export async function getServerIdentityPublicKey(): Promise<string> {
+  const wallet = await getServerWallet();
+  const { publicKey } = await wallet.getPublicKey({
+    identityKey: true,
+  });
+  return publicKey;
 }
 
 /**

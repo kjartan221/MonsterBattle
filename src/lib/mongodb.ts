@@ -98,8 +98,8 @@ async function connectToMongo() {
           // NFT Loot indexes
           nftLootCollection.createIndex({ rarity: 1 }),
           nftLootCollection.createIndex({ lootTableId: 1 }),
-          nftLootCollection.createIndex({ mintTransactionId: 1 }, {
-            partialFilterExpression: { mintTransactionId: { $exists: true } }
+          nftLootCollection.createIndex({ mintOutpoint: 1 }, {
+            partialFilterExpression: { mintOutpoint: { $exists: true } }
           }),
 
           // User Inventory indexes

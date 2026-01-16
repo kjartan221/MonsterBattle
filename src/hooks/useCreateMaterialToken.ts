@@ -47,11 +47,9 @@ export interface MaterialTokenData {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   tier?: number;                // Material tier (if applicable)
   quantity: number;             // Initial quantity
-  acquiredFrom?: Array<{        // Optional: Track where materials came from
-    monsterId?: string;
-    monsterName?: string;
-    biome?: string;
-    acquiredAt: string;         // ISO timestamp
+  acquiredFrom?: Array<{        // Optional: Track where materials came from (game data only)
+    monsterName: string;
+    biome: string;
     quantity: number;           // How many from this source
   }>;
 }

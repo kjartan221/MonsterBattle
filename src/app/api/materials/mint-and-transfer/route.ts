@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
       const transferLockingScript = ordinalP2PKH.lock(
         userPublicKey,     // Lock to user's public key
         assetId,           // Reference the mint
-        { ...materialMetadata, serverMinted: true, mintedBy: 'server' },
+        materialMetadata,  // Material metadata (game data only)
         'transfer',
         quantity           // Pass quantity to transfer inscription
       );

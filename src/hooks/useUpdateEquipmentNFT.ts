@@ -202,44 +202,86 @@ export function useUpdateEquipmentNFT() {
       }
 
       const equipmentTransaction = Transaction.fromBEEF(equipmentTx.outputs[0].beef);
-      const transferEquipmentTx = new Transaction();
 
-      transferEquipmentTx.addInput({
-        sourceTransaction: equipmentTransaction,
-        sourceOutputIndex: 0,
-        unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
-      });
+      // Create unlocking script template for equipment
+      const equipmentUnlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
+      const equipmentUnlockingScriptLength = await equipmentUnlockTemplate.estimateLength();
 
       const equipmentAssetId = equipmentItem.tokenId.replace('.', '_');
-      transferEquipmentTx.addOutput({
-        lockingScript: ordinalP2PKH.lock(
-          serverPublicKey,
-          equipmentAssetId,
-          {
-            name: 'game_item',
-            itemName: equipmentItem.name,
-            description: equipmentItem.description,
-            icon: equipmentItem.icon,
-            rarity: equipmentItem.rarity,
-            itemType: equipmentItem.type,
-            tier: equipmentItem.tier,
-            stats: equipmentItem.equipmentStats,
-            crafted: equipmentItem.crafted || null,
-            enhancements: {
-              prefix: equipmentItem.prefix || null,
-              suffix: equipmentItem.suffix || null,
-            },
-            visual: {
-              borderGradient: equipmentItem.borderGradient,
-            },
+      const equipmentLockingScript = ordinalP2PKH.lock(
+        serverPublicKey,
+        equipmentAssetId,
+        {
+          name: 'game_item',
+          itemName: equipmentItem.name,
+          description: equipmentItem.description,
+          icon: equipmentItem.icon,
+          rarity: equipmentItem.rarity,
+          itemType: equipmentItem.type,
+          tier: equipmentItem.tier,
+          stats: equipmentItem.equipmentStats,
+          crafted: equipmentItem.crafted || null,
+          enhancements: {
+            prefix: equipmentItem.prefix || null,
+            suffix: equipmentItem.suffix || null,
           },
-          'transfer',
-          undefined  // No amt field for equipment
-        ),
-        satoshis: 1,
+          visual: {
+            borderGradient: equipmentItem.borderGradient,
+          },
+        },
+        'transfer',
+        undefined  // No amt field for equipment
+      );
+
+      // Step 1: Create action
+      const equipmentActionRes = await wallet.createAction({
+        description: `Transferring ${equipmentItem.name} to server for inscription`,
+        inputBEEF: equipmentTx.outputs[0].beef,
+        inputs: [{
+          inputDescription: `Equipment: ${equipmentItem.name}`,
+          outpoint: equipmentItem.tokenId,
+          unlockingScriptLength: equipmentUnlockingScriptLength,
+        }],
+        outputs: [{
+          outputDescription: `Transfer to server`,
+          lockingScript: equipmentLockingScript.toHex(),
+          satoshis: 1,
+        }],
+        options: { randomizeOutputs: false },
       });
 
-      await transferEquipmentTx.sign();
+      if (!equipmentActionRes.signableTransaction) {
+        throw new Error('Failed to create signable equipment transfer transaction');
+      }
+
+      // Step 2: Sign to generate unlocking script
+      const equipmentReference = equipmentActionRes.signableTransaction.reference;
+      const equipmentTxToSign = Transaction.fromBEEF(equipmentActionRes.signableTransaction.tx);
+
+      equipmentTxToSign.inputs[0].unlockingScriptTemplate = equipmentUnlockTemplate;
+      equipmentTxToSign.inputs[0].sourceTransaction = equipmentTransaction;
+
+      await equipmentTxToSign.sign();
+
+      const equipmentUnlockingScript = equipmentTxToSign.inputs[0].unlockingScript;
+      if (!equipmentUnlockingScript) {
+        throw new Error('Missing equipment unlocking script after signing');
+      }
+
+      // Step 3: Sign action
+      const equipmentAction = await wallet.signAction({
+        reference: equipmentReference,
+        spends: {
+          '0': { unlockingScript: equipmentUnlockingScript.toHex() }
+        }
+      });
+
+      if (!equipmentAction.tx) {
+        throw new Error('Failed to sign equipment transfer action');
+      }
+
+      // Step 4: Broadcast
+      const transferEquipmentTx = Transaction.fromAtomicBEEF(equipmentAction.tx);
       const equipmentTransferBroadcast = await broadcastTX(transferEquipmentTx);
       const transferredEquipmentTokenId = `${equipmentTransferBroadcast.txid}.0`;
 
@@ -256,34 +298,76 @@ export function useUpdateEquipmentNFT() {
       }
 
       const scrollTransaction = Transaction.fromBEEF(scrollTx.outputs[0].beef);
-      const transferScrollTx = new Transaction();
 
-      transferScrollTx.addInput({
-        sourceTransaction: scrollTransaction,
-        sourceOutputIndex: 0,
-        unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
-      });
+      // Create unlocking script template for scroll
+      const scrollUnlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
+      const scrollUnlockingScriptLength = await scrollUnlockTemplate.estimateLength();
 
       const scrollAssetId = inscriptionScroll.tokenId.replace('.', '_');
-      transferScrollTx.addOutput({
-        lockingScript: ordinalP2PKH.lock(
-          serverPublicKey,
-          scrollAssetId,
-          {
-            name: 'inscription_scroll',
-            itemName: inscriptionScroll.name,
-            description: inscriptionScroll.description,
-            icon: inscriptionScroll.icon,
-            rarity: inscriptionScroll.rarity,
-            inscriptionData: inscriptionScroll.inscriptionData,
-          },
-          'transfer',
-          undefined  // No amt field for scrolls
-        ),
-        satoshis: 1,
+      const scrollLockingScript = ordinalP2PKH.lock(
+        serverPublicKey,
+        scrollAssetId,
+        {
+          name: 'inscription_scroll',
+          itemName: inscriptionScroll.name,
+          description: inscriptionScroll.description,
+          icon: inscriptionScroll.icon,
+          rarity: inscriptionScroll.rarity,
+          inscriptionData: inscriptionScroll.inscriptionData,
+        },
+        'transfer',
+        undefined  // No amt field for scrolls
+      );
+
+      // Step 1: Create action
+      const scrollActionRes = await wallet.createAction({
+        description: `Transferring ${inscriptionScroll.name} to server for consumption`,
+        inputBEEF: scrollTx.outputs[0].beef,
+        inputs: [{
+          inputDescription: `Inscription scroll: ${inscriptionScroll.name}`,
+          outpoint: inscriptionScroll.tokenId,
+          unlockingScriptLength: scrollUnlockingScriptLength,
+        }],
+        outputs: [{
+          outputDescription: `Transfer to server`,
+          lockingScript: scrollLockingScript.toHex(),
+          satoshis: 1,
+        }],
+        options: { randomizeOutputs: false },
       });
 
-      await transferScrollTx.sign();
+      if (!scrollActionRes.signableTransaction) {
+        throw new Error('Failed to create signable scroll transfer transaction');
+      }
+
+      // Step 2: Sign to generate unlocking script
+      const scrollReference = scrollActionRes.signableTransaction.reference;
+      const scrollTxToSign = Transaction.fromBEEF(scrollActionRes.signableTransaction.tx);
+
+      scrollTxToSign.inputs[0].unlockingScriptTemplate = scrollUnlockTemplate;
+      scrollTxToSign.inputs[0].sourceTransaction = scrollTransaction;
+
+      await scrollTxToSign.sign();
+
+      const scrollUnlockingScript = scrollTxToSign.inputs[0].unlockingScript;
+      if (!scrollUnlockingScript) {
+        throw new Error('Missing scroll unlocking script after signing');
+      }
+
+      // Step 3: Sign action
+      const scrollAction = await wallet.signAction({
+        reference: scrollReference,
+        spends: {
+          '0': { unlockingScript: scrollUnlockingScript.toHex() }
+        }
+      });
+
+      if (!scrollAction.tx) {
+        throw new Error('Failed to sign scroll transfer action');
+      }
+
+      // Step 4: Broadcast
+      const transferScrollTx = Transaction.fromAtomicBEEF(scrollAction.tx);
       const scrollTransferBroadcast = await broadcastTX(transferScrollTx);
       const transferredScrollTokenId = `${scrollTransferBroadcast.txid}.0`;
 

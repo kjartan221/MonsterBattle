@@ -75,7 +75,8 @@ export default function CraftingPage() {
 
         materialsData.inventory.forEach((item: any) => {
           const lootItem = getLootItemById(item.lootId);
-          if (lootItem && lootItem.type === 'material') {
+          // Only include materials that have been minted as tokens
+          if (lootItem && lootItem.type === 'material' && item.tokenId) {
             // Track full material item data
             materialItems.push({
               inventoryId: item.inventoryId,

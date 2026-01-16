@@ -73,7 +73,7 @@ export async function createWalletPayment(
   });
 
   // Create WalletP2PKH locking script with derivation
-  const walletP2pkh = new WalletP2PKH();
+  const walletP2pkh = new WalletP2PKH(wallet);
   const paymentLockingScript = await walletP2pkh.lock({
     walletParams,
   });

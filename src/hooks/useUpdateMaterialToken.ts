@@ -59,11 +59,10 @@ export interface MaterialTokenUpdate {
   operation: MaterialUpdateOperation;
   quantity: number;              // Amount to add/subtract/set
   reason?: string;               // Optional: Why this update (e.g., "crafting steel_sword")
-  acquiredFrom?: {               // Optional: For 'add' operations, track where material came from
-    monsterId?: string;
-    monsterName?: string;
-    biome?: string;
-    acquiredAt?: string;
+  acquiredFrom?: {               // Optional: For 'add' operations, track where material came from (game data only)
+    monsterName: string;
+    biome: string;
+    quantity: number;            // How many from this source
   };
 }
 
@@ -192,37 +191,78 @@ export function useUpdateMaterialToken() {
 
           // Create transfer transaction to server
           const ordinalP2PKH = new OrdinalsP2PKH();
-          const transferTx = new Transaction();
 
-          transferTx.addInput({
-            sourceTransaction: previousTransaction,
-            sourceOutputIndex: 0,
-            unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
-          });
+          // Create unlocking script template
+          const unlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
+          const unlockingScriptLength = await unlockTemplate.estimateLength();
 
           // Transfer entire token to server
           const assetId = update.currentTokenId.replace('.', '_');
-          transferTx.addOutput({
-            lockingScript: ordinalP2PKH.lock(
-              serverPublicKey,
-              assetId,
-              {
-                name: 'material_token',
-                lootTableId: update.lootTableId,
-                itemName: update.itemName,
-                description: update.description,
-                icon: update.icon,
-                rarity: update.rarity,
-                tier: update.tier || 1,
-              },
-              'transfer',
-              update.currentQuantity  // Transfer current amt to server
-            ),
-            satoshis: 1,
+          const transferLockingScript = ordinalP2PKH.lock(
+            serverPublicKey,
+            assetId,
+            {
+              name: 'material_token',
+              lootTableId: update.lootTableId,
+              itemName: update.itemName,
+              description: update.description,
+              icon: update.icon,
+              rarity: update.rarity,
+              tier: update.tier || 1,
+            },
+            'transfer',
+            update.currentQuantity  // Transfer current amt to server
+          );
+
+          // Step 1: Create action
+          const transferActionRes = await wallet.createAction({
+            description: `Transferring ${update.itemName} to server for merge`,
+            inputBEEF: oldTx.outputs[0].beef,
+            inputs: [{
+              inputDescription: `Material token: ${update.itemName}`,
+              outpoint: update.currentTokenId,
+              unlockingScriptLength,
+            }],
+            outputs: [{
+              outputDescription: `Transfer to server`,
+              lockingScript: transferLockingScript.toHex(),
+              satoshis: 1,
+            }],
+            options: { randomizeOutputs: false },
           });
 
-          // Sign and broadcast transfer transaction
-          await transferTx.sign();
+          if (!transferActionRes.signableTransaction) {
+            throw new Error('Failed to create signable transfer transaction');
+          }
+
+          // Step 2: Sign to generate unlocking script
+          const reference = transferActionRes.signableTransaction.reference;
+          const txToSign = Transaction.fromBEEF(transferActionRes.signableTransaction.tx);
+
+          txToSign.inputs[0].unlockingScriptTemplate = unlockTemplate;
+          txToSign.inputs[0].sourceTransaction = previousTransaction;
+
+          await txToSign.sign();
+
+          const unlockingScript = txToSign.inputs[0].unlockingScript;
+          if (!unlockingScript) {
+            throw new Error('Missing unlocking script after signing');
+          }
+
+          // Step 3: Sign action
+          const transferAction = await wallet.signAction({
+            reference,
+            spends: {
+              '0': { unlockingScript: unlockingScript.toHex() }
+            }
+          });
+
+          if (!transferAction.tx) {
+            throw new Error('Failed to sign transfer action');
+          }
+
+          // Step 4: Broadcast
+          const transferTx = Transaction.fromAtomicBEEF(transferAction.tx);
           const transferBroadcast = await broadcastTX(transferTx);
           const transferredToServerTokenId = `${transferBroadcast.txid}.0`;
 
@@ -323,7 +363,6 @@ export function useUpdateMaterialToken() {
           icon: update.icon,
           rarity: update.rarity,
           tier: update.tier || 1,
-          owner: publicKey,
           acquiredFrom: update.acquiredFrom ? [update.acquiredFrom] : [],
         };
 

@@ -187,79 +187,131 @@ export function useCraftItemNFT() {
       const { publicKey: serverPublicKey } = await serverKeyResponse.json();
 
       // ===================================================
-      // CLIENT TRANSACTIONS: Transfer materials to server
+      // CLIENT TRANSACTION: Transfer all materials to server in ONE transaction
       // ===================================================
 
       const ordinalP2PKH = new OrdinalsP2PKH();
-      const transferredMaterials: Array<{
-        lootTableId: string;
-        itemName: string;
-        tokenId: string;             // New token ID after transfer to server
-        transactionId: string;       // Transfer transaction ID
-        quantity: number;            // Quantity in token (from amt field)
-        quantityNeeded: number;      // Quantity required by recipe
-        description: string;
-        icon: string;
-        rarity: string;
-        tier: number;
-      }> = [];
 
-      for (const input of inputItems) {
-        if (!input.tokenId || input.itemType !== 'material') {
-          continue;  // Skip non-material items
-        }
+      // Filter only material inputs
+      const materialInputs = inputItems.filter(input => input.tokenId && input.itemType === 'material');
 
-        console.log(`[TRANSFER] Transferring ${input.name} to server for crafting`);
+      console.log(`[TRANSFER] Transferring ${materialInputs.length} materials to server in single batch transaction`);
 
-        // Get previous token transaction from overlay
-        const previousTxid = input.tokenId.split('.')[0];
+      // Step 1: Fetch all source transactions
+      const sourceTransactions: Transaction[] = [];
+
+      for (const input of materialInputs) {
+        console.log(`[TRANSFER] Fetching ${input.name}...`);
+        const previousTxid = input.tokenId!.split('.')[0];
         const oldTx = await getTransactionByTxID(previousTxid);
 
         if (!oldTx || !oldTx.outputs || !oldTx.outputs[0]) {
           throw new Error(`Could not find previous transaction: ${previousTxid}`);
         }
 
-        // Parse transaction from BEEF
         const previousTransaction = Transaction.fromBEEF(oldTx.outputs[0].beef);
+        sourceTransactions.push(previousTransaction);
+      }
 
-        // Create transfer transaction to server
-        const transferTx = new Transaction();
+      // Step 2: Merge all BEEFs for multi-input transaction
+      const mergedBeef = new Beef();
+      for (const sourceTx of sourceTransactions) {
+        mergedBeef.mergeBeef(sourceTx.toBEEF());
+      }
+      const inputBEEF = mergedBeef.toBinary();
 
-        transferTx.addInput({
-          sourceTransaction: previousTransaction,
-          sourceOutputIndex: 0,
-          unlockingScriptTemplate: ordinalP2PKH.unlock(wallet, "all", false),
-        });
+      // Step 3: Build inputs and outputs arrays for all materials
+      const unlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
+      const unlockingScriptLength = await unlockTemplate.estimateLength();
 
-        // Transfer entire token to server
-        const assetId = input.tokenId.replace('.', '_');
-        transferTx.addOutput({
-          lockingScript: ordinalP2PKH.lock(
-            serverPublicKey,
-            assetId,
-            {
-              name: 'material_token',
-              lootTableId: input.lootTableId,
-              itemName: input.name,
-              description: input.description,
-              icon: input.icon,
-              rarity: input.rarity,
-              tier: input.tier || 1,
-            },
-            'transfer',
-            input.currentQuantity  // Transfer current amt to server
-          ),
+      const inputs = materialInputs.map((input, index) => ({
+        inputDescription: `Material token: ${input.name}`,
+        outpoint: input.tokenId!,
+        unlockingScriptLength,
+      }));
+
+      const outputs = materialInputs.map((input) => {
+        const assetId = input.tokenId!.replace('.', '_');
+        const transferLockingScript = ordinalP2PKH.lock(
+          serverPublicKey,
+          assetId,
+          {
+            name: 'material_token',
+            lootTableId: input.lootTableId,
+            itemName: input.name,
+            description: input.description,
+            icon: input.icon,
+            rarity: input.rarity,
+            tier: input.tier || 1,
+          },
+          'transfer',
+          input.currentQuantity  // Transfer current amt to server
+        );
+
+        return {
+          outputDescription: `Transfer ${input.name} to server`,
+          lockingScript: transferLockingScript.toHex(),
           satoshis: 1,
-        });
+        };
+      });
 
-        // Sign and broadcast transfer transaction
-        await transferTx.sign();
-        const transferBroadcast = await broadcastTX(transferTx);
-        const transferredToServerTokenId = `${transferBroadcast.txid}.0`;
+      // Step 4: Create single action with all materials
+      const transferActionRes = await wallet.createAction({
+        description: `Transferring ${materialInputs.length} materials to server for crafting`,
+        inputBEEF,
+        inputs,
+        outputs,
+        options: { randomizeOutputs: false },
+      });
 
-        console.log(`[TRANSFER] Transferred to server: ${transferredToServerTokenId}`);
+      if (!transferActionRes.signableTransaction) {
+        throw new Error('Failed to create signable batch transfer transaction');
+      }
 
-        transferredMaterials.push({
+      // Step 5: Sign all inputs in the single transaction
+      const reference = transferActionRes.signableTransaction.reference;
+      const txToSign = Transaction.fromBEEF(transferActionRes.signableTransaction.tx);
+
+      // Assign unlocking script templates and source transactions for all inputs
+      for (let i = 0; i < materialInputs.length; i++) {
+        txToSign.inputs[i].unlockingScriptTemplate = unlockTemplate;
+        txToSign.inputs[i].sourceTransaction = sourceTransactions[i];
+      }
+
+      await txToSign.sign();
+
+      // Extract all unlocking scripts
+      const spends: Record<string, { unlockingScript: string }> = {};
+      for (let i = 0; i < materialInputs.length; i++) {
+        const unlockingScript = txToSign.inputs[i].unlockingScript;
+        if (!unlockingScript) {
+          throw new Error(`Missing unlocking script for input ${i} (${materialInputs[i].name})`);
+        }
+        spends[i.toString()] = { unlockingScript: unlockingScript.toHex() };
+      }
+
+      // Step 6: Sign action with all unlocking scripts
+      const transferAction = await wallet.signAction({
+        reference,
+        spends,
+      });
+
+      if (!transferAction.tx) {
+        throw new Error('Failed to sign batch transfer action');
+      }
+
+      // Step 7: Broadcast single transaction
+      const transferTx = Transaction.fromAtomicBEEF(transferAction.tx);
+      const transferBroadcast = await broadcastTX(transferTx);
+
+      console.log(`[TRANSFER] ✓ Batch transaction broadcast: ${transferBroadcast.txid}`);
+
+      // Build transferred materials array with correct output indices
+      const transferredMaterials = materialInputs.map((input, index) => {
+        const transferredToServerTokenId = `${transferBroadcast.txid}.${index}`;
+        console.log(`[TRANSFER] ✓ ${input.name} at output ${index}: ${transferredToServerTokenId}`);
+
+        return {
           lootTableId: input.lootTableId!,
           itemName: input.name,
           tokenId: transferredToServerTokenId,
@@ -270,8 +322,10 @@ export function useCraftItemNFT() {
           icon: input.icon!,
           rarity: input.rarity as 'common' | 'rare' | 'epic' | 'legendary',
           tier: input.tier || 1,
-        });
-      }
+        };
+      });
+
+      console.log(`[TRANSFER] ✓ All ${transferredMaterials.length} materials transferred in single transaction`);
 
       // ===================================================
       // SERVER TRANSACTION: Craft item + handle materials

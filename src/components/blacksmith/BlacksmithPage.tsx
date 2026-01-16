@@ -70,15 +70,15 @@ export default function BlacksmithPage() {
           isMinted: item.isMinted,
           nftLootId: item.nftLootId,
           tokenId: item.tokenId,
-          transactionId: item.mintTransactionId
+          transactionId: item.tokenId?.split('.')[0] // Extract txid from current tokenId
         }));
 
-        // Separate equipment and scrolls
+        // Separate equipment and scrolls (only show minted tokens)
         const equipmentItems = allItems.filter((item: InventoryItem) =>
-          ['weapon', 'armor', 'artifact'].includes(item.itemType)
+          ['weapon', 'armor', 'artifact'].includes(item.itemType) && item.tokenId
         );
         const scrollItems = allItems.filter((item: InventoryItem) =>
-          item.itemType === 'inscription_scroll'
+          item.itemType === 'inscription_scroll' && item.tokenId
         );
 
         setEquipment(equipmentItems);

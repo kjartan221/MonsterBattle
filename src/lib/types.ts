@@ -43,9 +43,9 @@ export interface NFTLoot {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
   attributes?: Record<string, any>; // Custom NFT attributes (supports nested objects like borderGradient)
-  mintTransactionId?: string; // DEPRECATED: Use mintOutpoint instead (redundant, can be extracted from mintOutpoint)
   mintOutpoint?: string; // Server mint outpoint (txid.vout) - proves item was minted by server
-  transferTransactionId?: string; // DEPRECATED: UserInventory.tokenId contains transfer outpoint (redundant)
+  tokenId?: string;      // Current token location (outpoint) - updated after transfers
+  userId?: string;       // User who owns this NFT (for equipment updates)
   createdAt: Date;
 }
 
@@ -107,12 +107,26 @@ export interface UserInventory {
   };
   isEmpowered?: boolean;    // True if dropped by a corrupted monster (+20% to all stats)
 
+  // Blockchain token tracking
+  tokenId?: string;         // Current token location (outpoint: "txid.vout") after transfers
+  mintOutpoint?: string;    // Original server mint proof (outpoint: "txid.vout")
+
   // Equipment Customization (Phase 1: Inscriptions)
   prefix?: Inscription;     // Prefix inscription (e.g., "Savage" +5 damage)
   suffix?: Inscription;     // Suffix inscription (e.g., "of Haste" +5 attack speed)
 
   // Consumable Enhancement System
   enhanced?: boolean;       // True if consumable is enhanced (infinite uses with cooldown)
+
+  // Consumption tracking (for materials/equipment consumed in crafting or updates)
+  // NOTE: Not used for consumables - regular consumables can't be minted, enhanced are infinite
+  consumed?: boolean;       // True if item was consumed (materials in crafting, equipment/scrolls in updates)
+  consumedAt?: Date;        // When item was consumed
+  consumedInRecipe?: string; // Recipe ID if consumed in crafting
+  consumedInUpdate?: {       // Details if consumed in equipment update (flexible for different types)
+    [key: string]: any;      // Allow any fields (newInventoryItemId, newTokenId, etc.)
+  };
+  updatedAt?: Date;         // Last update timestamp
 }
 
 // Player Stats document (RPG progression)

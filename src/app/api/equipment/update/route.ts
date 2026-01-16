@@ -329,6 +329,11 @@ export async function POST(request: NextRequest) {
     // STEP 3: Update database
     // ========================================
 
+    // Fetch original NFTLoot to preserve mint proof
+    const originalNFTLoot = await nftLootCollection.findOne({
+      _id: originalEquipment.nftLootId
+    });
+
     // Create new NFTLoot document for updated equipment
     const updatedEquipmentDoc = {
       lootTableId: equipmentData.lootTableId,
@@ -341,8 +346,8 @@ export async function POST(request: NextRequest) {
         ...updatedEquipmentMetadata,
         borderGradient: equipmentData.borderGradient,
       },
-      mintTransactionId: updateTxId,
-      tokenId: updatedEquipmentTokenId,
+      mintOutpoint: originalNFTLoot?.mintOutpoint,  // Preserve original mint proof
+      tokenId: updatedEquipmentTokenId,              // Current location after update
       userId: userId,
       createdAt: new Date(),
     };
@@ -356,7 +361,8 @@ export async function POST(request: NextRequest) {
       lootTableId: equipmentData.lootTableId,
       itemType: equipmentData.type,
       nftLootId: nftResult.insertedId,
-      tokenId: updatedEquipmentTokenId,
+      mintOutpoint: originalNFTLoot?.mintOutpoint, // Preserve original mint proof
+      tokenId: updatedEquipmentTokenId,             // Current location after update
       transactionId: updateTxId,
       tier: equipmentData.tier,
       borderGradient: equipmentData.borderGradient,

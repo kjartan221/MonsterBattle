@@ -42,11 +42,11 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Filter only materials
+        // Filter only materials that have been minted as tokens
         const materials = data.inventory
           .filter((item: any) => {
             const lootItem = getLootItemById(item.lootId);
-            return lootItem && lootItem.type === 'material';
+            return lootItem && lootItem.type === 'material' && item.tokenId;
           })
           .map((item: any) => ({
             _id: item.inventoryId, // API returns inventoryId, not _id

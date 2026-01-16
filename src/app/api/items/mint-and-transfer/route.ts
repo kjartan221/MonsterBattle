@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
     const transferLockingScript = ordinalP2PKH.lock(
       userPublicKey,     // Lock to user's public key
       assetId,           // Reference the mint
-      { ...itemData, serverMinted: true, mintedBy: 'server' },
+      itemData,          // Item metadata (game data only)
       'transfer'
     );
 
@@ -377,7 +377,7 @@ export async function POST(request: NextRequest) {
       broadcastResponse: transferBroadcast
     });
 
-    // 7. Create NFTLoot document with mint proof
+    // 7. Create NFTLoot document with mint proof and current location
     const nftLootDoc = {
       lootTableId: inventoryItem.lootTableId,
       name: itemData.name || itemData.itemName,
@@ -386,20 +386,22 @@ export async function POST(request: NextRequest) {
       rarity: itemData.rarity,
       type: inventoryItem.itemType,
       attributes: itemData,
-      mintOutpoint: mintOutpoint,          // Full outpoint: ${mintTxId}.0
+      mintOutpoint: mintOutpoint,          // Proof of original mint: ${mintTxId}.0
+      tokenId: userTokenId,                // Current location: ${transferTxId}.0
       createdAt: new Date(),
     };
 
     const nftResult = await nftLootCollection.insertOne(nftLootDoc);
     const nftLootId = nftResult.insertedId.toString();
 
-    // 8. Update UserInventory with NFT reference
+    // 8. Update UserInventory with NFT reference and outpoints
     await userInventoryCollection.updateOne(
       { _id: new ObjectId(inventoryItemId) },
       {
         $set: {
           nftLootId: nftResult.insertedId,
-          tokenId: userTokenId,
+          mintOutpoint: mintOutpoint,    // Proof of original server mint
+          tokenId: userTokenId,          // Current location after transfer
           updatedAt: new Date(),
         }
       }

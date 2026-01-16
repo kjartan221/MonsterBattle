@@ -11,7 +11,7 @@ import { getServerIdentityPublicKey } from '@/lib/serverWallet';
  */
 export async function GET() {
   try {
-    const identityPublicKey = getServerIdentityPublicKey();
+    const identityPublicKey = await getServerIdentityPublicKey();
 
     return NextResponse.json({
       publicKey: identityPublicKey,

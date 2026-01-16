@@ -352,10 +352,7 @@ export async function POST(request: NextRequest) {
 
     const mergedMetadata = {
       ...materialMetadata,
-      mergeHistory: [
-        { tokenId: transferredTokenId, amt: currentQuantity },
-        { tokenId: mintOutpoint, amt: addedQuantity },
-      ],
+      // mergeHistory removed - not game data, just blockchain provenance
     };
 
     const mergeLockingScript = ordinalP2PKH.lock(

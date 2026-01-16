@@ -85,12 +85,15 @@ export async function GET(request: NextRequest) {
         nftLootItems.map(item => [item._id!.toString(), item])
       );
 
-      // Add mint transaction ID to minted items
+      // Add mint/current transaction info to minted items
       inventory.forEach((item: any) => {
         if (item.nftLootId) {
           const nftLoot = nftLootMap.get(item.nftLootId);
           if (nftLoot) {
-            item.mintTransactionId = nftLoot.mintTransactionId;
+            // Extract txid from mintOutpoint (format: "txid.vout")
+            item.mintTransactionId = nftLoot.mintOutpoint?.split('.')[0];
+            // Also provide current token location if different
+            item.currentTokenId = nftLoot.tokenId;
           }
         }
       });

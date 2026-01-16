@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
       lockingScript: ordinalP2PKH.lock(
         userPublicKey,
         craftedAssetId,
-        { ...craftedItemMetadata, serverMinted: true },
+        craftedItemMetadata,  // Item metadata (game data only)
         'transfer',
         1  // amt=1 for items
       ).toHex(),
@@ -524,6 +524,7 @@ export async function POST(request: NextRequest) {
     // ========================================
 
     // Create NFTLoot document for crafted item
+    const userCraftedTokenId = `${transferTxId}.0`;
     const nftLootDoc = {
       lootTableId: outputItem.lootTableId,
       name: outputItem.name,
@@ -532,21 +533,22 @@ export async function POST(request: NextRequest) {
       rarity: outputItem.rarity,
       type: outputItem.type,
       attributes: craftedItemMetadata,
-      mintOutpoint: craftedItemOutpoint,  // Full outpoint: ${craftedItemTxId}.0
+      mintOutpoint: craftedItemOutpoint,  // Proof of original mint: ${craftedItemTxId}.0
+      tokenId: userCraftedTokenId,         // Current location: ${transferTxId}.0
       createdAt: new Date(),
     };
 
     const nftResult = await nftLootCollection.insertOne(nftLootDoc);
     const nftLootId = nftResult.insertedId.toString();
 
-    // Update UserInventory with NFT reference for crafted item
-    const userCraftedTokenId = `${transferTxId}.0`;
+    // Update UserInventory with NFT reference and outpoints for crafted item
     await userInventoryCollection.updateOne(
       { _id: new ObjectId(outputItem.inventoryItemId) },
       {
         $set: {
           nftLootId: nftResult.insertedId,
-          tokenId: userCraftedTokenId,
+          mintOutpoint: craftedItemOutpoint, // Proof of original server mint
+          tokenId: userCraftedTokenId,        // Current location after transfer
           updatedAt: new Date(),
         }
       }

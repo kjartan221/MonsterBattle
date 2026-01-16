@@ -18,7 +18,9 @@ interface InventoryDetailsModalProps {
     acquiredAt: Date;
     inventoryId: string;
     nftLootId?: string;
-    mintTransactionId?: string;
+    mintTransactionId?: string; // Derived from mintOutpoint (original mint txid)
+    mintOutpoint?: string;      // Original server mint proof (txid.vout)
+    tokenId?: string;           // Current location (txid.vout)
     isMinted: boolean;
     borderGradient?: { color1: string; color2: string }; // User-specific gradient
     count?: number; // Number of items in stack (if stacked)
@@ -33,9 +35,11 @@ interface InventoryDetailsModalProps {
   };
   onClose: () => void;
   onMintSuccess?: () => void; // Callback to refresh inventory after minting
+  onStartMinting?: (inventoryId: string) => void; // Callback when minting starts (optimistic UI)
+  onMintComplete?: (inventoryId: string) => void; // Callback when minting completes
 }
 
-export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: InventoryDetailsModalProps) {
+export default function InventoryDetailsModal({ item, onClose, onMintSuccess, onStartMinting, onMintComplete }: InventoryDetailsModalProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
@@ -116,18 +120,28 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
   };
 
   const handleMaterialMint = async (quantity: number) => {
-    setIsMintingMaterial(true);
-    const mintingToast = toast.loading('Checking existing tokens...');
-
     try {
-      // Check wallet connection
+      // Check wallet connection BEFORE starting optimistic update
       if (!userWallet) {
-        throw new Error('Wallet not connected. Please connect your BSV wallet first.');
+        toast.error('Wallet not connected. Please connect your BSV wallet first.');
+        return;
       }
 
       if (!isAuthenticated) {
-        throw new Error('Wallet not authenticated. Please authenticate your wallet.');
+        toast.error('Wallet not authenticated. Please authenticate your wallet.');
+        return;
       }
+
+      // Mark as minting (optimistic UI update)
+      if (onStartMinting) {
+        onStartMinting(item.inventoryId);
+      }
+
+      // Show toast and close modals immediately
+      const mintingToast = toast.loading('Minting material token in background...');
+      setShowMaterialModal(false);
+      onClose();
+      setIsMintingMaterial(true);
 
       // Check if this material+tier already has a token
       const checkResponse = await fetch('/api/materials/check-token', {
@@ -170,7 +184,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
           throw new Error(updateResult.error || updateResult.results[0]?.error || 'Failed to update material token');
         }
 
-        toast.success(`Token updated! Added ${quantity} to existing ${item.name}`, {
+        toast.success(`Token updated! Added ${quantity} to ${item.name}`, {
           id: mintingToast,
           duration: 5000
         });
@@ -203,39 +217,50 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
         });
       }
 
-      // Call the callback to refresh inventory
+      // Refresh inventory to show minted status
       if (onMintSuccess) {
         onMintSuccess();
       }
 
-      // Close modals after successful minting
-      setShowMaterialModal(false);
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      // Mark as minted (removes from minting set)
+      if (onMintComplete) {
+        onMintComplete(item.inventoryId);
+      }
 
     } catch (error) {
       console.error('Material minting error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to mint material token', { id: mintingToast });
+      toast.error(error instanceof Error ? error.message : 'Failed to mint material token');
+
+      // Remove from minting state on error
+      if (onMintComplete) {
+        onMintComplete(item.inventoryId);
+      }
     } finally {
       setIsMintingMaterial(false);
     }
   };
 
   const handleMintNFT = async () => {
-    const mintingToast = toast.loading('Connecting to wallet...');
-
     try {
-      // Check wallet connection
+      // Check wallet connection BEFORE starting optimistic update
       if (!userWallet) {
-        throw new Error('Wallet not connected. Please connect your BSV wallet first.');
+        toast.error('Wallet not connected. Please connect your BSV wallet first.');
+        return;
       }
 
       if (!isAuthenticated) {
-        throw new Error('Wallet not authenticated. Please authenticate your wallet.');
+        toast.error('Wallet not authenticated. Please authenticate your wallet.');
+        return;
       }
 
-      toast.loading('Preparing NFT metadata...', { id: mintingToast });
+      // Mark as minting (optimistic UI update)
+      if (onStartMinting) {
+        onStartMinting(item.inventoryId);
+      }
+
+      // Show toast and close modal immediately
+      const mintingToast = toast.loading('Minting NFT in background...');
+      onClose();
 
       // Prepare item data for blockchain minting
       const itemData = {
@@ -256,7 +281,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
 
       toast.loading('Creating blockchain transaction...', { id: mintingToast });
 
-      // Call the blockchain minting hook
+      // Call the blockchain minting hook (continues in background)
       const result = await mintItemNFT({
         wallet: userWallet,
         itemData,
@@ -266,24 +291,29 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
         throw new Error(result.error || 'Failed to mint NFT');
       }
 
-      toast.success(`NFT minted successfully! TX: ${result.transactionId?.slice(0, 8)}...`, {
+      toast.success(`NFT minted! TX: ${result.transactionId?.slice(0, 8)}...`, {
         id: mintingToast,
         duration: 5000
       });
 
-      // Call the callback to refresh inventory
+      // Refresh inventory to show minted status
       if (onMintSuccess) {
         onMintSuccess();
       }
 
-      // Close modal after successful minting
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      // Mark as minted (removes from minting set)
+      if (onMintComplete) {
+        onMintComplete(item.inventoryId);
+      }
 
     } catch (error) {
       console.error('Minting error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to mint NFT', { id: mintingToast });
+      toast.error(error instanceof Error ? error.message : 'Failed to mint NFT');
+
+      // Remove from minting state on error
+      if (onMintComplete) {
+        onMintComplete(item.inventoryId);
+      }
     }
   };
 
@@ -818,14 +848,32 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess }: 
                 </button>
               </div>
             ) : item.mintTransactionId ? (
-              <div className="space-y-1">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-green-400 text-lg">✓</span>
                   <span className="text-green-400 font-medium text-sm">Minted on Blockchain</span>
                 </div>
-                <div className="text-xs text-gray-500 font-mono break-all">
-                  TX: {item.mintTransactionId}
+
+                {/* Original Mint Info */}
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400 font-medium">Original Mint</div>
+                  <div className="text-xs text-gray-500 font-mono break-all">
+                    {item.mintOutpoint || `${item.mintTransactionId}.0`}
+                  </div>
                 </div>
+
+                {/* Current Location (if different from mint) */}
+                {item.tokenId && item.tokenId !== item.mintOutpoint && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-gray-400 font-medium">Current Location</div>
+                    <div className="text-xs text-gray-500 font-mono break-all">
+                      {item.tokenId}
+                    </div>
+                    <div className="text-xs text-yellow-400/70">
+                      ⚡ Token has been transferred/updated
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">

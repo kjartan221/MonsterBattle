@@ -20,7 +20,9 @@ interface InventoryItem extends LootItem {
   sessionId: string;
   inventoryId: string;
   nftLootId?: string;
-  mintTransactionId?: string;
+  mintTransactionId?: string; // Derived from mintOutpoint (original mint txid)
+  mintOutpoint?: string;      // Original server mint proof (txid.vout)
+  tokenId?: string;           // Current location (txid.vout)
   isMinted: boolean; // Whether the item has been minted as an NFT
   borderGradient?: { color1: string; color2: string }; // User-specific gradient
   crafted?: boolean; // Whether the item was crafted
@@ -40,6 +42,7 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
+  const [mintingItems, setMintingItems] = useState<Set<string>>(new Set()); // Track items being minted by inventoryId
 
   // Stack items by name + tier + empowered status (exclude crafted items from stacking)
   // For consumables, ignore tier/empowered since they don't have equipment stats
@@ -105,6 +108,16 @@ export default function InventoryPage() {
 
       if (response.ok && data.success) {
         setInventory(data.inventory);
+        // Clear any items from minting set that are now minted
+        setMintingItems(prev => {
+          const newSet = new Set(prev);
+          data.inventory.forEach((item: any) => {
+            if (item.isMinted || item.mintTransactionId) {
+              newSet.delete(item.inventoryId);
+            }
+          });
+          return newSet;
+        });
       } else {
         toast.error(data.error || 'Failed to load inventory');
       }
@@ -114,6 +127,18 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const markItemAsMinting = (inventoryId: string) => {
+    setMintingItems(prev => new Set(prev).add(inventoryId));
+  };
+
+  const markItemAsMinted = (inventoryId: string) => {
+    setMintingItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(inventoryId);
+      return newSet;
+    });
   };
 
 
@@ -259,16 +284,36 @@ export default function InventoryPage() {
                     )}
 
                     {/* Minting status badge */}
-                    {!item.isMinted && (
-                      <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
-                        Not Minted
-                      </div>
-                    )}
-                    {item.isMinted && !item.mintTransactionId && (
-                      <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse z-50">
-                        Minting...
-                      </div>
-                    )}
+                    {(() => {
+                      // Check if item is in minting state or has no transaction ID yet
+                      // Materials: use 'transactionId' (in MaterialToken directly)
+                      // Regular items: use 'mintTransactionId' (derived from mintOutpoint)
+                      const hasTxId = (item as any).mintTransactionId || (item as any).transactionId;
+                      const isMinting = mintingItems.has(item.inventoryId) || (item.isMinted && !hasTxId);
+
+                      if (isMinting) {
+                        return (
+                          <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse z-50">
+                            Minting...
+                          </div>
+                        );
+                      }
+
+                      if (!item.isMinted) {
+                        return (
+                          <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
+                            Not Minted
+                          </div>
+                        );
+                      }
+
+                      // Successfully minted with transaction ID
+                      return (
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-50">
+                          Minted
+                        </div>
+                      );
+                    })()}
 
                     {/* Hover effect overlay */}
                     <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -329,6 +374,8 @@ export default function InventoryPage() {
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
           onMintSuccess={fetchInventory}
+          onStartMinting={markItemAsMinting}
+          onMintComplete={markItemAsMinted}
         />
       )}
     </div>
