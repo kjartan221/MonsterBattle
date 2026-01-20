@@ -69,8 +69,8 @@ export default function BlacksmithPage() {
           isEmpowered: item.isEmpowered,
           isMinted: item.isMinted,
           nftLootId: item.nftLootId,
-          tokenId: item.tokenId,
-          transactionId: item.tokenId?.split('.')[0] // Extract txid from current tokenId
+          tokenId: item.currentTokenId || item.tokenId, // currentTokenId for equipment/scrolls, tokenId for materials
+          transactionId: item.mintTransactionId || item.transactionId // mintTransactionId for equipment/scrolls, transactionId for materials
         }));
 
         // Separate equipment and scrolls (only show minted tokens)
@@ -315,7 +315,7 @@ export default function BlacksmithPage() {
               <div className="text-xs mt-2">Craft or find equipment first!</div>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto px-2">
               {equipment.map((item) => {
                 const lootItem = getLootItemById(item.lootTableId);
                 if (!lootItem) return null;
@@ -327,10 +327,10 @@ export default function BlacksmithPage() {
                   <button
                     key={item._id}
                     onClick={() => setSelectedEquipment(item)}
-                    className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all cursor-pointer relative ${
                       isSelected
-                        ? 'border-orange-500 bg-orange-900/30 shadow-lg'
-                        : `${rarityClasses} hover:scale-102`
+                        ? 'border-orange-500 bg-orange-900/30 shadow-lg z-10'
+                        : `${rarityClasses} hover:scale-102 hover:z-20`
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -381,7 +381,7 @@ export default function BlacksmithPage() {
               <div className="text-xs mt-2">Defeat bosses to find scrolls!</div>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto px-2">
               {scrolls.map((item) => {
                 const lootItem = getLootItemById(item.lootTableId);
                 if (!lootItem || !lootItem.inscriptionData) return null;
@@ -407,12 +407,12 @@ export default function BlacksmithPage() {
                     key={item._id}
                     onClick={() => !isBlocked && setSelectedScroll(item)}
                     disabled={isBlocked}
-                    className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all relative ${
                       isBlocked
                         ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-800'
                         : isSelected
-                        ? 'border-orange-500 bg-orange-900/30 shadow-lg cursor-pointer'
-                        : `${rarityClasses} hover:scale-102 cursor-pointer`
+                        ? 'border-orange-500 bg-orange-900/30 shadow-lg cursor-pointer z-10'
+                        : `${rarityClasses} hover:scale-102 hover:z-20 cursor-pointer`
                     }`}
                   >
                     <div className="flex items-center gap-3">

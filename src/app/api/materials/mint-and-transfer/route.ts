@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Connect to MongoDB
-    const { materialTokensCollection } = await connectToMongo();
+    const { materialTokensCollection, userInventoryCollection } = await connectToMongo();
 
     // 4. Get server wallet
     const serverWallet = await getServerWallet();
@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
         rarity,
         tier,
         quantity,
+        inventoryItemIds,
         acquiredFrom,
       } = material;
 
@@ -477,6 +478,19 @@ export async function POST(request: NextRequest) {
         materialResult = await materialTokensCollection.insertOne(materialTokenDoc);
 
         console.log(`✅ [CREATE] Created new material token: ${lootTableId} (${quantity})`);
+      }
+
+      // STEP 4: Mark UserInventory items as consumed (remove from unminted inventory)
+      if (inventoryItemIds && inventoryItemIds.length > 0) {
+        const { ObjectId } = await import('mongodb');
+        const objectIds = inventoryItemIds.map((id: string) => new ObjectId(id));
+
+        const deleteResult = await userInventoryCollection.deleteMany({
+          _id: { $in: objectIds },
+          userId: userId,  // Security: ensure user owns these items
+        });
+
+        console.log(`✅ [CONSUME] Removed ${deleteResult.deletedCount} UserInventory items after minting ${itemName}`);
       }
 
       results.push({

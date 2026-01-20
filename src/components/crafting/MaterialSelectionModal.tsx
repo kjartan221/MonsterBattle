@@ -264,7 +264,7 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
                           relative cursor-pointer transition-all
                           bg-gradient-to-br ${lootItem ? getRarityColor(lootItem.rarity) : 'from-gray-700 to-gray-800'}
                           rounded-xl border-4 p-4
-                          ${isSelected ? 'border-green-500 shadow-lg shadow-green-500/50 scale-105' : 'hover:scale-105'}
+                          ${isSelected ? 'border-green-500 shadow-lg shadow-green-500/50 scale-105 z-20' : 'hover:scale-105 hover:z-20'}
                         `}
                       >
                         {/* Selected Checkmark */}

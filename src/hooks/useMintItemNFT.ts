@@ -40,7 +40,7 @@ export interface MintItemNFTParams {
     description: string;          // Item description
     icon: string;                 // Emoji icon
     rarity: 'common' | 'rare' | 'epic' | 'legendary';
-    type: 'weapon' | 'armor' | 'consumable' | 'artifact';  // NO materials - use useCreateMaterialToken
+    type: 'weapon' | 'armor' | 'consumable' | 'artifact' | 'spell_scroll' | 'inscription_scroll';  // NO materials - use useCreateMaterialToken
     tier?: number;                // Item tier (1-5)
     equipmentStats?: Record<string, number>;  // Stats if equipment
     prefix?: string;              // Optional prefix for equipment

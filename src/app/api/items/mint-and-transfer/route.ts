@@ -115,9 +115,9 @@ export async function POST(request: NextRequest) {
 
     // Find output locked to server with WalletP2PKH (should be output 0)
     const paymentOutput = paymentTransaction.outputs[0];
-    if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
+    if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 90) {
       return NextResponse.json(
-        { error: 'Invalid payment: must be at least 100 satoshis' },
+        { error: 'Invalid payment: must be at least 100 (10% variance) satoshis' },
         { status: 400 }
       );
     }

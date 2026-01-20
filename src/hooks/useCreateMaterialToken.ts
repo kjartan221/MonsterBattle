@@ -47,6 +47,7 @@ export interface MaterialTokenData {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   tier?: number;                // Material tier (if applicable)
   quantity: number;             // Initial quantity
+  inventoryItemIds?: string[];  // UserInventory IDs to consume after minting
   acquiredFrom?: Array<{        // Optional: Track where materials came from (game data only)
     monsterName: string;
     biome: string;
@@ -174,6 +175,7 @@ export function useCreateMaterialToken() {
             rarity: material.rarity,
             tier: material.tier || 1,
             quantity: material.quantity,
+            inventoryItemIds: material.inventoryItemIds || [],  // IDs to consume
             acquiredFrom: material.acquiredFrom || [],
           })),
           userPublicKey: publicKey,

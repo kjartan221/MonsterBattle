@@ -57,25 +57,37 @@ export async function createWalletPayment(
     throw new Error('Wallet not authenticated');
   }
 
-  // Get user identityKey for server unlock
-  const { publicKey: userIdentityKey } = await wallet.getPublicKey({ identityKey: true });
-
   // Get derivation for payment output
   const derivation = getDerivation();
-  const walletParams = {
+
+  // Get user's identity key for server unlock (counterparty)
+  const { publicKey: userIdentityKey } = await wallet.getPublicKey({ identityKey: true });
+
+  // Params for CLIENT to create the lock (counterparty = server)
+  const lockParams = {
     protocolID: derivation.protocolID,
     keyID: derivation.keyID,
     counterparty: serverIdentityKey,
   };
 
-  console.log('🔑 [WALLET-PAYMENT] Got derivation:', {
-    walletParams,
+  // Params for SERVER to unlock (counterparty = user) - ECDH key exchange
+  const unlockParams = {
+    protocolID: derivation.protocolID,
+    keyID: derivation.keyID,
+    counterparty: userIdentityKey,
+  };
+
+  console.log('🔑 [WALLET-PAYMENT] Creating payment with ECDH key exchange:', {
+    protocolID: derivation.protocolID,
+    keyID: derivation.keyID,
+    clientLockCounterparty: serverIdentityKey?.substring(0, 20) + '...',
+    serverUnlockCounterparty: userIdentityKey?.substring(0, 20) + '...',
   });
 
   // Create WalletP2PKH locking script with derivation
   const walletP2pkh = new WalletP2PKH(wallet);
   const paymentLockingScript = await walletP2pkh.lock({
-    walletParams,
+    walletParams: lockParams,
   });
 
   console.log('🔒 [WALLET-PAYMENT] Created WalletP2PKH locking script:', {
@@ -106,10 +118,6 @@ export async function createWalletPayment(
   return {
     paymentTx: paymentAction.tx!,
     paymentTxId: paymentAction.txid,
-    walletParams: {
-      protocolID: derivation.protocolID,
-      keyID: derivation.keyID,
-      counterparty: userIdentityKey,
-    },
+    walletParams: unlockParams,  // Server uses these params with user identity as counterparty
   };
 }

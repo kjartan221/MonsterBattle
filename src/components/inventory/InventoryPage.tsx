@@ -237,7 +237,7 @@ export default function InventoryPage() {
                 return (
                 <div
                   key={`${item.sessionId}-${index}`}
-                  className="relative p-1 rounded-xl hover:scale-105 transition-all duration-200 group"
+                  className="relative p-1 rounded-xl hover:scale-105 hover:z-20 transition-all duration-200 group"
                   style={{ ...wrapperStyle, ...enhancedStyle }}
                 >
                   <button

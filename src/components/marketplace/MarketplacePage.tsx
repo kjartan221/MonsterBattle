@@ -208,7 +208,7 @@ export default function MarketplacePage() {
                 className={`
                   relative cursor-pointer transition-all
                   bg-gradient-to-br ${getRarityColor(item.rarity)}
-                  rounded-xl border-4 p-4 hover:scale-105
+                  rounded-xl border-4 p-4 hover:scale-105 hover:z-20
                 `}
               >
                 {/* Icon */}

@@ -447,7 +447,7 @@ export default function CraftingPage() {
                     key={recipe.recipeId}
                     className={`
                       relative bg-gradient-to-br ${getRarityColor(recipe.rarity)} rounded-xl border-4 p-5 transition-all flex flex-col
-                      ${canCraft && !isLocked ? 'hover:scale-105 hover:shadow-2xl' : ''}
+                      ${canCraft && !isLocked ? 'hover:scale-105 hover:shadow-2xl hover:z-20' : ''}
                       ${isLocked ? 'opacity-60' : ''}
                     `}
                   >

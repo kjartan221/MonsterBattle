@@ -162,6 +162,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
         // Token exists - update quantity
         toast.loading('Updating existing token...', { id: mintingToast });
 
+        // Calculate which inventory items to consume (first N items from the stack)
+        const inventoryItemIds = item.items
+          ? item.items.slice(0, quantity).map((i: any) => i.inventoryId)
+          : [item.inventoryId];
+
         const updateResult = await updateMaterialToken({
           wallet: userWallet,
           updates: [{
@@ -176,6 +181,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
             currentQuantity: existingToken.quantity,
             operation: 'add',
             quantity: quantity,
+            inventoryItemIds: inventoryItemIds,  // Pass IDs to consume
             reason: 'Minting additional materials from inventory',
           }],
         });
@@ -193,6 +199,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
         // Token doesn't exist - create new
         toast.loading('Creating new material token...', { id: mintingToast });
 
+        // Calculate which inventory items to consume (first N items from the stack)
+        const inventoryItemIds = item.items
+          ? item.items.slice(0, quantity).map((i: any) => i.inventoryId)
+          : [item.inventoryId];
+
         const createResult = await createMaterialToken({
           wallet: userWallet,
           materials: [{
@@ -204,6 +215,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
             rarity: item.rarity,
             tier: item.tier || 1,
             quantity: quantity,
+            inventoryItemIds: inventoryItemIds,  // Pass IDs to consume
           }],
         });
 
@@ -270,7 +282,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
         description: item.description,
         icon: item.icon,
         rarity: item.rarity,
-        type: item.type as 'weapon' | 'armor' | 'consumable' | 'artifact', // Exclude material type
+        type: item.type as 'weapon' | 'armor' | 'consumable' | 'artifact' | 'spell_scroll' | 'inscription_scroll', // Exclude material type
         tier: item.tier || 1,
         equipmentStats: item.equipmentStats ? { ...item.equipmentStats } as Record<string, number> : undefined,
         prefix: item.prefix?.name,

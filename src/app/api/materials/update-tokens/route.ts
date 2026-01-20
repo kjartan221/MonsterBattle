@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { materialTokensCollection } = await connectToMongo();
+    const { materialTokensCollection, userInventoryCollection } = await connectToMongo();
 
     // Process each update
     for (const update of updates) {
@@ -109,6 +109,19 @@ export async function POST(request: NextRequest) {
             }
           }
         );
+      }
+
+      // Consume UserInventory items if provided (for 'add' operations from inventory)
+      if (update.inventoryItemIds && update.inventoryItemIds.length > 0) {
+        const { ObjectId } = await import('mongodb');
+        const objectIds = update.inventoryItemIds.map((id: string) => new ObjectId(id));
+
+        const deleteResult = await userInventoryCollection.deleteMany({
+          _id: { $in: objectIds },
+          userId: userId,  // Security: ensure user owns these items
+        });
+
+        console.log(`✅ [CONSUME] Removed ${deleteResult.deletedCount} UserInventory items after updating ${update.itemName}`);
       }
     }
 

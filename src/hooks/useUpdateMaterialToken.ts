@@ -58,6 +58,7 @@ export interface MaterialTokenUpdate {
   currentQuantity: number;       // Current quantity (for validation)
   operation: MaterialUpdateOperation;
   quantity: number;              // Amount to add/subtract/set
+  inventoryItemIds?: string[];   // UserInventory IDs to consume after update
   reason?: string;               // Optional: Why this update (e.g., "crafting steel_sword")
   acquiredFrom?: {               // Optional: For 'add' operations, track where material came from (game data only)
     monsterName: string;
@@ -519,6 +520,7 @@ export function useUpdateMaterialToken() {
             previousQuantity: result.previousQuantity,
             newQuantity: result.newQuantity,
             operation: result.operation,
+            inventoryItemIds: updates[index].inventoryItemIds || [],  // IDs to consume
             reason: updates[index].reason,
           })),
         }),
