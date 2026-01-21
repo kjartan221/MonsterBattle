@@ -16,6 +16,8 @@ This project showcases **production-ready BSV blockchain integration** for gamin
 - **Auth Outputs**: On-chain provable links between transactions
 - **OrderLock Integration**: P2P marketplace for trading items _(coming soon)_
 
+**📖 [Read More: Why BSV & Transaction Flow Pattern](./TRANSACTION_FLOW_PATTERN.md)**
+
 ---
 
 ## 🏗️ Blockchain Architecture
@@ -178,6 +180,35 @@ export async function getTransactionByTxID(txid: string) {
 - All outputs must be `OrdinalP2PKH` or `OrderLock`
 - Regular P2PKH outputs are **rejected**
 - Includes "helper" outputs like auth tokens
+
+### Transaction Flow Pattern
+
+All blockchain operations in this application follow a **standardized 3-step pattern** for transaction creation and signing:
+
+**📖 [Read Full Documentation: Transaction Flow Pattern](./TRANSACTION_FLOW_PATTERN.md)**
+
+**Quick Summary**:
+```
+1. createAction  → Prepare transaction with estimated script lengths
+2. Sign          → Generate actual unlocking scripts using SDK
+3. signAction    → Finalize transaction with actual scripts
+```
+
+This pattern provides:
+- ✅ **Consistency**: Same flow across all 5 backend routes
+- ✅ **BSV-20/21 Support**: Handles fungible (materials) and non-fungible (items) tokens
+- ✅ **On-Chain Credibility**: Full provenance for every game item and operation
+- ✅ **Server Control**: Prevents fraudulent minting and ensures game rule enforcement
+- ✅ **Scalability**: Handles single and multiple input transactions seamlessly
+
+Every item minted, crafted, transferred, or updated has a **verifiable on-chain record**, demonstrating a production-ready blockchain-based game economy.
+
+**Example Routes Using This Pattern**:
+- `src/app/api/items/mint-and-transfer/route.ts` - Item NFT minting
+- `src/app/api/materials/mint-and-transfer/route.ts` - Material token minting
+- `src/app/api/crafting/mint-and-transfer/route.ts` - Crafting with material consumption
+- `src/app/api/equipment/update/route.ts` - Equipment inscription updates
+- `src/app/api/materials/add-and-merge/route.ts` - Material token merging
 
 ### Outpoint Tracking
 
