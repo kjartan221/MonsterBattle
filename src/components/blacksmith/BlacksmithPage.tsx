@@ -144,7 +144,7 @@ export default function BlacksmithPage() {
           throw new Error('Invalid equipment data');
         }
 
-        // Call blockchain hook
+        // Call blockchain hook (now uses array for batched transfers)
         const result = await updateEquipmentNFT({
           wallet: userWallet,
           equipmentItem: {
@@ -176,7 +176,7 @@ export default function BlacksmithPage() {
               name: selectedEquipment.suffix.name
             } : undefined,
           },
-          inscriptionScroll: {
+          inscriptionScrolls: [{  // Now an array for batched transfers
             inventoryItemId: selectedScroll._id,
             nftLootId: selectedScroll.nftLootId!,
             tokenId: selectedScroll.tokenId!,
@@ -194,8 +194,7 @@ export default function BlacksmithPage() {
               name: scrollData.inscriptionData.name,
               description: scrollData.inscriptionData.description
             }
-          },
-          inscriptionType
+          }],  // Array allows future support for applying multiple scrolls at once
         });
 
         if (!result.success) {

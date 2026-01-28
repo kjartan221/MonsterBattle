@@ -222,6 +222,7 @@ export async function POST(request: NextRequest) {
         ],
         options: {
           randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
         }
       });
 
@@ -352,6 +353,7 @@ export async function POST(request: NextRequest) {
         ],
         options: {
           randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
         }
       });
 

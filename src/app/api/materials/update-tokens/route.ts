@@ -72,18 +72,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (update.newQuantity === 0) {
-        // Token burned - mark as consumed or delete
-        await materialTokensCollection.updateOne(
-          { _id: existingToken._id },
-          {
-            $set: {
-              consumed: true,
-              consumedAt: new Date(),
-              consumeTransactionId: update.transactionId,
-              previousTokenId: update.previousTokenId,
-              updatedAt: new Date(),
-            }
-          }
+        // Token burned - delete from database (provenance is on-chain and in Overlay system)
+        await materialTokensCollection.deleteOne(
+          { _id: existingToken._id }
         );
       } else {
         // Token updated - update with new token ID and quantity

@@ -102,6 +102,10 @@ export async function createWalletPayment(
       lockingScript: paymentLockingScript.toHex(),
       satoshis,
     }],
+    options: { 
+      randomizeOutputs: false,
+      acceptDelayedBroadcast: false,
+    },
   });
 
   if (!paymentAction.txid) {

@@ -7,16 +7,17 @@ import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
 /**
  * Hook for updating equipment NFTs with inscription scrolls
  *
- * This hook updates an existing equipment NFT by applying a prefix or suffix inscription.
- * Uses the EXACT same metadata structure as useMintItemNFT - only prefix/suffix fields change.
- * Blockchain transaction history provides immutable provenance and timestamps.
+ * This hook updates an existing equipment NFT by applying prefix or suffix inscriptions.
+ * Uses batched transfers: transfers equipment + all scrolls to server in ONE transaction.
  *
  * The update process:
- * 1. Unlocks the original equipment NFT (input 0)
- * 2. Unlocks the inscription scroll NFT (input 1)
- * 3. Merges BEEFs from both inputs
- * 4. Creates new equipment NFT with updated prefix/suffix (output 0)
- * 5. Both input tokens are consumed, new token is created
+ * 1. Batch transfer: equipment + scroll(s) → server (single transaction, much cheaper)
+ * 2. Server unlocks all inputs + payment
+ * 3. Server creates updated equipment with new inscriptions
+ * 4. Server broadcasts transaction
+ * 5. Database updated with new item
+ *
+ * Supports applying multiple scrolls at once (e.g., prefix + suffix in one update).
  *
  * @example
  * const { updateEquipmentNFT, isUpdating, error } = useUpdateEquipmentNFT();
@@ -24,8 +25,7 @@ import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
  * const result = await updateEquipmentNFT({
  *   wallet: connectedWallet,
  *   equipmentItem: originalEquipment,
- *   inscriptionScroll: prefixScroll,
- *   inscriptionType: 'prefix',
+ *   inscriptionScrolls: [prefixScroll], // Can be 1 or 2 scrolls
  * });
  */
 
@@ -85,8 +85,7 @@ export interface InscriptionScrollItem {
 export interface UpdateEquipmentNFTParams {
   wallet: WalletClient;
   equipmentItem: EquipmentNFTItem;
-  inscriptionScroll: InscriptionScrollItem;
-  inscriptionType: 'prefix' | 'suffix';
+  inscriptionScrolls: InscriptionScrollItem[]; // Array: 1 or 2 scrolls
 }
 
 export interface UpdateEquipmentNFTResult {
@@ -94,7 +93,7 @@ export interface UpdateEquipmentNFTResult {
   tokenId?: string;              // New blockchain token ID (txid.vout)
   transactionId?: string;        // BSV transaction ID
   previousEquipmentTokenId?: string;
-  consumedScrollTokenId?: string;
+  consumedScrollTokenIds?: string[];
   success: boolean;
   error?: string;
 }
@@ -104,21 +103,20 @@ export function useUpdateEquipmentNFT() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Update equipment NFT with inscription scroll (Server-Side Pattern)
+   * Update equipment NFT with inscription scroll(s) - Batched Transfer Pattern
    *
-   * Process (similar to crafting):
+   * Process (optimized with batch transfer):
    * 1. Validate wallet connection and authentication
-   * 2. CLIENT: Transfer equipment token to server
-   * 3. CLIENT: Transfer inscription scroll token to server
-   * 4. CLIENT: Create WalletP2PKH payment for fees
-   * 5. SERVER: Validates transferred tokens
-   * 6. SERVER: Unlocks equipment + scroll + payment
-   * 7. SERVER: Creates updated equipment token with new prefix/suffix
-   * 8. SERVER: Broadcasts transaction
-   * 9. SERVER: Updates database
-   * 10. Return new NFT ID and transaction ID
+   * 2. CLIENT: Transfer equipment + all scrolls to server in ONE transaction (much cheaper!)
+   * 3. CLIENT: Create WalletP2PKH payment for fees
+   * 4. SERVER: Validates transferred tokens
+   * 5. SERVER: Unlocks equipment + scroll(s) + payment
+   * 6. SERVER: Creates updated equipment token with new inscriptions
+   * 7. SERVER: Broadcasts transaction
+   * 8. SERVER: Updates database
+   * 9. Return new NFT ID and transaction ID
    *
-   * @param params - Update parameters including wallet, equipment, and scroll
+   * @param params - Update parameters including wallet, equipment, and scrolls
    * @returns Result with new NFT ID and consumed token IDs
    */
   const updateEquipmentNFT = useCallback(async (
@@ -128,11 +126,19 @@ export function useUpdateEquipmentNFT() {
     setError(null);
 
     try {
-      const { wallet, equipmentItem, inscriptionScroll, inscriptionType } = params;
+      const { wallet, equipmentItem, inscriptionScrolls } = params;
 
-      // Validate wallet
+      // Validate inputs
       if (!wallet) {
         throw new Error('Wallet not connected');
+      }
+
+      if (!inscriptionScrolls || inscriptionScrolls.length === 0) {
+        throw new Error('At least one inscription scroll required');
+      }
+
+      if (inscriptionScrolls.length > 2) {
+        throw new Error('Maximum 2 inscription scrolls allowed (prefix + suffix)');
       }
 
       const isAuthenticated = await wallet.isAuthenticated();
@@ -169,10 +175,10 @@ export function useUpdateEquipmentNFT() {
         walletParams,
       });
 
-      console.log('Updating equipment NFT (transfer-to-server flow):', {
+      console.log('Updating equipment NFT (batched transfer-to-server flow):', {
         equipmentName: equipmentItem.name,
-        scrollName: inscriptionScroll.name,
-        inscriptionType,
+        scrollCount: inscriptionScrolls.length,
+        scrollNames: inscriptionScrolls.map(s => s.name),
         publicKey,
         paymentTxId,
         walletParams,
@@ -186,27 +192,54 @@ export function useUpdateEquipmentNFT() {
       const { publicKey: serverPublicKey } = await serverKeyResponse.json();
 
       // ===================================================
-      // CLIENT TRANSACTIONS: Transfer tokens to server
+      // CLIENT TRANSACTION: Batch transfer equipment + scrolls to server in ONE transaction
       // ===================================================
 
       const ordinalP2PKH = new OrdinalsP2PKH();
 
-      // TRANSFER 1: Equipment token to server
-      console.log(`[TRANSFER] Transferring ${equipmentItem.name} to server for update`);
+      console.log(`[TRANSFER] Batching ${1 + inscriptionScrolls.length} items to server in single transaction`);
 
-      const equipmentTxid = equipmentItem.tokenId.split('.')[0];
-      const equipmentTx = await getTransactionByTxID(equipmentTxid);
+      // Step 1: Fetch all source transactions
+      const allItems = [equipmentItem, ...inscriptionScrolls];
+      const sourceTransactions: Transaction[] = [];
 
-      if (!equipmentTx || !equipmentTx.outputs || !equipmentTx.outputs[0]) {
-        throw new Error(`Could not find equipment transaction: ${equipmentTxid}`);
+      for (const item of allItems) {
+        console.log(`[TRANSFER] Fetching ${item.name}...`);
+        const previousTxid = item.tokenId.split('.')[0];
+        const oldTx = await getTransactionByTxID(previousTxid);
+
+        if (!oldTx || !oldTx.outputs || !oldTx.outputs[0]) {
+          throw new Error(`Could not find previous transaction: ${previousTxid} for ${item.name}`);
+        }
+
+        const previousTransaction = Transaction.fromBEEF(oldTx.outputs[0].beef);
+        sourceTransactions.push(previousTransaction);
       }
 
-      const equipmentTransaction = Transaction.fromBEEF(equipmentTx.outputs[0].beef);
+      // Step 2: Merge all BEEFs for multi-input transaction
+      const mergedBeef = new Beef();
+      for (const sourceTx of sourceTransactions) {
+        mergedBeef.mergeBeef(sourceTx.toBEEF());
+      }
+      const inputBEEF = mergedBeef.toBinary();
 
-      // Create unlocking script template for equipment
-      const equipmentUnlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
-      const equipmentUnlockingScriptLength = await equipmentUnlockTemplate.estimateLength();
+      // Step 3: Build inputs and outputs arrays for all items
+      const unlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
+      const unlockingScriptLength = await unlockTemplate.estimateLength();
 
+      // Build inputs: equipment first, then scrolls
+      const inputs = allItems.map((item, index) => ({
+        inputDescription: index === 0
+          ? `Equipment: ${item.name}`
+          : `Inscription scroll: ${item.name}`,
+        outpoint: item.tokenId,
+        unlockingScriptLength,
+      }));
+
+      // Build outputs: equipment first, then scrolls
+      const outputs = [];
+
+      // Output 0: Equipment
       const equipmentAssetId = equipmentItem.tokenId.replace('.', '_');
       const equipmentLockingScript = ordinalP2PKH.lock(
         serverPublicKey,
@@ -233,166 +266,123 @@ export function useUpdateEquipmentNFT() {
         undefined  // No amt field for equipment
       );
 
-      // Step 1: Create action
-      const equipmentActionRes = await wallet.createAction({
-        description: `Transferring ${equipmentItem.name} to server for inscription`,
-        inputBEEF: equipmentTx.outputs[0].beef,
-        inputs: [{
-          inputDescription: `Equipment: ${equipmentItem.name}`,
-          outpoint: equipmentItem.tokenId,
-          unlockingScriptLength: equipmentUnlockingScriptLength,
-        }],
-        outputs: [{
-          outputDescription: `Transfer to server`,
-          lockingScript: equipmentLockingScript.toHex(),
-          satoshis: 1,
-        }],
-        options: { randomizeOutputs: false },
+      outputs.push({
+        outputDescription: `Transfer ${equipmentItem.name} to server`,
+        lockingScript: equipmentLockingScript.toHex(),
+        satoshis: 1,
       });
 
-      if (!equipmentActionRes.signableTransaction) {
-        throw new Error('Failed to create signable equipment transfer transaction');
-      }
+      // Outputs 1+: Scrolls
+      for (const scroll of inscriptionScrolls) {
+        const scrollAssetId = scroll.tokenId.replace('.', '_');
+        const scrollLockingScript = ordinalP2PKH.lock(
+          serverPublicKey,
+          scrollAssetId,
+          {
+            name: 'inscription_scroll',
+            itemName: scroll.name,
+            description: scroll.description,
+            icon: scroll.icon,
+            rarity: scroll.rarity,
+            inscriptionData: scroll.inscriptionData,
+          },
+          'transfer',
+          undefined  // No amt field for scrolls
+        );
 
-      // Step 2: Sign to generate unlocking script
-      const equipmentReference = equipmentActionRes.signableTransaction.reference;
-      const equipmentTxToSign = Transaction.fromBEEF(equipmentActionRes.signableTransaction.tx);
-
-      equipmentTxToSign.inputs[0].unlockingScriptTemplate = equipmentUnlockTemplate;
-      equipmentTxToSign.inputs[0].sourceTransaction = equipmentTransaction;
-
-      await equipmentTxToSign.sign();
-
-      const equipmentUnlockingScript = equipmentTxToSign.inputs[0].unlockingScript;
-      if (!equipmentUnlockingScript) {
-        throw new Error('Missing equipment unlocking script after signing');
-      }
-
-      // Step 3: Sign action
-      const equipmentAction = await wallet.signAction({
-        reference: equipmentReference,
-        spends: {
-          '0': { unlockingScript: equipmentUnlockingScript.toHex() }
-        }
-      });
-
-      if (!equipmentAction.tx) {
-        throw new Error('Failed to sign equipment transfer action');
-      }
-
-      // Step 4: Broadcast
-      const transferEquipmentTx = Transaction.fromAtomicBEEF(equipmentAction.tx);
-      const equipmentTransferBroadcast = await broadcastTX(transferEquipmentTx);
-      const transferredEquipmentTokenId = `${equipmentTransferBroadcast.txid}.0`;
-
-      console.log(`[TRANSFER] Equipment transferred to server: ${transferredEquipmentTokenId}`);
-
-      // TRANSFER 2: Inscription scroll token to server
-      console.log(`[TRANSFER] Transferring ${inscriptionScroll.name} to server for consumption`);
-
-      const scrollTxid = inscriptionScroll.tokenId.split('.')[0];
-      const scrollTx = await getTransactionByTxID(scrollTxid);
-
-      if (!scrollTx || !scrollTx.outputs || !scrollTx.outputs[0]) {
-        throw new Error(`Could not find inscription scroll transaction: ${scrollTxid}`);
-      }
-
-      const scrollTransaction = Transaction.fromBEEF(scrollTx.outputs[0].beef);
-
-      // Create unlocking script template for scroll
-      const scrollUnlockTemplate = ordinalP2PKH.unlock(wallet, "all", false);
-      const scrollUnlockingScriptLength = await scrollUnlockTemplate.estimateLength();
-
-      const scrollAssetId = inscriptionScroll.tokenId.replace('.', '_');
-      const scrollLockingScript = ordinalP2PKH.lock(
-        serverPublicKey,
-        scrollAssetId,
-        {
-          name: 'inscription_scroll',
-          itemName: inscriptionScroll.name,
-          description: inscriptionScroll.description,
-          icon: inscriptionScroll.icon,
-          rarity: inscriptionScroll.rarity,
-          inscriptionData: inscriptionScroll.inscriptionData,
-        },
-        'transfer',
-        undefined  // No amt field for scrolls
-      );
-
-      // Step 1: Create action
-      const scrollActionRes = await wallet.createAction({
-        description: `Transferring ${inscriptionScroll.name} to server for consumption`,
-        inputBEEF: scrollTx.outputs[0].beef,
-        inputs: [{
-          inputDescription: `Inscription scroll: ${inscriptionScroll.name}`,
-          outpoint: inscriptionScroll.tokenId,
-          unlockingScriptLength: scrollUnlockingScriptLength,
-        }],
-        outputs: [{
-          outputDescription: `Transfer to server`,
+        outputs.push({
+          outputDescription: `Transfer ${scroll.name} to server`,
           lockingScript: scrollLockingScript.toHex(),
           satoshis: 1,
-        }],
-        options: { randomizeOutputs: false },
+        });
+      }
+
+      // Step 4: Create single batched action
+      const transferActionRes = await wallet.createAction({
+        description: `Transferring ${equipmentItem.name} + ${inscriptionScrolls.length} scroll(s) to server for inscription`,
+        inputBEEF,
+        inputs,
+        outputs,
+        options: {
+          randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
+        },
       });
 
-      if (!scrollActionRes.signableTransaction) {
-        throw new Error('Failed to create signable scroll transfer transaction');
+      if (!transferActionRes.signableTransaction) {
+        throw new Error('Failed to create signable batch transfer transaction');
       }
 
-      // Step 2: Sign to generate unlocking script
-      const scrollReference = scrollActionRes.signableTransaction.reference;
-      const scrollTxToSign = Transaction.fromBEEF(scrollActionRes.signableTransaction.tx);
+      // Step 5: Sign all inputs in the single transaction
+      const reference = transferActionRes.signableTransaction.reference;
+      const txToSign = Transaction.fromBEEF(transferActionRes.signableTransaction.tx);
 
-      scrollTxToSign.inputs[0].unlockingScriptTemplate = scrollUnlockTemplate;
-      scrollTxToSign.inputs[0].sourceTransaction = scrollTransaction;
-
-      await scrollTxToSign.sign();
-
-      const scrollUnlockingScript = scrollTxToSign.inputs[0].unlockingScript;
-      if (!scrollUnlockingScript) {
-        throw new Error('Missing scroll unlocking script after signing');
+      // Assign unlocking script templates and source transactions for all inputs
+      for (let i = 0; i < allItems.length; i++) {
+        txToSign.inputs[i].unlockingScriptTemplate = unlockTemplate;
+        txToSign.inputs[i].sourceTransaction = sourceTransactions[i];
       }
 
-      // Step 3: Sign action
-      const scrollAction = await wallet.signAction({
-        reference: scrollReference,
-        spends: {
-          '0': { unlockingScript: scrollUnlockingScript.toHex() }
+      await txToSign.sign();
+
+      // Extract all unlocking scripts
+      const spends: Record<string, { unlockingScript: string }> = {};
+      for (let i = 0; i < allItems.length; i++) {
+        const unlockingScript = txToSign.inputs[i].unlockingScript;
+        if (!unlockingScript) {
+          throw new Error(`Missing unlocking script for input ${i} (${allItems[i].name})`);
         }
-      });
-
-      if (!scrollAction.tx) {
-        throw new Error('Failed to sign scroll transfer action');
+        spends[i.toString()] = { unlockingScript: unlockingScript.toHex() };
       }
 
-      // Step 4: Broadcast
-      const transferScrollTx = Transaction.fromAtomicBEEF(scrollAction.tx);
-      const scrollTransferBroadcast = await broadcastTX(transferScrollTx);
-      const transferredScrollTokenId = `${scrollTransferBroadcast.txid}.0`;
+      // Step 6: Sign action with all unlocking scripts
+      const transferAction = await wallet.signAction({
+        reference,
+        spends,
+      });
 
-      console.log(`[TRANSFER] Scroll transferred to server: ${transferredScrollTokenId}`);
+      if (!transferAction.tx) {
+        throw new Error('Failed to sign batch transfer action');
+      }
+
+      // Step 7: Broadcast batched transfer
+      const transferTx = Transaction.fromAtomicBEEF(transferAction.tx);
+      const transferBroadcast = await broadcastTX(transferTx);
+      const transferTxId = transferBroadcast.txid;
+
+      // Transferred token IDs: equipment at output 0, scrolls at outputs 1+
+      const transferredEquipmentTokenId = `${transferTxId}.0`;
+      const transferredScrollTokenIds = inscriptionScrolls.map((_, i) => `${transferTxId}.${i + 1}`);
+
+      console.log(`[TRANSFER] Batch transfer complete:`, {
+        txid: transferTxId,
+        equipmentTokenId: transferredEquipmentTokenId,
+        scrollTokenIds: transferredScrollTokenIds,
+      });
 
       // ===================================================
       // SERVER TRANSACTION: Update equipment
       // ===================================================
 
       // Prepare updated inscription data
-      const updatedPrefix = inscriptionType === 'prefix'
-        ? {
-            type: inscriptionScroll.inscriptionData.inscriptionType,
-            value: inscriptionScroll.inscriptionData.statValue,
-            name: inscriptionScroll.inscriptionData.name,
-          }
-        : equipmentItem.prefix || null;
+      let updatedPrefix = equipmentItem.prefix || null;
+      let updatedSuffix = equipmentItem.suffix || null;
 
-      const updatedSuffix = inscriptionType === 'suffix'
-        ? {
-            type: inscriptionScroll.inscriptionData.inscriptionType,
-            value: inscriptionScroll.inscriptionData.statValue,
-            name: inscriptionScroll.inscriptionData.name,
-          }
-        : equipmentItem.suffix || null;
+      for (const scroll of inscriptionScrolls) {
+        if (scroll.inscriptionData.slot === 'prefix') {
+          updatedPrefix = {
+            type: scroll.inscriptionData.inscriptionType,
+            value: scroll.inscriptionData.statValue,
+            name: scroll.inscriptionData.name,
+          };
+        } else if (scroll.inscriptionData.slot === 'suffix') {
+          updatedSuffix = {
+            type: scroll.inscriptionData.inscriptionType,
+            value: scroll.inscriptionData.statValue,
+            name: scroll.inscriptionData.name,
+          };
+        }
+      }
 
       // Call server API to update equipment
       const apiResult = await fetch('/api/equipment/update', {
@@ -404,14 +394,13 @@ export function useUpdateEquipmentNFT() {
           // Original item IDs for database tracking
           originalEquipmentInventoryId: equipmentItem.inventoryItemId,
           originalEquipmentTokenId: equipmentItem.tokenId,
-          inscriptionScrollInventoryId: inscriptionScroll.inventoryItemId,
-          inscriptionScrollTokenId: inscriptionScroll.tokenId,
+          inscriptionScrollInventoryIds: inscriptionScrolls.map(s => s.inventoryItemId),
+          inscriptionScrollTokenIds: inscriptionScrolls.map(s => s.tokenId),
 
           // Transferred tokens (server will unlock these)
           transferredEquipmentTokenId,
-          transferredEquipmentTransactionId: equipmentTransferBroadcast.txid,
-          transferredScrollTokenId,
-          transferredScrollTransactionId: scrollTransferBroadcast.txid,
+          transferredScrollTokenIds,
+          batchTransferTransactionId: transferTxId,
 
           // Equipment data
           equipmentData: {
@@ -428,54 +417,47 @@ export function useUpdateEquipmentNFT() {
           },
 
           // Scroll data
-          scrollData: inscriptionScroll.inscriptionData,
-          inscriptionType,
+          scrollsData: inscriptionScrolls.map(s => s.inscriptionData),
 
           // Updated inscriptions
           updatedPrefix,
           updatedSuffix,
 
-          // User public key (for final transfer back)
+          // User public key for final transfer back to user
           userPublicKey: publicKey,
 
-          // Payment
-          paymentTx,          // WalletP2PKH payment BEEF
-          walletParams,       // Derivation params for unlocking
+          // WalletP2PKH payment data
+          paymentTx,
+          walletParams,
         }),
       });
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
-        throw new Error(errorData.error || 'Failed to update equipment');
+        throw new Error(errorData.error || 'Failed to update equipment on server');
       }
 
       const result = await apiResult.json();
 
-      console.log('Server updated equipment:', {
-        nftId: result.nftId,
-        tokenId: result.tokenId,
-        transactionId: result.transactionId,
-      });
+      console.log('Equipment update successful:', result);
 
       return {
         nftId: result.nftId,
         tokenId: result.tokenId,
         transactionId: result.transactionId,
         previousEquipmentTokenId: equipmentItem.tokenId,
-        consumedScrollTokenId: inscriptionScroll.tokenId,
+        consumedScrollTokenIds: inscriptionScrolls.map(s => s.tokenId),
         success: true,
       };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update equipment NFT';
-      console.error('Failed to update equipment NFT:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during equipment update';
+      console.error('Equipment update error:', err);
       setError(errorMessage);
-
       return {
         success: false,
         error: errorMessage,
       };
-
     } finally {
       setIsUpdating(false);
     }

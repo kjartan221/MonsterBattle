@@ -261,7 +261,10 @@ export function useCraftItemNFT() {
         inputBEEF,
         inputs,
         outputs,
-        options: { randomizeOutputs: false },
+        options: {
+          randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
+        },
       });
 
       if (!transferActionRes.signableTransaction) {

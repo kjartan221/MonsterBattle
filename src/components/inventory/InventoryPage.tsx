@@ -44,7 +44,7 @@ export default function InventoryPage() {
   const [selectedItem, setSelectedItem] = useState<StackedInventoryItem | null>(null);
   const [mintingItems, setMintingItems] = useState<Set<string>>(new Set()); // Track items being minted by inventoryId
 
-  // Stack items by name + tier + empowered status (exclude crafted items from stacking)
+  // Stack items by name + tier + empowered status + minted status (exclude crafted items from stacking)
   // For consumables, ignore tier/empowered since they don't have equipment stats
   const stackItems = (items: InventoryItem[]): StackedInventoryItem[] => {
     const stacks = new Map<string, InventoryItem[]>();
@@ -56,15 +56,15 @@ export default function InventoryPage() {
       if (item.crafted) {
         craftedItems.push(item);
       } else {
-        // For consumables: stack by lootId only (ignore tier/empowered)
-        // For equipment: stack by name + tier + empowered
+        // For consumables: stack by lootId + minted status
+        // For equipment: stack by name + tier + empowered + minted status
         let key: string;
         if (item.type === 'consumable') {
-          // Consumables don't benefit from tier/empowered, so stack all together
-          key = `${item.lootId}`;
+          // Consumables don't benefit from tier/empowered, but minted != unminted
+          key = `${item.lootId}_minted:${item.isMinted}`;
         } else {
-          // Equipment benefits from tier/empowered, keep separate stacks
-          key = `${item.name}_${item.tier}_${item.isEmpowered || false}`;
+          // Equipment benefits from tier/empowered, and minted != unminted
+          key = `${item.name}_${item.tier}_${item.isEmpowered || false}_minted:${item.isMinted}`;
         }
 
         if (!stacks.has(key)) {

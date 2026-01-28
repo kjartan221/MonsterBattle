@@ -291,7 +291,10 @@ export async function POST(request: NextRequest) {
         lockingScript: craftedItemLockingScript.toHex(),
         satoshis: 1,
       }],
-      options: { randomizeOutputs: false },
+      options: {
+        randomizeOutputs: false,
+        acceptDelayedBroadcast: false,
+      },
     });
 
     if (!craftedItemMintActionRes.signableTransaction) {
@@ -475,7 +478,10 @@ export async function POST(request: NextRequest) {
       inputBEEF,
       inputs,
       outputs,
-      options: { randomizeOutputs: false },
+      options: {
+        randomizeOutputs: false,
+        acceptDelayedBroadcast: false,
+      },
     });
 
     if (!transferActionRes.signableTransaction) {
@@ -600,20 +606,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark consumed input items as consumed
+    // Delete consumed input items (provenance is on-chain and in Overlay system)
     if (inputItems && Array.isArray(inputItems)) {
       for (const input of inputItems) {
         if (input.inventoryItemId) {
-          await userInventoryCollection.updateOne(
-            { _id: new ObjectId(input.inventoryItemId), userId },
-            {
-              $set: {
-                consumed: true,
-                consumedAt: new Date(),
-                consumedInRecipe: recipeId,
-                consumptionTxId: transferTxId,
-              }
-            }
+          await userInventoryCollection.deleteOne(
+            { _id: new ObjectId(input.inventoryItemId), userId }
           );
         }
       }

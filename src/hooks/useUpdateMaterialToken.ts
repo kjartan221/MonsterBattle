@@ -229,7 +229,10 @@ export function useUpdateMaterialToken() {
               lockingScript: transferLockingScript.toHex(),
               satoshis: 1,
             }],
-            options: { randomizeOutputs: false },
+            options: {
+              randomizeOutputs: false,
+              acceptDelayedBroadcast: false,
+            },
           });
 
           if (!transferActionRes.signableTransaction) {
@@ -405,6 +408,7 @@ export function useUpdateMaterialToken() {
             outputs: [], // No outputs = token burned
             options: {
               randomizeOutputs: false,
+              acceptDelayedBroadcast: false,
             }
           });
 
@@ -467,6 +471,7 @@ export function useUpdateMaterialToken() {
             ],
             options: {
               randomizeOutputs: false,
+              acceptDelayedBroadcast: false,
             }
           });
 

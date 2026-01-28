@@ -282,7 +282,10 @@ export async function POST(request: NextRequest) {
         lockingScript: mintLockingScript.toHex(),
         satoshis: 1,
       }],
-      options: { randomizeOutputs: false },
+      options: {
+        randomizeOutputs: false,
+        acceptDelayedBroadcast: false,
+      },
     });
 
     if (!mintActionRes.signableTransaction) {
@@ -398,7 +401,10 @@ export async function POST(request: NextRequest) {
         lockingScript: mergeLockingScript.toHex(),
         satoshis: 1,
       }],
-      options: { randomizeOutputs: false },
+      options: {
+        randomizeOutputs: false,
+        acceptDelayedBroadcast: false,
+      },
     });
 
     if (!mergeActionRes.signableTransaction) {
