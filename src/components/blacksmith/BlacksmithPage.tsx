@@ -9,6 +9,7 @@ import { getInscribedItemName, getInscriptionStatLabel, formatInscriptionStat, g
 import type { Inscription } from '@/lib/types';
 import { useUpdateEquipmentNFT } from '@/hooks/useUpdateEquipmentNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
+import { useEquipment } from '@/contexts/EquipmentContext';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
 
 interface InventoryItem {
@@ -44,6 +45,7 @@ export default function BlacksmithPage() {
   // Blockchain hooks
   const { updateEquipmentNFT, isUpdating } = useUpdateEquipmentNFT();
   const { userWallet, isAuthenticated } = useAuthContext();
+  const { refreshEquipment } = useEquipment();
 
   useEffect(() => {
     fetchInventory();
@@ -201,10 +203,16 @@ export default function BlacksmithPage() {
           throw new Error(result.error || 'Failed to update equipment NFT');
         }
 
-        toast.success(`✨ Inscription applied on blockchain! TX: ${result.transactionId?.slice(0, 8)}...`, {
+        // Show success message with equipped status
+        const equippedNote = result.wasEquipped ? ' (still equipped)' : '';
+        toast.success(`✨ Inscription applied on blockchain${equippedNote}! TX: ${result.transactionId?.slice(0, 8)}...`, {
           id: applyingToast,
           duration: 5000
         });
+
+        // Always refresh equipment context after inscription (item might be equipped)
+        await refreshEquipment();
+        console.log('✅ Equipment context refreshed after NFT update');
 
       } else {
         // Use regular API for non-NFT items
@@ -233,6 +241,10 @@ export default function BlacksmithPage() {
         }
 
         toast.success(data.message, { id: applyingToast, icon: '✨', duration: 4000 });
+
+        // Always refresh equipment context after inscription (item might be equipped)
+        await refreshEquipment();
+        console.log('✅ Equipment context refreshed after non-NFT update');
       }
 
       // Reset selections and refresh
@@ -545,8 +557,14 @@ export default function BlacksmithPage() {
                   <button
                     onClick={() => handleApplyInscription(false)}
                     disabled={applying}
-                    className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg transition-all cursor-pointer text-lg"
+                    className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-lg transition-all cursor-pointer text-lg flex items-center justify-center gap-2"
                   >
+                    {applying && (
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
                     {applying ? 'Applying...' : `✨ Apply Inscription (${goldCost} gold)`}
                   </button>
                 );
@@ -588,8 +606,14 @@ export default function BlacksmithPage() {
                   handleApplyInscription(true);
                 }}
                 disabled={applying}
-                className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors cursor-pointer"
+                className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
+                {applying && (
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
                 {applying ? 'Replacing...' : 'Replace'}
               </button>
             </div>

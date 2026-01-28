@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Connect to MongoDB
-    const { userInventoryCollection, nftLootCollection } = await connectToMongo();
+    const { userInventoryCollection, nftLootCollection, playerStatsCollection } = await connectToMongo();
 
     // 4. Verify user owns the equipment
     const originalEquipment = await userInventoryCollection.findOne({
@@ -405,9 +405,46 @@ export async function POST(request: NextRequest) {
 
     const inventoryResult = await userInventoryCollection.insertOne(newInventoryEntry);
 
+    // Check if the old equipment was equipped, and update PlayerStats if so
+    const oldEquipmentId = new ObjectId(originalEquipmentInventoryId);
+    const newEquipmentId = inventoryResult.insertedId;
+    let wasEquipped = false;
+
+    const playerStats = await playerStatsCollection.findOne({ userId });
+    if (playerStats) {
+      const updateFields: any = {};
+
+      // Check each equipment slot and update if it references the old item
+      if (playerStats.equippedWeapon?.equals(oldEquipmentId)) {
+        updateFields.equippedWeapon = newEquipmentId;
+        wasEquipped = true;
+      }
+      if (playerStats.equippedArmor?.equals(oldEquipmentId)) {
+        updateFields.equippedArmor = newEquipmentId;
+        wasEquipped = true;
+      }
+      if (playerStats.equippedAccessory1?.equals(oldEquipmentId)) {
+        updateFields.equippedAccessory1 = newEquipmentId;
+        wasEquipped = true;
+      }
+      if (playerStats.equippedAccessory2?.equals(oldEquipmentId)) {
+        updateFields.equippedAccessory2 = newEquipmentId;
+        wasEquipped = true;
+      }
+
+      // Update PlayerStats if any slot was referencing the old item
+      if (Object.keys(updateFields).length > 0) {
+        await playerStatsCollection.updateOne(
+          { userId },
+          { $set: updateFields }
+        );
+        console.log('✅ [EQUIPMENT] Auto-updated equipped item references:', updateFields);
+      }
+    }
+
     // Delete original equipment (provenance is on-chain and in Overlay system)
     await userInventoryCollection.deleteOne(
-      { _id: new ObjectId(originalEquipmentInventoryId) }
+      { _id: oldEquipmentId }
     );
 
     // Delete all consumed inscription scrolls (provenance is on-chain and in Overlay system)
@@ -428,6 +465,7 @@ export async function POST(request: NextRequest) {
       tokenId: updatedEquipmentTokenId,
       transactionId: updateTxId,
       newInventoryItemId: inventoryResult.insertedId.toString(),
+      wasEquipped, // True if item was equipped and reference was auto-updated
     });
 
   } catch (error) {

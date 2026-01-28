@@ -94,6 +94,7 @@ export interface UpdateEquipmentNFTResult {
   transactionId?: string;        // BSV transaction ID
   previousEquipmentTokenId?: string;
   consumedScrollTokenIds?: string[];
+  wasEquipped?: boolean;         // True if item was equipped and reference was auto-updated
   success: boolean;
   error?: string;
 }
@@ -447,6 +448,7 @@ export function useUpdateEquipmentNFT() {
         transactionId: result.transactionId,
         previousEquipmentTokenId: equipmentItem.tokenId,
         consumedScrollTokenIds: inscriptionScrolls.map(s => s.tokenId),
+        wasEquipped: result.wasEquipped,
         success: true,
       };
 
