@@ -43,7 +43,10 @@ export default function GuidebookModal({ onClose }: GuidebookModalProps) {
               <p>
                 <span className="font-bold text-white">Slots:</span> Weapon, Armor, Accessory 1, Accessory 2
               </p>
-              <p className="text-gray-400 text-xs mt-2">
+              <p className="text-amber-400 text-xs mt-2 font-semibold">
+                ⚠️ Only minted NFTs can be equipped. Mint items from your inventory by clicking on them and selecting "Mint as NFT".
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
                 Equipped items grant bonus stats that help you in battle (damage, crit, defense, HP, etc.)
               </p>
             </div>
@@ -65,7 +68,10 @@ export default function GuidebookModal({ onClose }: GuidebookModalProps) {
               <p>
                 <span className="font-bold text-white">Stat Rolls:</span> Crafted equipment gets a random quality roll (0.8x - 1.2x base stats).
               </p>
-              <p className="text-gray-400 text-xs mt-2">
+              <p className="text-amber-400 text-xs mt-2 font-semibold">
+                ⚠️ Only minted materials can be used for crafting. Mint materials from your inventory first.
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
                 <span className="font-bold text-purple-300">Quality Tiers:</span> ⭐ Masterwork (+15% to +20%), ✨ Superior (+5% to +15%), ⚖️ Standard (-5% to +5%), 📉 Inferior (-15% to -5%), 💔 Poor (-20% to -15%)
               </p>
             </div>
@@ -115,7 +121,10 @@ export default function GuidebookModal({ onClose }: GuidebookModalProps) {
               <p>
                 <span className="font-bold text-white">Slots:</span> Each item has 1 prefix slot and 1 suffix slot. Applying a new inscription overwrites the old one.
               </p>
-              <p className="text-gray-400 text-xs mt-2">
+              <p className="text-amber-400 text-xs mt-2 font-semibold">
+                ⚠️ Only minted equipment and scrolls can be used for inscriptions. Mint items from your inventory first.
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
                 <span className="font-bold text-red-300">Restrictions:</span> Autoclick and lifesteal inscriptions are exclusive - can't have both prefix AND suffix of the same type on one item.
               </p>
             </div>

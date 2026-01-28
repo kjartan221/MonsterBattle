@@ -38,11 +38,12 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
   const loadUserMaterials = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/inventory/get');
+      // Only fetch minted materials (backend filtering)
+      const response = await fetch('/api/inventory/get?mintedOnly=true');
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Filter only materials that have been minted as tokens
+        // Backend already filters for minted items, this is a safety check
         const materials = data.inventory
           .filter((item: any) => {
             const lootItem = getLootItemById(item.lootId);

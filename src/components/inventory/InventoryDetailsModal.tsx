@@ -89,7 +89,8 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
 
   useEffect(() => {
     if (isRefinable) {
-      fetch('/api/inventory/get')
+      // Only fetch minted materials (refine stones must be minted to use)
+      fetch('/api/inventory/get?mintedOnly=true')
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -389,8 +390,8 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
     const refiningToast = toast.loading('Refining equipment...');
 
     try {
-      // Get first refine stone from inventory
-      const inventoryRes = await fetch('/api/inventory/get');
+      // Get first refine stone from inventory (must be minted to use)
+      const inventoryRes = await fetch('/api/inventory/get?mintedOnly=true');
       const inventoryData = await inventoryRes.json();
 
       if (!inventoryData.success) {

@@ -64,8 +64,8 @@ export default function CraftingPage() {
     try {
       setLoading(true);
 
-      // Fetch player materials (only type: 'material' items)
-      const materialsResponse = await fetch('/api/inventory/get');
+      // Fetch player materials (only type: 'material' items, minted only)
+      const materialsResponse = await fetch('/api/inventory/get?mintedOnly=true');
       const materialsData = await materialsResponse.json();
 
       if (materialsResponse.ok && materialsData.success) {
@@ -75,7 +75,7 @@ export default function CraftingPage() {
 
         materialsData.inventory.forEach((item: any) => {
           const lootItem = getLootItemById(item.lootId);
-          // Only include materials that have been minted as tokens
+          // Backend already filters for minted items, this is a safety check
           if (lootItem && lootItem.type === 'material' && item.tokenId) {
             // Track full material item data
             materialItems.push({

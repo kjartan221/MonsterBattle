@@ -27,18 +27,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token: missing userId' }, { status: 401 });
     }
 
+    // Check for mintedOnly query parameter
+    const { searchParams } = new URL(request.url);
+    const mintedOnly = searchParams.get('mintedOnly') === 'true';
+
     // Ensure MongoDB is connected and get collections
     const { userInventoryCollection, nftLootCollection, materialTokensCollection } = await connectToMongo();
 
-    // Fetch all inventory items for this user
+    // Build query for inventory items
+    const inventoryQuery: any = { userId };
+    if (mintedOnly) {
+      // Only return items that have been minted (have nftLootId)
+      inventoryQuery.nftLootId = { $exists: true, $ne: null };
+    }
+
+    // Fetch inventory items for this user
     const inventoryItems = await userInventoryCollection
-      .find({ userId })
+      .find(inventoryQuery)
       .sort({ acquiredAt: -1 }) // Most recent first
       .toArray();
 
-    // Fetch all material tokens for this user (minted materials with quantity)
+    // Build query for material tokens
+    const materialTokenQuery: any = { userId, consumed: { $ne: true } };
+    if (mintedOnly) {
+      // Only return material tokens that have been minted (have tokenId)
+      materialTokenQuery.tokenId = { $exists: true, $ne: null };
+    }
+
+    // Fetch material tokens for this user (minted materials with quantity)
     const materialTokens = await materialTokensCollection
-      .find({ userId, consumed: { $ne: true } }) // Exclude consumed tokens
+      .find(materialTokenQuery)
       .toArray();
 
     // Build inventory by getting loot data from loot-table

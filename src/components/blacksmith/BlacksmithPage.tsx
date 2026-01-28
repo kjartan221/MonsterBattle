@@ -52,7 +52,8 @@ export default function BlacksmithPage() {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/inventory/get');
+      // Only fetch minted items (backend filtering)
+      const response = await fetch('/api/inventory/get?mintedOnly=true');
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -73,7 +74,7 @@ export default function BlacksmithPage() {
           transactionId: item.mintTransactionId || item.transactionId // mintTransactionId for equipment/scrolls, transactionId for materials
         }));
 
-        // Separate equipment and scrolls (only show minted tokens)
+        // Separate equipment and scrolls (backend already filters for minted items)
         const equipmentItems = allItems.filter((item: InventoryItem) =>
           ['weapon', 'armor', 'artifact'].includes(item.itemType) && item.tokenId
         );
@@ -311,8 +312,8 @@ export default function BlacksmithPage() {
           {equipment.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <div className="text-4xl mb-3">📦</div>
-              <div className="text-sm">No equipment available</div>
-              <div className="text-xs mt-2">Craft or find equipment first!</div>
+              <div className="text-sm">No minted equipment</div>
+              <div className="text-xs mt-2">Mint equipment from your inventory first!</div>
             </div>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto px-2">
@@ -377,8 +378,8 @@ export default function BlacksmithPage() {
           {scrolls.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <div className="text-4xl mb-3">📜</div>
-              <div className="text-sm">No inscription scrolls</div>
-              <div className="text-xs mt-2">Defeat bosses to find scrolls!</div>
+              <div className="text-sm">No minted inscription scrolls</div>
+              <div className="text-xs mt-2">Defeat bosses and mint scrolls from your inventory!</div>
             </div>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto px-2">

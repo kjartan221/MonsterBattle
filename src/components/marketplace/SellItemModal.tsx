@@ -40,11 +40,12 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
   const loadSellableItems = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/inventory/get');
+      // Only fetch minted items (backend filtering)
+      const response = await fetch('/api/inventory/get?mintedOnly=true');
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Filter for ONLY minted NFTs and material tokens
+        // Backend already filters for minted items, this is a safety check
         const sellable = data.inventory
           .filter((item: any) => {
             // Material tokens are always sellable (they're on blockchain)

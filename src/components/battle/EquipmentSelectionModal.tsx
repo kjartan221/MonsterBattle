@@ -105,7 +105,8 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
   const fetchInventoryItems = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/inventory/get');
+      // Only fetch minted items (backend filtering)
+      const response = await fetch('/api/inventory/get?mintedOnly=true');
       if (!response.ok) {
         throw new Error('Failed to fetch inventory');
       }
@@ -219,18 +220,23 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-gray-900/98 border-2 border-gray-700 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">⚔️</span>
-            <span className="text-lg font-bold text-gray-100">Select {getSlotLabel()}</span>
+        <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 px-6 py-4 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⚔️</span>
+              <span className="text-lg font-bold text-gray-100">Select {getSlotLabel()}</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer text-xl"
+              disabled={isEquipping}
+            >
+              ✕
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors cursor-pointer text-xl"
-            disabled={isEquipping}
-          >
-            ✕
-          </button>
+          <p className="text-xs text-amber-400 font-semibold">
+            ⚠️ Only minted NFTs can be equipped. Mint items from your inventory to use them here.
+          </p>
         </div>
 
         {/* Currently Equipped */}
@@ -284,8 +290,8 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
           ) : items.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <div className="text-4xl mb-3">📦</div>
-              <div>No items available for this slot</div>
-              <div className="text-sm mt-2">Defeat monsters to collect equipment!</div>
+              <div>No minted items available for this slot</div>
+              <div className="text-sm mt-2">Mint equipment from your inventory to equip it!</div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -89,8 +89,8 @@ export function usePlayerSpell(): UsePlayerSpellResult {
       // Normalize inventoryId to string
       const inventoryIdStr = typeof equippedSpellId === 'string' ? equippedSpellId : equippedSpellId.toString();
 
-      // Fetch the inventory item to get lootTableId
-      const inventoryResponse = await fetch('/api/inventory/get');
+      // Fetch the inventory item to get lootTableId (only minted items can be equipped)
+      const inventoryResponse = await fetch('/api/inventory/get?mintedOnly=true');
       if (!inventoryResponse.ok) {
         throw new Error('Failed to load inventory');
       }
