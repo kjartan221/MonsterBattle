@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/WalletContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
+import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { initializeWallet, userWallet } = useAuthContext();
+  const { initializeWallet, userWallet, checkAuth } = useAuthContext();
   const { refreshEquipment } = useEquipment();
+  const { fetchPlayerStats } = usePlayer();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +46,8 @@ export default function LoginPage() {
 
       const walletUsername = username.trim() || 'Wallet User';
 
+      toast.loading('Logging in...', { id: loadingToast });
+
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -61,11 +65,22 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Update auth state after successful login
+      toast.loading('Loading player data...', { id: loadingToast });
+      await checkAuth();
+
+      // Wait a moment for contexts to receive auth state update
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Fetch player data and equipment
+      await Promise.all([
+        fetchPlayerStats(),
+        refreshEquipment()
+      ]);
+
       toast.success('Login successful!', { id: loadingToast });
 
-      // Refresh equipment after successful login
-      await refreshEquipment();
-
+      // Navigate to battle page
       router.push('/battle');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';

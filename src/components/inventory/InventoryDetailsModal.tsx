@@ -159,6 +159,13 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
       const checkData = await checkResponse.json();
       const existingToken = checkData.exists ? checkData.token : null;
 
+      console.log('[MATERIAL-MINT] Check token result:', {
+        lootTableId: item.lootId,
+        tier: item.tier || 1,
+        exists: checkData.exists,
+        existingToken,
+      });
+
       if (existingToken) {
         // Token exists - update quantity
         toast.loading('Updating existing token...', { id: mintingToast });

@@ -45,10 +45,12 @@ export async function POST(request: NextRequest) {
     const { materialTokensCollection } = await connectToMongo();
 
     // Check if a material token exists for this user, lootTableId, and tier
+    // Also ensure the token is not consumed (used in crafting)
     const existingToken = await materialTokensCollection.findOne({
       userId,
       lootTableId,
       tier,
+      consumed: { $ne: true },
     });
 
     if (existingToken) {

@@ -48,7 +48,7 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuthContext();
 
   const refreshChallengeConfig = useCallback(async () => {
-    if (isAuthenticated !== true) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -98,7 +98,8 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (isAuthenticated === false) {
+    // Handle both false (not authenticated) and null (auth loading)
+    if (!isAuthenticated) {
       setChallengeConfig(DEFAULT_CONFIG);
       setLoading(false);
     }

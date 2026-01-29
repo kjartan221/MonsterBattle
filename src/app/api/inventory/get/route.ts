@@ -125,6 +125,18 @@ export async function GET(request: NextRequest) {
       // Extract tier from metadata if available, default to 1
       const tier = (token.metadata as any)?.tier || 1;
 
+      // Extract transaction ID from tokenId (format: "txid.vout")
+      // Use lastTransactionId if available (from updates), otherwise extract from tokenId
+      let transactionId: string | undefined;
+      if (token.lastTransactionId) {
+        transactionId = token.lastTransactionId;
+      } else if (token.tokenId) {
+        transactionId = token.tokenId.split('.')[0];
+      }
+
+      // Also extract mint transaction ID from mintOutpoint
+      const mintTransactionId = token.mintOutpoint?.split('.')[0];
+
       return {
         lootId: token.lootTableId,
         name: lootTemplate.name,
@@ -137,8 +149,10 @@ export async function GET(request: NextRequest) {
         inventoryId: token._id?.toString(), // For backward compatibility with UI
         materialTokenId: token._id?.toString(), // Specific to material tokens
         nftLootId: undefined, // Material tokens don't use NFTLoot collection
-        tokenId: token.tokenId, // Blockchain token ID
-        transactionId: token.transactionId, // Blockchain transaction ID
+        tokenId: token.tokenId, // Blockchain token ID (full outpoint)
+        transactionId: transactionId, // Extracted transaction ID (just txid)
+        mintTransactionId: mintTransactionId, // Original mint txid
+        mintOutpoint: token.mintOutpoint, // Original mint proof (full outpoint)
         borderGradient: undefined, // Materials don't have gradients
         isMinted: !!token.tokenId, // True if on blockchain
         quantity: token.quantity, // Material token quantity

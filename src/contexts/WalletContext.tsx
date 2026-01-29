@@ -42,7 +42,9 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                 setIsAuthenticated(isAuth);
                 return isAuth;
             } else {
-                throw new Error("Wallet not initialized");
+                // No wallet means not authenticated (during initial load)
+                setIsAuthenticated(false);
+                return false;
             }
         } catch (error) {
             console.error("Failed to check authentication:", error);
@@ -50,10 +52,6 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
             return false;
         }
     }, [userWallet]);
-
-    useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
 
     const initializeWallet = useCallback(async () => {
         try {
@@ -67,6 +65,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                     position: 'top-center',
                     id: 'wallet-not-authenticated',
                 });
+                setIsAuthenticated(false);
                 return;
             }
 
@@ -86,6 +85,11 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
             setUserIdentityKey(identityKey);
             setUserDerivedKey(derivedKey);
             setUserPubKey(derivedKey); // Keep for backward compatibility (DEPRECATED)
+
+            // Check authentication after wallet is initialized
+            const authenticated = await newWallet.isAuthenticated();
+            setIsAuthenticated(!!authenticated);
+
             toast.success('Wallet connected successfully', {
                 duration: 5000,
                 position: 'top-center',
@@ -98,12 +102,20 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                 position: 'top-center',
                 id: 'wallet-connect-error',
             });
+            setIsAuthenticated(false);
         }
     }, []);
 
     useEffect(() => {
         initializeWallet();
     }, [initializeWallet]);
+
+    // Check auth when wallet changes (to handle reconnections)
+    useEffect(() => {
+        if (userWallet) {
+            checkAuth();
+        }
+    }, [userWallet, checkAuth]);
 
     return (
         <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth }}>

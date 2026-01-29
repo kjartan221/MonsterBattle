@@ -129,7 +129,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (isAuthenticated === false) {
+    // Handle both false (not authenticated) and null (auth loading)
+    if (!isAuthenticated) {
       setPlayerStats(null);
       setError(null);
       setLoading(false);

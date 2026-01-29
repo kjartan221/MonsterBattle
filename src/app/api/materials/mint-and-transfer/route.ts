@@ -441,6 +441,7 @@ export async function POST(request: NextRequest) {
           { _id: existingToken._id },
           {
             $set: {
+              tier: tier || 1,                // Ensure tier is always stored at top level
               tokenId: userTokenId,           // Update to new token ID
               quantity: newQuantity,          // Merged quantity
               metadata: materialMetadata,
@@ -469,6 +470,7 @@ export async function POST(request: NextRequest) {
           userId: userId,
           lootTableId: lootTableId,
           itemName: itemName,
+          tier: tier || 1,                // IMPORTANT: Store tier at top level for querying
           tokenId: userTokenId,           // Full outpoint: ${transferTxId}.0
           quantity: quantity,
           metadata: materialMetadata,

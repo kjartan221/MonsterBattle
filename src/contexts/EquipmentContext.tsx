@@ -152,7 +152,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
    * Memoized with useCallback to prevent infinite loops
    */
   const equipItem = useCallback(async (inventoryId: string, lootTableId: string, slot: EquipmentSlot) => {
-    if (isAuthenticated !== true) {
+    if (!isAuthenticated) {
       throw new Error('Not authenticated');
     }
 
@@ -255,7 +255,8 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (isAuthenticated === false) {
+    // Handle both false (not authenticated) and null (auth loading)
+    if (!isAuthenticated) {
       setEquippedWeapon(null);
       setEquippedArmor(null);
       setEquippedAccessory1(null);
