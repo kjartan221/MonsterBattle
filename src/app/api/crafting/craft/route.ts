@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ObjectId } from 'mongodb';
 import { verifyJWT } from '@/utils/jwt';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo, getClient } from '@/lib/mongodb';
 import { getRecipeById } from '@/lib/recipe-table';
 import { getLootItemById } from '@/lib/loot-table';
 import { publicKeyToGradient } from '@/utils/publicKeyToColor';
@@ -58,9 +58,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
-    const { client, userInventoryCollection, playerStatsCollection } = await connectToMongo();
+    const { userInventoryCollection, playerStatsCollection } = await connectToMongo();
 
     // Start MongoDB transaction
+    const client = await getClient();
     const session = client.startSession();
 
     try {

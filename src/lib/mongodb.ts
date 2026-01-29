@@ -304,6 +304,13 @@ export async function getMarketplaceItemsCollection() {
   return marketplaceItemsCollection;
 }
 
+export async function getClient() {
+  if (!client) {
+    throw new Error('MongoDB client not initialized');
+  }
+  return client;
+}
+
 // Graceful shutdown handler (for development)
 if (process.env.NODE_ENV === 'development') {
   process.on('SIGINT', async () => {

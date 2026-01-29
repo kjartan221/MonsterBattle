@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
-import { connectToMongo } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { connectToMongo, getClient } from '@/lib/mongodb';
 
 /**
  * POST /api/consumables/use
@@ -34,9 +33,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid slot index' }, { status: 400 });
         }
 
-        const { client, userInventoryCollection, playerStatsCollection } = await connectToMongo();
+        const { userInventoryCollection, playerStatsCollection } = await connectToMongo();
 
         // Start a MongoDB session for transaction support
+        const client = await getClient();
         const session = client.startSession();
 
         try {

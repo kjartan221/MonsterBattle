@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ObjectId } from 'mongodb';
 import { verifyJWT } from '@/utils/jwt';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo, getClient } from '@/lib/mongodb';
 import { getLootItemById } from '@/lib/loot-table';
 
 /**
@@ -51,9 +51,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid item IDs' }, { status: 400 });
     }
 
-    const { client, userInventoryCollection } = await connectToMongo();
+    const { userInventoryCollection } = await connectToMongo();
 
     // Start MongoDB transaction
+    const client = await getClient();
     const session = client.startSession();
 
     try {
