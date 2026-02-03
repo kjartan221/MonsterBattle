@@ -381,6 +381,7 @@ export interface MaterialToken {
   userId: string;          // Reference to User.userId
   lootTableId: string;     // Reference to loot-table.ts (e.g., "iron_ore")
   itemName: string;        // Material name (e.g., "Iron Ore")
+  tier: Tier;              // Material tier (1-5) - stored at root level for querying
   tokenId: string;         // Current blockchain outpoint (format: "txid.vout")
   transactionId?: string;  // DEPRECATED: Use tokenId instead (redundant, can be extracted from tokenId)
   quantity: number;        // Current quantity of this material

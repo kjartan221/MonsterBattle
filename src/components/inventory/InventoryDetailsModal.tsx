@@ -167,8 +167,8 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
       });
 
       if (existingToken) {
-        // Token exists - update quantity
-        toast.loading('Updating existing token...', { id: mintingToast });
+        // Token exists - update quantity (use add-and-merge route for on-chain merging)
+        toast.loading('Merging material tokens on-chain...', { id: mintingToast });
 
         // Calculate which inventory items to consume (first N items from the stack)
         const inventoryItemIds = item.items
@@ -212,29 +212,89 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
           ? item.items.slice(0, quantity).map((i: any) => i.inventoryId)
           : [item.inventoryId];
 
-        const createResult = await createMaterialToken({
-          wallet: userWallet,
-          materials: [{
-            name: 'material_token',
-            lootTableId: item.lootId,
-            itemName: item.name,
-            description: item.description,
-            icon: item.icon,
-            rarity: item.rarity,
-            tier: item.tier || 1,
-            quantity: quantity,
-            inventoryItemIds: inventoryItemIds,  // Pass IDs to consume
-          }],
-        });
+        try {
+          const createResult = await createMaterialToken({
+            wallet: userWallet,
+            materials: [{
+              name: 'material_token',
+              lootTableId: item.lootId,
+              itemName: item.name,
+              description: item.description,
+              icon: item.icon,
+              rarity: item.rarity,
+              tier: item.tier || 1,
+              quantity: quantity,
+              inventoryItemIds: inventoryItemIds,  // Pass IDs to consume
+            }],
+          });
 
-        if (!createResult.success || !createResult.results[0]?.success) {
-          throw new Error(createResult.error || createResult.results[0]?.error || 'Failed to create material token');
+          if (!createResult.success || !createResult.results[0]?.success) {
+            const error = createResult.error || createResult.results[0]?.error || 'Failed to create material token';
+
+            // Check if we need to switch to add-and-merge route
+            if (error === 'SWITCH_TO_ADD_AND_MERGE') {
+              console.log('[MATERIAL-MINT] Token was created by another session, switching to add-and-merge...');
+
+              // Re-check for existing token
+              const recheckResponse = await fetch('/api/materials/check-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  lootTableId: item.lootId,
+                  tier: item.tier || 1,
+                }),
+              });
+
+              const recheckData = await recheckResponse.json();
+              const recheckToken = recheckData.exists ? recheckData.token : null;
+
+              if (!recheckToken) {
+                throw new Error('Token still not found after conflict, please try again');
+              }
+
+              // Use add-and-merge route instead
+              toast.loading('Merging with existing token...', { id: mintingToast });
+
+              const updateResult = await updateMaterialToken({
+                wallet: userWallet,
+                updates: [{
+                  name: 'material_token',
+                  lootTableId: item.lootId,
+                  itemName: item.name,
+                  description: item.description,
+                  icon: item.icon,
+                  rarity: item.rarity,
+                  tier: item.tier || 1,
+                  currentTokenId: recheckToken.tokenId,
+                  currentQuantity: recheckToken.quantity,
+                  operation: 'add',
+                  quantity: quantity,
+                  inventoryItemIds: inventoryItemIds,
+                  reason: 'Minting additional materials from inventory',
+                }],
+              });
+
+              if (!updateResult.success || !updateResult.results[0]?.success) {
+                throw new Error(updateResult.error || updateResult.results[0]?.error || 'Failed to merge material token');
+              }
+
+              toast.success(`Token merged! Added ${quantity} to ${item.name}`, {
+                id: mintingToast,
+                duration: 5000
+              });
+            } else {
+              throw new Error(error);
+            }
+          } else {
+            toast.success(`Material token created! Minted ${quantity}x ${item.name}`, {
+              id: mintingToast,
+              duration: 5000
+            });
+          }
+        } catch (createError) {
+          // Re-throw to be caught by outer catch block
+          throw createError;
         }
-
-        toast.success(`Material token created! Minted ${quantity}x ${item.name}`, {
-          id: mintingToast,
-          duration: 5000
-        });
       }
 
       // Refresh inventory to show minted status

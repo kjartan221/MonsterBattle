@@ -186,6 +186,14 @@ export function useCreateMaterialToken() {
 
       if (!apiResult.ok) {
         const errorData = await apiResult.json();
+
+        // If 409 Conflict (token already exists), this is expected
+        // Frontend should handle this by calling useUpdateMaterialToken instead
+        if (apiResult.status === 409 && errorData.shouldUseAddAndMerge) {
+          console.warn('Token already exists, should use add-and-merge route:', errorData);
+          throw new Error('SWITCH_TO_ADD_AND_MERGE'); // Special error code for frontend
+        }
+
         throw new Error(errorData.error || 'Failed to mint and transfer materials');
       }
 

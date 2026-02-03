@@ -75,6 +75,15 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
     }
   };
 
+  // Calculate total quantity for a given lootTableId from selected materials
+  const getSelectedQuantity = (lootTableId: string): number => {
+    const selectedIds = selectedMaterials.get(lootTableId) || [];
+    return selectedIds.reduce((total, id) => {
+      const material = userMaterials.find(m => m._id === id);
+      return total + (material?.quantity || 0);
+    }, 0);
+  };
+
   const handleMaterialClick = (material: InventoryMaterial) => {
     const requirement = recipe.requiredMaterials.find(r => r.lootTableId === material.lootTableId);
     if (!requirement) {
@@ -86,11 +95,19 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
       const currentSelected = prevMap.get(material.lootTableId) || [];
       const materialId = material._id;
 
+      // Calculate current total quantity
+      const currentQuantity = currentSelected.reduce((total, id) => {
+        const mat = userMaterials.find(m => m._id === id);
+        return total + (mat?.quantity || 0);
+      }, 0);
+
       console.log(`🔧 [MATERIAL CLICK] Clicked material:`, {
         materialId,
         lootTableId: material.lootTableId,
+        materialQuantity: material.quantity,
         currentSelected,
-        prevMapSize: prevMap.size
+        currentTotalQuantity: currentQuantity,
+        required: requirement.quantity
       });
 
       // Check if already selected
@@ -106,15 +123,22 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
         console.log(`🔧 [MATERIAL DESELECT] New selection:`, Array.from(newMap.entries()));
         return newMap;
       } else {
-        // Select (if not at requirement limit)
-        if (currentSelected.length < requirement.quantity) {
+        // Select (only allow if we haven't met requirement yet)
+        const newQuantity = currentQuantity + material.quantity;
+
+        // Allow selection if we haven't met the requirement yet
+        // This allows selecting a single token with quantity >= requirement
+        if (currentQuantity < requirement.quantity) {
           const newSelected = [...currentSelected, materialId];
           const newMap = new Map(prevMap);
           newMap.set(material.lootTableId, newSelected);
           console.log(`🔧 [MATERIAL SELECT] New selection:`, Array.from(newMap.entries()));
           return newMap;
         } else {
-          toast.error(`Only need ${requirement.quantity} of this material`);
+          // Already have enough materials
+          toast.error(
+            `Already have enough ${material.lootTableId} (have ${currentQuantity}, need ${requirement.quantity})`
+          );
           return prevMap; // Return unchanged map
         }
       }
@@ -131,9 +155,10 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
   };
 
   const canCraft = (): boolean => {
+    // Check if all requirements are met (selected quantity >= required quantity)
     for (const req of recipe.requiredMaterials) {
-      const selected = selectedMaterials.get(req.lootTableId) || [];
-      if (selected.length < req.quantity) return false;
+      const selectedQuantity = getSelectedQuantity(req.lootTableId);
+      if (selectedQuantity < req.quantity) return false;
     }
     return true;
   };
@@ -213,8 +238,8 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {recipe.requiredMaterials.map(req => {
               const material = getLootItemById(req.lootTableId);
-              const selected = selectedMaterials.get(req.lootTableId) || [];
-              const isComplete = selected.length >= req.quantity;
+              const selectedQuantity = getSelectedQuantity(req.lootTableId);
+              const isComplete = selectedQuantity >= req.quantity;
 
               return (
                 <div
@@ -229,7 +254,7 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
                     {material?.icon} {material?.name}
                   </span>
                   <span className={`text-lg font-bold ${isComplete ? 'text-green-400' : 'text-red-400'}`}>
-                    {selected.length} / {req.quantity}
+                    {selectedQuantity} / {req.quantity}
                   </span>
                 </div>
               );
@@ -277,6 +302,13 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
 
                         {/* Material Icon */}
                         <div className="text-4xl text-center mb-2">{lootItem?.icon}</div>
+
+                        {/* Quantity Badge (bottom-center) */}
+                        {mat.quantity > 1 && (
+                          <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-blue-600 rounded-lg text-xs font-bold border-2 border-blue-400">
+                            x{mat.quantity}
+                          </div>
+                        )}
 
                         {/* Badges */}
                         <div className="flex justify-between items-end">

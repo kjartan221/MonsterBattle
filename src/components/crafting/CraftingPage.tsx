@@ -9,6 +9,7 @@ import CraftingItemDetailsModal from './CraftingItemDetailsModal';
 import CraftedItemModal from './CraftedItemModal';
 import MaterialSelectionModal from './MaterialSelectionModal';
 import { getStatRollQuality } from '@/utils/statRollUtils';
+import { publicKeyToGradient } from '@/utils/publicKeyToColor';
 import { useCraftItemNFT } from '@/hooks/useCraftItemNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
@@ -182,142 +183,104 @@ export default function CraftingPage() {
         }))
       });
 
-      if (allMinted && userWallet && isAuthenticated) {
-        // Use blockchain crafting
-        toast.loading('Checking wallet connection...', { id: craftingToast });
-
-        // Get output item data
-        const outputLootItem = getLootItemById(recipe.output.lootTableId);
-        if (!outputLootItem) {
-          throw new Error('Output item not found in loot table');
-        }
-
-        toast.loading('Preparing blockchain transaction...', { id: craftingToast });
-
-        // Get user's public key for borderGradient (using a utility or stored value)
-        // For now, we'll use a placeholder - in production, get from wallet or stored userId
-        const { publicKey } = await userWallet.getPublicKey({
-          protocolID: [0, "monsterbattle"],
-          keyID: "0",
-        });
-
-        // Generate borderGradient from public key
-        const { publicKeyToGradient } = await import('@/utils/publicKeyToColor');
-        const borderGradient = publicKeyToGradient(publicKey);
-
-        // Prepare input items for blockchain
-        const inputItems = selectedMaterials.map(material => {
-          const lootItem = getLootItemById(material.lootTableId);
-          return {
-            inventoryItemId: material.inventoryId,
-            nftLootId: material.materialTokenId, // Material tokens use materialTokenId
-            tokenId: material.tokenId!,
-            transactionId: material.transactionId!,
-            name: material.name,
-            rarity: lootItem?.rarity || 'common',
-            type: lootItem?.type || 'material',
-            itemType: 'material' as const,
-            lootTableId: material.lootTableId,
-            currentQuantity: material.quantity,
-            quantityNeeded: recipe.requiredMaterials.find(r => r.lootTableId === material.lootTableId)?.quantity || 1,
-            description: lootItem?.description,
-            icon: lootItem?.icon,
-            tier: material.tier
-          };
-        });
-
-        // Prepare output item data
-        const outputItem = {
-          inventoryItemId: '', // Will be created by API
-          lootTableId: recipe.output.lootTableId,
-          name: outputLootItem.name,
-          description: outputLootItem.description,
-          icon: outputLootItem.icon,
-          rarity: outputLootItem.rarity,
-          type: outputLootItem.type as 'weapon' | 'armor' | 'consumable' | 'artifact' | 'material',
-          tier: recipe.output.tier || 1,
-          equipmentStats: outputLootItem.equipmentStats ? { ...outputLootItem.equipmentStats } as Record<string, number> : undefined,
-          crafted: outputLootItem.equipmentStats ? {
-            statRoll: 0.8 + Math.random() * 0.4, // Generate stat roll (0.8-1.2)
-            craftedBy: publicKey
-          } : undefined,
-          borderGradient
-        };
-
-        // Call blockchain crafting hook
-        const result = await craftItemNFT({
-          wallet: userWallet,
-          recipeId: recipe.recipeId,
-          inputItems,
-          outputItem
-        });
-
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to craft on blockchain');
-        }
-
-        toast.success(`✨ Item crafted on blockchain! TX: ${result.transactionId?.slice(0, 8)}...`, {
-          id: craftingToast,
-          duration: 5000
-        });
-
-        // Show crafted item modal if it has stats
-        if (outputItem.crafted && outputItem.crafted.statRoll) {
-          const quality = getStatRollQuality(outputItem.crafted.statRoll);
-          setCraftedItemModal({
-            item: outputLootItem,
-            statRoll: outputItem.crafted.statRoll,
-            rolledStats: outputItem.equipmentStats,
-            isEmpowered: false
-          });
-        }
-
-        // Reload materials
-        await loadCraftingData();
-
-      } else {
-        // Use regular API crafting (some/all materials not minted)
-        toast.loading('Crafting item...', { id: craftingToast });
-
-        const response = await fetch('/api/crafting/craft', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            recipeId: recipe.recipeId,
-            selectedMaterialIds
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          const outputItem = getLootItemById(recipe.output.lootTableId);
-
-          // Show modal for crafted items with stat rolls
-          if (data.statRoll !== undefined && outputItem) {
-            setCraftedItemModal({
-              item: outputItem,
-              statRoll: data.statRoll,
-              rolledStats: data.rolledStats,
-              isEmpowered: data.isEmpowered
-            });
-            toast.success('Item crafted!', { id: craftingToast });
-          } else {
-            // No stat roll (consumable/material)
-            const empoweredText = data.isEmpowered ? ' ⚡ EMPOWERED (+20%)' : '';
-            toast.success(`Crafted ${recipe.output.quantity}x ${outputItem?.name || 'item'}${empoweredText}!`, {
-              id: craftingToast,
-              icon: data.isEmpowered ? '⚡' : '🔨',
-              duration: data.isEmpowered ? 5000 : 3000
-            });
-          }
-
-          // Reload materials only
-          await loadCraftingData();
-        } else {
-          toast.error(data.error || 'Failed to craft item', { id: craftingToast });
-        }
+      // Require wallet authentication and all materials minted
+      if (!userWallet || !isAuthenticated) {
+        throw new Error('Please connect your wallet to craft items');
       }
+
+      if (!allMinted) {
+        throw new Error('All materials must be minted as tokens before crafting. Please mint your materials first.');
+      }
+
+      // Use blockchain crafting
+      toast.loading('Checking wallet connection...', { id: craftingToast });
+
+      // Get output item data
+      const outputLootItem = getLootItemById(recipe.output.lootTableId);
+      if (!outputLootItem) {
+        throw new Error('Output item not found in loot table');
+      }
+
+      toast.loading('Preparing blockchain transaction...', { id: craftingToast });
+
+      // Get user's public key for borderGradient
+      const { publicKey } = await userWallet.getPublicKey({
+        protocolID: [0, "monsterbattle"],
+        keyID: "0",
+      });
+
+      // Generate borderGradient from public key
+      const borderGradient = publicKeyToGradient(publicKey);
+
+      // Prepare input items for blockchain
+      const inputItems = selectedMaterials.map(material => {
+        const lootItem = getLootItemById(material.lootTableId);
+        return {
+          inventoryItemId: material.inventoryId,
+          nftLootId: material.materialTokenId, // Material tokens use materialTokenId
+          tokenId: material.tokenId!,
+          transactionId: material.transactionId!,
+          name: material.name,
+          rarity: lootItem?.rarity || 'common',
+          type: lootItem?.type || 'material',
+          itemType: 'material' as const,
+          lootTableId: material.lootTableId,
+          currentQuantity: material.quantity,
+          quantityNeeded: recipe.requiredMaterials.find(r => r.lootTableId === material.lootTableId)?.quantity || 1,
+          description: lootItem?.description,
+          icon: lootItem?.icon,
+          tier: material.tier
+        };
+      });
+
+      // Prepare output item data
+      const outputItem = {
+        inventoryItemId: '', // Will be created by API
+        lootTableId: recipe.output.lootTableId,
+        name: outputLootItem.name,
+        description: outputLootItem.description,
+        icon: outputLootItem.icon,
+        rarity: outputLootItem.rarity,
+        type: outputLootItem.type as 'weapon' | 'armor' | 'consumable' | 'artifact' | 'material',
+        tier: recipe.output.tier || 1,
+        equipmentStats: outputLootItem.equipmentStats ? { ...outputLootItem.equipmentStats } as Record<string, number> : undefined,
+        crafted: outputLootItem.equipmentStats ? {
+          statRoll: 0.8 + Math.random() * 0.4, // Generate stat roll (0.8-1.2)
+          craftedBy: publicKey
+        } : undefined,
+        borderGradient
+      };
+
+      // Call blockchain crafting hook
+      const result = await craftItemNFT({
+        wallet: userWallet,
+        recipeId: recipe.recipeId,
+        inputItems,
+        outputItem
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to craft on blockchain');
+      }
+
+      toast.success(`✨ Item crafted on blockchain! TX: ${result.transactionId?.slice(0, 8)}...`, {
+        id: craftingToast,
+        duration: 5000
+      });
+
+      // Show crafted item modal if it has stats
+      if (outputItem.crafted && outputItem.crafted.statRoll) {
+        const quality = getStatRollQuality(outputItem.crafted.statRoll);
+        setCraftedItemModal({
+          item: outputLootItem,
+          statRoll: outputItem.crafted.statRoll,
+          rolledStats: outputItem.equipmentStats,
+          isEmpowered: false
+        });
+      }
+
+      // Reload materials
+      await loadCraftingData();
     } catch (error) {
       console.error('Error crafting item:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to craft item', { id: craftingToast });

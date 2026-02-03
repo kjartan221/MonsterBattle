@@ -547,26 +547,69 @@ export async function POST(request: NextRequest) {
     const nftResult = await nftLootCollection.insertOne(nftLootDoc);
     const nftLootId = nftResult.insertedId.toString();
 
-    // Update UserInventory with NFT reference and outpoints for crafted item
-    await userInventoryCollection.updateOne(
-      { _id: new ObjectId(outputItem.inventoryItemId) },
-      {
-        $set: {
-          nftLootId: nftResult.insertedId,
-          mintOutpoint: craftedItemOutpoint, // Proof of original server mint
-          tokenId: userCraftedTokenId,        // Current location after transfer
-          updatedAt: new Date(),
+    // Calculate rolled stats if this is equipment
+    let rolledStats: Record<string, number> | undefined = undefined;
+    if (outputItem.crafted && outputItem.crafted.statRoll && outputItem.equipmentStats) {
+      const statRoll = outputItem.crafted.statRoll;
+      rolledStats = {};
+
+      for (const [stat, value] of Object.entries(outputItem.equipmentStats)) {
+        if (typeof value === 'number') {
+          // Preserve decimals for autoClickRate, round others
+          if (stat === 'autoClickRate') {
+            rolledStats[stat] = Math.round(value * statRoll * 100) / 100;
+          } else {
+            rolledStats[stat] = Math.round(value * statRoll);
+          }
         }
       }
-    );
+    }
 
-    // Create/update MaterialToken documents for change tokens
+    // Create UserInventory document for crafted item (minted=true since blockchain-only)
+    const inventoryDoc: any = {
+      userId,
+      lootTableId: outputItem.lootTableId,
+      itemType: outputItem.type,
+      tier: outputItem.tier || 1,
+      borderGradient: outputItem.borderGradient,
+      nftLootId: nftResult.insertedId,
+      mintOutpoint: craftedItemOutpoint,
+      tokenId: userCraftedTokenId,
+      acquiredAt: new Date(),
+      crafted: true,
+      statRoll: outputItem.crafted?.statRoll,
+      rolledStats: rolledStats,
+      updatedAt: new Date(),
+    };
+
+    const inventoryResult = await userInventoryCollection.insertOne(inventoryDoc);
+
+    console.log(`✅ [DATABASE] Created crafted item in inventory with minted=true (statRoll: ${outputItem.crafted?.statRoll})`);
+
+    // Handle material token updates/deletions
     const materialChangeTokens: Array<{
       lootTableId: string;
       tokenId: string;
       quantity: number;
     }> = [];
 
+    // First, collect all lootTableIds that have change
+    const lootTableIdsWithChange = new Set(changeOutpoints.map(c => c.lootTableId));
+
+    // Delete fully consumed material tokens (no change)
+    const fullyConsumedMaterials = transferredMaterials.filter(
+      m => !lootTableIdsWithChange.has(m.lootTableId)
+    );
+
+    for (const material of fullyConsumedMaterials) {
+      await materialTokensCollection.deleteOne({
+        userId,
+        lootTableId: material.lootTableId,
+      });
+      console.log(`🗑️ [DATABASE] Deleted fully consumed material token: ${material.lootTableId}`);
+    }
+
+    // Update material tokens with change
     for (let i = 0; i < changeOutpoints.length; i++) {
       const change = changeOutpoints[i];
       const changeTokenId = `${transferTxId}.${i + 1}`;  // Output indices: 0=crafted item, 1+=changes
@@ -604,17 +647,8 @@ export async function POST(request: NextRequest) {
           },
         }
       );
-    }
 
-    // Delete consumed input items (provenance is on-chain and in Overlay system)
-    if (inputItems && Array.isArray(inputItems)) {
-      for (const input of inputItems) {
-        if (input.inventoryItemId) {
-          await userInventoryCollection.deleteOne(
-            { _id: new ObjectId(input.inventoryItemId), userId }
-          );
-        }
-      }
+      console.log(`🔄 [DATABASE] Updated material token with change: ${change.lootTableId} (${originalMaterial.quantity} → ${change.amount})`);
     }
 
     console.log('✅ [DATABASE] Updated all database documents');

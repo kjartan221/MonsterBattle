@@ -143,9 +143,42 @@ export async function POST(request: NextRequest) {
       paymentOutpoint,
     });
 
+    // 5. Check for existing tokens FIRST (before minting)
+    // If any material already exists, reject and tell frontend to use add-and-merge
+    for (const material of materials) {
+      const existingToken = await materialTokensCollection.findOne({
+        userId,
+        lootTableId: material.lootTableId,
+        tier: material.tier || 1,
+        consumed: { $ne: true },
+      });
+
+      if (existingToken) {
+        console.log(`❌ [MINT-MATERIAL] Token already exists for ${material.itemName}:`, {
+          lootTableId: material.lootTableId,
+          tier: material.tier || 1,
+          existingTokenId: existingToken.tokenId,
+          existingQuantity: existingToken.quantity,
+        });
+
+        return NextResponse.json(
+          {
+            error: `Material token already exists`,
+            details: `You already have a ${material.itemName} token. The system will now use the add-and-merge route to properly merge quantities on-chain.`,
+            existingTokenId: existingToken.tokenId,
+            existingQuantity: existingToken.quantity,
+            lootTableId: material.lootTableId,
+            tier: material.tier || 1,
+            shouldUseAddAndMerge: true, // Flag for frontend to switch routes
+          },
+          { status: 409 } // 409 Conflict
+        );
+      }
+    }
+
     const results = [];
 
-    // 5. Process each material
+    // 6. Process each material (only runs if no existing tokens found)
     for (const material of materials) {
       const {
         lootTableId,
@@ -422,67 +455,25 @@ export async function POST(request: NextRequest) {
         broadcastResponse: transferBroadcast
       });
 
-      // STEP 3: Create or update MaterialToken document with mint proof
-      // Check if material token already exists for this user+lootTableId+tier
-      const existingToken = await materialTokensCollection.findOne({
+      // STEP 3: Create MaterialToken document
+      // At this point, we've already checked that no existing token exists
+      const materialTokenDoc = {
         userId: userId,
         lootTableId: lootTableId,
-        tier: tier || 1,
-        consumed: { $ne: true },
-      });
+        itemName: itemName,
+        tier: tier || 1,                // IMPORTANT: Store tier at top level for querying
+        tokenId: userTokenId,           // Full outpoint: ${transferTxId}.0
+        quantity: quantity,
+        metadata: materialMetadata,
+        mintOutpoint: mintOutpoint,     // Full outpoint: ${mintTxId}.0
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      let materialResult;
+      const materialResult = await materialTokensCollection.insertOne(materialTokenDoc);
 
-      if (existingToken) {
-        // Update existing token - merge quantities
-        const newQuantity = existingToken.quantity + quantity;
+      console.log(`✅ [CREATE] Created new material token: ${lootTableId} (${quantity})`);
 
-        materialResult = await materialTokensCollection.updateOne(
-          { _id: existingToken._id },
-          {
-            $set: {
-              tier: tier || 1,                // Ensure tier is always stored at top level
-              tokenId: userTokenId,           // Update to new token ID
-              quantity: newQuantity,          // Merged quantity
-              metadata: materialMetadata,
-              mintOutpoint: mintOutpoint,     // Update mint proof
-              previousTokenId: existingToken.tokenId, // Track previous token
-              lastTransactionId: transferTxId,
-              updatedAt: new Date(),
-            },
-            $push: {
-              updateHistory: {
-                operation: 'add',
-                previousQuantity: existingToken.quantity,
-                newQuantity: newQuantity,
-                transactionId: transferTxId,
-                reason: `Minted additional ${quantity} from inventory`,
-                timestamp: new Date(),
-              },
-            },
-          }
-        );
-
-        console.log(`✅ [UPDATE] Updated existing material token: ${lootTableId} (${existingToken.quantity} + ${quantity} = ${newQuantity})`);
-      } else {
-        // Create new token
-        const materialTokenDoc = {
-          userId: userId,
-          lootTableId: lootTableId,
-          itemName: itemName,
-          tier: tier || 1,                // IMPORTANT: Store tier at top level for querying
-          tokenId: userTokenId,           // Full outpoint: ${transferTxId}.0
-          quantity: quantity,
-          metadata: materialMetadata,
-          mintOutpoint: mintOutpoint,     // Full outpoint: ${mintTxId}.0
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        materialResult = await materialTokensCollection.insertOne(materialTokenDoc);
-
-        console.log(`✅ [CREATE] Created new material token: ${lootTableId} (${quantity})`);
-      }
 
       // STEP 4: Mark UserInventory items as consumed (remove from unminted inventory)
       if (inventoryItemIds && inventoryItemIds.length > 0) {
@@ -501,9 +492,9 @@ export async function POST(request: NextRequest) {
         lootTableId: lootTableId,
         tokenId: userTokenId,        // Full outpoint (includes txid)
         mintOutpoint: mintOutpoint,  // Full outpoint (includes txid)
-        quantity: existingToken ? existingToken.quantity + quantity : quantity,
-        materialTokenId: existingToken ? existingToken._id.toString() : (materialResult as any).insertedId.toString(),
-        updated: !!existingToken,    // Flag to indicate if this was an update
+        quantity: quantity,
+        materialTokenId: materialResult.insertedId.toString(),
+        updated: false,              // Always false (no updates in this route)
       });
     }
 
