@@ -154,6 +154,10 @@ export function useCreateMaterialToken() {
         throw new Error('No materials provided');
       }
 
+      if (materials.length !== 1) {
+        throw new Error('Only one material token can be minted at a time');
+      }
+
       for (const material of materials) {
         if (material.quantity <= 0) {
           throw new Error(`Invalid quantity for ${material.itemName}: ${material.quantity}`);

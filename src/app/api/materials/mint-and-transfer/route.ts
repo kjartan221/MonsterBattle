@@ -62,6 +62,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (materials.length !== 1) {
+      return NextResponse.json(
+        { error: 'Only one material token can be minted per request' },
+        { status: 400 }
+      );
+    }
+
     if (!userPublicKey) {
       return NextResponse.json(
         { error: 'Missing user public key' },
