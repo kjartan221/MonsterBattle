@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getLootItemById } from '@/lib/loot-table';
+import { WalletClient } from '@bsv/sdk';
+import { createWalletPayment } from '@/utils/createWalletPayment';
+import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
 
 interface SellItemModalProps {
+  wallet: WalletClient | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -26,7 +29,8 @@ interface SellableItem {
   suffix?: any;
 }
 
-export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps) {
+export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemModalProps) {
+  const { playerStats } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<SellableItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<SellableItem | null>(null);
@@ -45,10 +49,35 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Backend already filters for minted items, this is a safety check
+        // Filter out equipped items
+        const equippedItems = playerStats?.equippedItems || {};
+        const equippedIds = new Set([
+          equippedItems.weapon,
+          equippedItems.armor,
+          equippedItems.accessory1,
+          equippedItems.accessory2,
+          ...(playerStats?.equippedConsumables || [])
+        ].filter(id => id && id !== 'empty').map(id => String(id)));
+
+        console.log('[SELL-MODAL] Equipped IDs:', Array.from(equippedIds));
+
         const sellable = data.inventory
           .filter((item: any) => {
-            // Material tokens are always sellable (they're on blockchain)
+            const itemId = item.isMaterialToken ? item.materialTokenId : item.inventoryId;
+
+            console.log('[SELL-MODAL] Checking item:', {
+              itemName: item.name,
+              itemId: itemId,
+              isEquipped: equippedIds.has(itemId)
+            });
+
+            // Filter out equipped items
+            if (equippedIds.has(itemId)) {
+              console.log('[SELL-MODAL] Filtering out equipped item:', item.name);
+              return false;
+            }
+
+            // Material tokens are always sellable
             if (item.isMaterialToken) return true;
 
             // Regular items must be minted NFTs
@@ -89,6 +118,11 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
       return;
     }
 
+    if (!wallet) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
     const priceNum = parseInt(price, 10);
     if (isNaN(priceNum) || priceNum <= 0) {
       toast.error('Please enter a valid price');
@@ -96,9 +130,43 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
     }
 
     setListing(true);
-    const loadingToast = toast.loading('Listing item...');
+    const loadingToast = toast.loading('Creating marketplace listing...');
 
     try {
+      const isAuthenticated = await wallet.isAuthenticated();
+      if (!isAuthenticated) {
+        throw new Error('Wallet not authenticated');
+      }
+
+      // Get user's public key
+      const { publicKey: userPublicKey } = await wallet.getPublicKey({
+        protocolID: [0, "monsterbattle"],
+        keyID: "0",
+      });
+
+      // Fetch server identity key
+      const serverPubKeyResponse = await fetch('/api/server-identity-key');
+      if (!serverPubKeyResponse.ok) {
+        throw new Error('Failed to fetch server identity key');
+      }
+      const { publicKey: serverIdentityKey } = await serverPubKeyResponse.json();
+
+      console.log('Creating payment transaction for listing...');
+
+      // Create WalletP2PKH payment with derivation params (100 sats for fees)
+      const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
+        wallet,
+        serverIdentityKey,
+        100,
+        `Payment for listing ${selectedItem.name}`
+      );
+
+      console.log('Payment transaction created:', {
+        txid: paymentTxId,
+        satoshis: 100,
+        walletParams,
+      });
+
       const response = await fetch('/api/marketplace/list-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,6 +174,9 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
           inventoryItemId: selectedItem.isMaterialToken ? undefined : selectedItem.id,
           materialTokenId: selectedItem.isMaterialToken ? selectedItem.id : undefined,
           price: priceNum,
+          userPublicKey,
+          paymentTx,
+          walletParams,
         }),
       });
 
@@ -136,6 +207,23 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
     return colors[rarity as keyof typeof colors] || colors.common;
   };
 
+  const getItemDisplayName = (item: SellableItem) => {
+    // Build name with inscriptions: "Prefix BaseName Suffix"
+    const parts: string[] = [];
+
+    if (item.prefix?.name) {
+      parts.push(item.prefix.name);
+    }
+
+    parts.push(item.name);
+
+    if (item.suffix?.name) {
+      parts.push(item.suffix.name);
+    }
+
+    return parts.join(' ');
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -159,6 +247,9 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
               🏪 List Item for Sale
             </h2>
             <p className="text-gray-400 text-sm">Select a minted NFT or material token to sell</p>
+            {!wallet && (
+              <p className="text-red-400 text-sm mt-2">⚠️ Wallet required to list items</p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -197,7 +288,7 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
 
                 {/* Name */}
                 <p className="text-white text-sm font-semibold text-center truncate">
-                  {item.name}
+                  {getItemDisplayName(item)}
                 </p>
 
                 {/* Tier Badge */}
@@ -225,10 +316,17 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
               <div className="flex items-center gap-4">
                 <div className="text-5xl">{selectedItem.icon}</div>
                 <div className="flex-1">
-                  <p className="text-xl font-bold text-white">{selectedItem.name}</p>
+                  <p className="text-xl font-bold text-white">{getItemDisplayName(selectedItem)}</p>
                   <p className="text-sm text-gray-400 capitalize">{selectedItem.rarity} • Tier {selectedItem.tier}</p>
                   {selectedItem.quantity && selectedItem.quantity > 1 && (
                     <p className="text-sm text-green-400">Quantity: {selectedItem.quantity}</p>
+                  )}
+                  {(selectedItem.prefix || selectedItem.suffix) && (
+                    <p className="text-xs text-blue-400 mt-1">
+                      {selectedItem.prefix && `🔷 ${selectedItem.prefix.name}`}
+                      {selectedItem.prefix && selectedItem.suffix && ' • '}
+                      {selectedItem.suffix && `🔶 ${selectedItem.suffix.name}`}
+                    </p>
                   )}
                 </div>
                 <button
@@ -254,7 +352,7 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
                 className="w-full px-4 py-3 rounded-lg bg-gray-900 border-2 border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-green-500 transition-all"
               />
               <p className="text-sm text-gray-400 mt-2">
-                1 BSV = 100,000,000 satoshis
+                1 BSV = 100,000,000 satoshis • Network fees: 100 sats
               </p>
             </div>
 
@@ -268,10 +366,10 @@ export default function SellItemModal({ onClose, onSuccess }: SellItemModalProps
               </button>
               <button
                 onClick={handleListItem}
-                disabled={listing || !price}
+                disabled={listing || !price || !wallet}
                 className={`
                   flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-all
-                  ${!listing && price
+                  ${!listing && price && wallet
                     ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg cursor-pointer'
                     : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                   }

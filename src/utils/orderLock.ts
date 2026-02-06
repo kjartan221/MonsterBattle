@@ -115,13 +115,6 @@ export default class OrdLock {
 					counterparty: 'self'
 				});
 
-				// Get public key from wallet
-				const { publicKey } = await wallet.getPublicKey({
-					protocolID: [0, "monsterbattle"],
-					keyID: "0",
-					counterparty: 'self'
-				});
-
 				// Convert signature from DER format
 				const rawSignature = Signature.fromDER(signature, 'hex');
 				const sig = new TransactionSignature(
@@ -133,9 +126,6 @@ export default class OrdLock {
 				// Build unlocking script with signature + pubkey + OP_1 (cancel flag)
 				const unlockScript = new UnlockingScript();
 				unlockScript.writeBin(sig.toChecksigFormat());
-				unlockScript.writeBin(
-					PublicKey.fromString(publicKey).encode(true) as number[]
-				);
 				unlockScript.writeOpCode(OP.OP_1);
 
 				return unlockScript;

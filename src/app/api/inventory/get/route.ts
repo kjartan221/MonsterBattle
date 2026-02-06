@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
         sessionId: inventoryItem.fromSessionId?.toString(),
         inventoryId: inventoryItem._id?.toString(),
         nftLootId: inventoryItem.nftLootId?.toString(), // Will be undefined if not minted yet
+        tokenId: inventoryItem.tokenId, // Current token location (from UserInventory)
+        mintOutpoint: inventoryItem.mintOutpoint, // Original mint proof
         borderGradient: inventoryItem.borderGradient, // User-specific gradient colors
         isMinted: !!inventoryItem.nftLootId, // True if NFT has been created
         crafted: inventoryItem.crafted, // True if item was crafted
@@ -110,8 +112,9 @@ export async function GET(request: NextRequest) {
           if (nftLoot) {
             // Extract txid from mintOutpoint (format: "txid.vout")
             item.mintTransactionId = nftLoot.mintOutpoint?.split('.')[0];
-            // Also provide current token location if different
-            item.currentTokenId = nftLoot.tokenId;
+            // Provide current token location (full outpoint format: txid.vout)
+            item.tokenId = nftLoot.tokenId; // Current location on blockchain
+            item.currentTokenId = nftLoot.tokenId; // Backward compatibility
           }
         }
       });

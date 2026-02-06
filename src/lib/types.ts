@@ -425,14 +425,20 @@ export interface MarketplaceItem {
   tier?: number;              // Item tier (1-5)
 
   // NFT-specific data
-  tokenId?: string;           // Blockchain token ID (if NFT)
-  transactionId?: string;     // Blockchain transaction ID
+  tokenId?: string;           // Blockchain token ID (current location - txid.vout)
+  transactionId?: string;     // Blockchain transaction ID (deprecated, use tokenId)
 
   // Material token specific
   quantity?: number;          // Quantity (for material tokens)
 
   // Pricing
   price: number;              // Price in satoshis (BSV)
+
+  // OrdLock data (for on-chain marketplace)
+  ordLockOutpoint?: string;   // Outpoint of orderLock UTXO (txid.vout)
+  ordLockScript?: string;     // Full orderLock script hex (for validation)
+  payAddress?: string;        // Address that receives payment (seller's address)
+  assetId?: string;           // Asset ID used in OrdLock (txid_vout format)
 
   // Status
   status: 'active' | 'sold' | 'cancelled';

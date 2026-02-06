@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
+import { useAuthContext } from '@/contexts/WalletContext';
+import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
 import SellItemModal from './SellItemModal';
+import MarketplaceItemDetailsModal from './MarketplaceItemDetailsModal';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
 
 interface MarketplaceItem {
@@ -22,21 +25,28 @@ interface MarketplaceItem {
   price: number;
   listedAt: Date;
   equipmentStats?: Record<string, number>;
+  crafted?: boolean;
+  statRoll?: number;
+  isEmpowered?: boolean;
   prefix?: any;
   suffix?: any;
 }
 
 export default function MarketplacePage() {
   const router = useRouter();
+  const { userWallet } = useAuthContext();
+  const { playerStats } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [showSellModal, setShowSellModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedRarity, setSelectedRarity] = useState('');
   const [selectedTier, setSelectedTier] = useState('');
+  const [showMyListings, setShowMyListings] = useState(false);
 
   const loadMarketplaceItems = useCallback(async () => {
     // Build query params from filter states
@@ -56,7 +66,16 @@ export default function MarketplacePage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setItems(data.items);
+        let filteredItems = data.items;
+
+        // Apply "My Listings" filter client-side
+        if (showMyListings && playerStats?.userId) {
+          filteredItems = filteredItems.filter(
+            (item: MarketplaceItem) => item.sellerId === playerStats.userId
+          );
+        }
+
+        setItems(filteredItems);
       } else {
         toast.error('Failed to load marketplace items');
       }
@@ -66,7 +85,7 @@ export default function MarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedType, selectedRarity, selectedTier]);
+  }, [searchQuery, selectedType, selectedRarity, selectedTier, showMyListings, playerStats?.userId]);
 
   // Debounced search effect
   useEffect(() => {
@@ -87,6 +106,23 @@ export default function MarketplacePage() {
     return colors[rarity as keyof typeof colors] || colors.common;
   };
 
+  const getItemDisplayName = (item: MarketplaceItem) => {
+    // Build name with inscriptions: "Prefix BaseName Suffix"
+    const parts: string[] = [];
+
+    if (item.prefix?.name) {
+      parts.push(item.prefix.name);
+    }
+
+    parts.push(item.itemName);
+
+    if (item.suffix?.name) {
+      parts.push(item.suffix.name);
+    }
+
+    return parts.join(' ');
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950">
@@ -103,6 +139,9 @@ export default function MarketplacePage() {
         <div className="mb-4">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">🏪 Marketplace</h1>
           <p className="text-gray-400">Buy and sell items with other players</p>
+          {!userWallet && (
+            <p className="text-yellow-400 text-sm mt-2">⚠️ Connect wallet to list or purchase items</p>
+          )}
         </div>
 
         {/* Navigation Bar */}
@@ -116,7 +155,7 @@ export default function MarketplacePage() {
 
         {/* Filters */}
         <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Search Input */}
             <input
               type="text"
@@ -170,6 +209,22 @@ export default function MarketplacePage() {
               <option value="5">Tier 5</option>
             </select>
 
+            {/* My Listings Filter */}
+            <button
+              onClick={() => setShowMyListings(!showMyListings)}
+              className={`
+                px-4 py-2 rounded-lg border transition-colors font-semibold flex items-center justify-center gap-2
+                ${showMyListings
+                  ? 'bg-purple-600 border-purple-500 text-white'
+                  : 'bg-gray-800/90 border-white/20 text-white hover:bg-gray-700/90'
+                }
+              `}
+              title="Show only your listings"
+            >
+              <span className="text-xl">👤</span>
+              <span className="hidden sm:inline">My Listings</span>
+            </button>
+
             {/* Sell Item Button */}
             <button
               onClick={() => setShowSellModal(true)}
@@ -186,9 +241,13 @@ export default function MarketplacePage() {
         {items.length === 0 && (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-12 border border-white/20 text-center">
             <div className="text-6xl mb-4">🏪</div>
-            <h2 className="text-2xl font-bold text-white mb-4">No Items Listed Yet</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">
+              {showMyListings ? 'No Listings Found' : 'No Items Listed Yet'}
+            </h2>
             <p className="text-gray-300 mb-4">
-              Be the first to list an item on the marketplace!
+              {showMyListings
+                ? 'You have no active listings. List an item to get started!'
+                : 'Be the first to list an item on the marketplace!'}
             </p>
             <button
               onClick={() => setShowSellModal(true)}
@@ -205,6 +264,7 @@ export default function MarketplacePage() {
             {items.map((item) => (
               <div
                 key={item._id}
+                onClick={() => setSelectedItem(item)}
                 className={`
                   relative cursor-pointer transition-all
                   bg-gradient-to-br ${getRarityColor(item.rarity)}
@@ -216,7 +276,7 @@ export default function MarketplacePage() {
 
                 {/* Name */}
                 <p className="text-white text-sm font-semibold text-center truncate mb-1">
-                  {item.itemName}
+                  {getItemDisplayName(item)}
                 </p>
 
                 {/* Tier */}
@@ -236,6 +296,13 @@ export default function MarketplacePage() {
                   by {item.sellerUsername}
                 </div>
 
+                {/* My Listing Badge */}
+                {playerStats?.userId && item.sellerId === playerStats.userId && (
+                  <div className="absolute top-1 left-1 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded">
+                    Mine
+                  </div>
+                )}
+
                 {/* Quantity (for materials) */}
                 {item.quantity && item.quantity > 1 && (
                   <div className="absolute top-1 right-1 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">
@@ -251,7 +318,21 @@ export default function MarketplacePage() {
       {/* Sell Item Modal */}
       {showSellModal && (
         <SellItemModal
+          wallet={userWallet}
           onClose={() => setShowSellModal(false)}
+          onSuccess={() => {
+            loadMarketplaceItems();
+          }}
+        />
+      )}
+
+      {/* Item Details Modal */}
+      {selectedItem && playerStats && (
+        <MarketplaceItemDetailsModal
+          item={selectedItem}
+          currentUserId={playerStats.userId}
+          wallet={userWallet}
+          onClose={() => setSelectedItem(null)}
           onSuccess={() => {
             loadMarketplaceItems();
           }}

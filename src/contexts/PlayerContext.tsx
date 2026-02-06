@@ -16,10 +16,12 @@ export interface PlayerStats {
   currentHealth: number;
 
   // Equipment slots
-  equippedWeapon?: string;
-  equippedArmor?: string;
-  equippedAccessory1?: string;
-  equippedAccessory2?: string;
+  equippedItems?: {
+    weapon?: string;
+    armor?: string;
+    accessory1?: string;
+    accessory2?: string;
+  };
   equippedConsumables: string[];
 
   // Battle stats
