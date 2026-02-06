@@ -107,6 +107,13 @@ export default class OrdLock {
 					lockingScript
 				);
 
+				// Get public key from wallet
+				const { publicKey } = await wallet.getPublicKey({
+					protocolID: [0, "monsterbattle"],
+					keyID: "0",
+					counterparty: 'self'
+				});
+
 				// Create signature using BRC-29 pattern
 				const { signature } = await wallet.createSignature({
 					hashToDirectlySign: Hash.hash256(preimage),
@@ -126,6 +133,9 @@ export default class OrdLock {
 				// Build unlocking script with signature + pubkey + OP_1 (cancel flag)
 				const unlockScript = new UnlockingScript();
 				unlockScript.writeBin(sig.toChecksigFormat());
+				unlockScript.writeBin(
+					PublicKey.fromString(publicKey).encode(true) as number[]
+				);
 				unlockScript.writeOpCode(OP.OP_1);
 
 				return unlockScript;

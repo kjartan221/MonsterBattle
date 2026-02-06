@@ -3,11 +3,9 @@ import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { getServerWallet } from '@/lib/serverWallet';
-import OrdLock from '@/utils/orderLock';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { Transaction, Script } from '@bsv/sdk';
-import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
+import { Transaction, PublicKey } from '@bsv/sdk';
+import { getTransactionByTxID } from '@/utils/overlayFunctions';
 
 /**
  * POST /api/marketplace/cancel-listing
@@ -28,17 +26,17 @@ export async function POST(request: NextRequest) {
     const userId = payload.userId as string;
 
     const body = await request.json();
-    const { listingId, userPublicKey, userWallet } = body;
+    const { listingId, returnTokenId } = body;
 
     // Validate required fields
-    if (!listingId || !userPublicKey || !userWallet) {
+    if (!listingId || !returnTokenId) {
       return NextResponse.json(
-        { error: 'Missing required fields: listingId, userPublicKey, userWallet' },
+        { error: 'Missing required fields: listingId, returnTokenId' },
         { status: 400 }
       );
     }
 
-    const { marketplaceItemsCollection, userInventoryCollection, materialTokensCollection } = await connectToMongo();
+    const { marketplaceItemsCollection, userInventoryCollection, materialTokensCollection, nftLootCollection } = await connectToMongo();
 
     // Fetch the listing
     const listing = await marketplaceItemsCollection.findOne({
@@ -69,138 +67,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🚫 [CANCEL-LISTING] Starting cancellation:', {
+    console.log('🚫 [CANCEL-LISTING] Starting cancellation validation:', {
       listingId,
       itemName: listing.itemName,
       ordLockOutpoint: listing.ordLockOutpoint,
     });
 
-    // ===== CREATE CANCEL TRANSACTION =====
-
-    // Fetch the OrdLock transaction for spending
-    const [ordLockTxId, ordLockVout] = listing.ordLockOutpoint.split('.');
-    const ordLockTxData = await getTransactionByTxID(ordLockTxId);
-
-    if (!ordLockTxData || !ordLockTxData.outputs || !ordLockTxData.outputs[parseInt(ordLockVout)] || !ordLockTxData.outputs[parseInt(ordLockVout)].beef) {
-      throw new Error(`Could not find OrdLock transaction: ${ordLockTxId}`);
+    const [cancelTxId, returnVoutStr] = String(returnTokenId).split('.');
+    const returnVout = parseInt(returnVoutStr, 10);
+    if (!cancelTxId || Number.isNaN(returnVout)) {
+      return NextResponse.json(
+        { error: 'Invalid returnTokenId format' },
+        { status: 400 }
+      );
     }
 
-    const ordLockTransaction = Transaction.fromBEEF(ordLockTxData.outputs[parseInt(ordLockVout)].beef!);
-    const ordLockScript = Script.fromHex(listing.ordLockScript);
-
-    console.log('📥 [CANCEL-LISTING] OrdLock transaction:', {
-      txid: ordLockTxId,
-      vout: ordLockVout,
-      ordLockOutpoint: listing.ordLockOutpoint,
-    });
-
-    // Create OrdLock instance and get cancel unlock template
-    const ordLock = new OrdLock();
-    const cancelUnlockTemplate = ordLock.cancelListing(
-      userWallet,
-      'all',
-      false,
-      1, // sourceSatoshis for the 1 sat UTXO
-      ordLockScript
-    );
-    const cancelUnlockingLength = await cancelUnlockTemplate.estimateLength();
-
-    console.log('🔓 [CANCEL-LISTING] Created cancel unlock template:', {
-      unlockingScriptLength: cancelUnlockingLength,
-    });
-
-    // Create return locking script (transfer back to seller)
-    const ordinalP2PKH = new OrdinalsP2PKH();
-    const returnLockingScript = ordinalP2PKH.lock(
-      userPublicKey,
-      listing.assetId,
-      listing, // Item metadata
-      'transfer'
-    );
-
-    console.log('🔒 [CANCEL-LISTING] Created return locking script:', {
-      operation: 'transfer',
-      assetId: listing.assetId,
-      userPublicKey,
-      scriptLength: returnLockingScript.toHex().length,
-    });
-
-    // STEP 1: createAction - Prepare transaction
-    const serverWallet = await getServerWallet();
-    const actionRes = await serverWallet.createAction({
-      description: "Cancelling marketplace listing",
-      inputBEEF: ordLockTxData.outputs[parseInt(ordLockVout)].beef,
-      inputs: [
-        {
-          inputDescription: "OrdLock UTXO to cancel",
-          outpoint: listing.ordLockOutpoint,
-          unlockingScriptLength: cancelUnlockingLength,
-        }
-      ],
-      outputs: [
-        {
-          outputDescription: "Return item to seller",
-          lockingScript: returnLockingScript.toHex(),
-          satoshis: 1,
-        }
-      ],
-      options: {
-        randomizeOutputs: false,
-        acceptDelayedBroadcast: false,
-      }
-    });
-
-    if (!actionRes.signableTransaction) {
-      throw new Error('Failed to create signable transaction');
+    const cancelTxData = await getTransactionByTxID(cancelTxId);
+    if (!cancelTxData?.outputs?.[returnVout]?.beef) {
+      return NextResponse.json(
+        { error: `Could not find cancel transaction: ${cancelTxId}` },
+        { status: 400 }
+      );
     }
 
-    // STEP 2: Sign - Generate unlocking scripts
-    const reference = actionRes.signableTransaction.reference;
-    const txToSign = Transaction.fromBEEF(actionRes.signableTransaction.tx);
+    const cancelTx = Transaction.fromBEEF(cancelTxData.outputs[returnVout].beef);
 
-    // Attach template and source transaction
-    txToSign.inputs[0].unlockingScriptTemplate = cancelUnlockTemplate;
-    txToSign.inputs[0].sourceTransaction = ordLockTransaction;
-
-    // Sign the transaction
-    await txToSign.sign();
-
-    // Extract unlocking script
-    const unlockingScript = txToSign.inputs[0].unlockingScript;
-
-    if (!unlockingScript) {
-      throw new Error('Missing unlocking script after signing');
-    }
-
-    console.log('🔓 [CANCEL-LISTING] Transaction signed, unlocking script generated');
-
-    // STEP 3: signAction - Finalize transaction
-    const action = await serverWallet.signAction({
-      reference,
-      spends: {
-        '0': { unlockingScript: unlockingScript.toHex() }
-      }
+    const spendsOrdLock = cancelTx.inputs.some(i => {
+      const inTxid = i.sourceTXID || i.sourceTransaction?.id('hex');
+      return `${inTxid}.${i.sourceOutputIndex}` === listing.ordLockOutpoint;
     });
 
-    if (!action.tx) {
-      throw new Error('Failed to sign action');
+    if (!spendsOrdLock) {
+      return NextResponse.json(
+        { error: 'Cancel transaction does not spend the listing ordLockOutpoint' },
+        { status: 400 }
+      );
     }
 
-    // Broadcast transaction
-    const tx = Transaction.fromAtomicBEEF(action.tx);
-    const broadcast = await broadcastTX(tx);
-    const txid = broadcast.txid;
-
-    if (!txid) {
-      throw new Error('Failed to get transaction ID from broadcast');
+    const output = cancelTx.outputs[returnVout];
+    if (!output || (output.satoshis || 0) !== 1) {
+      return NextResponse.json(
+        { error: 'Cancel transaction return output must be 1 satoshi' },
+        { status: 400 }
+      );
     }
-
-    const returnTokenId = `${txid}.0`;
-
-    console.log('✅ [CANCEL-LISTING] Cancel transaction broadcast:', {
-      txid,
-      returnTokenId,
-    });
 
     // Update marketplace listing status
     await marketplaceItemsCollection.updateOne(
@@ -209,12 +119,14 @@ export async function POST(request: NextRequest) {
         $set: {
           status: 'cancelled',
           cancelledAt: new Date(),
+          tokenId: returnTokenId,
         }
       }
     );
 
     // Update item tokenId in inventory or material tokens
     if (listing.inventoryItemId) {
+      const inv = await userInventoryCollection.findOne({ _id: new ObjectId(listing.inventoryItemId), userId });
       await userInventoryCollection.updateOne(
         { _id: new ObjectId(listing.inventoryItemId) },
         {
@@ -224,6 +136,18 @@ export async function POST(request: NextRequest) {
           }
         }
       );
+
+      if (inv?.nftLootId) {
+        await nftLootCollection.updateOne(
+          { _id: inv.nftLootId },
+          {
+            $set: {
+              tokenId: returnTokenId,
+              updatedAt: new Date(),
+            }
+          }
+        );
+      }
     } else if (listing.materialTokenId) {
       await materialTokensCollection.updateOne(
         { _id: new ObjectId(listing.materialTokenId) },

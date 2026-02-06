@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { WalletClient } from '@bsv/sdk';
+import { WalletClient, Transaction, Script } from '@bsv/sdk';
 import { createWalletPayment } from '@/utils/createWalletPayment';
 import toast from 'react-hot-toast';
+import OrdLock from '@/utils/orderLock';
+import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 
 interface MarketplaceItemDetailsModalProps {
   item: {
@@ -90,13 +93,155 @@ export default function MarketplaceItemDetailsModal({
         keyID: "0",
       });
 
+      const listingRes = await fetch(`/api/marketplace/listing/${item._id}`);
+      const listingData = await listingRes.json();
+      if (!listingRes.ok) {
+        throw new Error(listingData.error || 'Failed to fetch listing details');
+      }
+
+      const listing = listingData.listing;
+      if (!listing?.ordLockOutpoint || !listing?.ordLockScript || !listing?.assetId) {
+        throw new Error('Listing missing OrdLock data');
+      }
+
+      const [ordLockTxId, ordLockVoutStr] = String(listing.ordLockOutpoint).split('.');
+      const ordLockVout = parseInt(ordLockVoutStr, 10);
+      if (!ordLockTxId || Number.isNaN(ordLockVout)) {
+        throw new Error('Invalid ordLockOutpoint format');
+      }
+
+      const ordLockTxData = await getTransactionByTxID(ordLockTxId);
+      if (!ordLockTxData?.outputs?.[ordLockVout]?.beef) {
+        throw new Error(`Could not find OrdLock transaction: ${ordLockTxId}`);
+      }
+
+      const ordLockBeef = ordLockTxData.outputs[ordLockVout].beef;
+      const ordLockTransaction = Transaction.fromBEEF(ordLockBeef);
+
+      const ordLock = new OrdLock();
+      const ordLockScript = Script.fromHex(listing.ordLockScript);
+      const cancelUnlockTemplate = ordLock.cancelListing(
+        wallet,
+        'all',
+        false,
+        1,
+        ordLockScript
+      );
+      const cancelUnlockingLength = await cancelUnlockTemplate.estimateLength();
+
+      const ordinalP2PKH = new OrdinalsP2PKH();
+
+      const returnItemData: Record<string, any> = listing.materialTokenId
+        ? {
+          materialTokenId: listing.materialTokenId,
+          lootTableId: listing.lootTableId,
+          itemName: listing.itemName,
+          itemIcon: listing.itemIcon,
+          itemType: listing.itemType,
+          rarity: listing.rarity,
+          tier: listing.tier,
+          tokenId: listing.tokenId,
+          transactionId: listing.transactionId,
+          quantity: listing.quantity,
+        }
+        : {
+          inventoryItemId: listing.inventoryItemId,
+          lootTableId: listing.lootTableId,
+          itemName: listing.itemName,
+          itemIcon: listing.itemIcon,
+          itemType: listing.itemType,
+          rarity: listing.rarity,
+          tier: listing.tier,
+          tokenId: listing.tokenId,
+          equipmentStats: listing.equipmentStats,
+          crafted: listing.crafted,
+          statRoll: listing.statRoll,
+          isEmpowered: listing.isEmpowered,
+          prefix: listing.prefix,
+          suffix: listing.suffix,
+        };
+
+      const returnLockingScript = ordinalP2PKH.lock(
+        publicKey,
+        listing.assetId,
+        returnItemData,
+        'transfer'
+      );
+
+      const actionRes = await wallet.createAction({
+        description: 'Cancelling marketplace listing',
+        inputBEEF: ordLockBeef,
+        inputs: [
+          {
+            inputDescription: 'OrdLock UTXO to cancel',
+            outpoint: listing.ordLockOutpoint,
+            unlockingScriptLength: cancelUnlockingLength,
+          }
+        ],
+        outputs: [
+          {
+            outputDescription: 'Return item to seller',
+            lockingScript: returnLockingScript.toHex(),
+            satoshis: 1,
+          }
+        ],
+        options: {
+          randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
+        }
+      });
+
+      if (!actionRes.signableTransaction) {
+        throw new Error('Failed to create signable transaction');
+      }
+
+      const reference = actionRes.signableTransaction.reference;
+      const txToSign = Transaction.fromBEEF(actionRes.signableTransaction.tx);
+      txToSign.inputs[0].unlockingScriptTemplate = cancelUnlockTemplate;
+      txToSign.inputs[0].sourceTransaction = ordLockTransaction;
+      await txToSign.sign();
+
+      const unlockingScript = txToSign.inputs[0].unlockingScript;
+      if (!unlockingScript) {
+        throw new Error('Missing unlocking script after signing');
+      }
+
+      const signed = await wallet.signAction({
+        reference,
+        spends: {
+          '0': { unlockingScript: unlockingScript.toHex() }
+        }
+      });
+
+      if (!signed.tx) {
+        throw new Error('Failed to sign action');
+      }
+
+      const cancelTx = Transaction.fromAtomicBEEF(signed.tx);
+
+      const returnVout = cancelTx.outputs.findIndex(
+        o => (o.satoshis || 0) === 1 && o.lockingScript.toHex() === returnLockingScript.toHex()
+      );
+
+      if (returnVout < 0) {
+        throw new Error('Could not locate return output');
+      }
+
+      const broadcast = await broadcastTX(cancelTx);
+      const cancelTxId = broadcast.txid;
+      if (!cancelTxId) {
+        throw new Error('Failed to get transaction ID from broadcast');
+      }
+
+      const returnTokenId = `${cancelTxId}.${returnVout}`;
+
       const response = await fetch('/api/marketplace/cancel-listing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingId: item._id,
           userPublicKey: publicKey,
-          userWallet: wallet,
+          returnTokenId,
         }),
       });
 

@@ -6,7 +6,7 @@ import { ObjectId } from 'mongodb';
 import { getServerWallet } from '@/lib/serverWallet';
 import OrdLock from '@/utils/orderLock';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { Transaction, Script, P2PKH, Utils } from '@bsv/sdk';
+import { Beef, Transaction, Script, P2PKH, Utils } from '@bsv/sdk';
 import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 import { WalletP2PKH } from '@bsv/wallet-helper';
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const userId = payload.userId as string;
 
     const body = await request.json();
-    const { listingId, buyerPublicKey, paymentTx, walletParams, marketplaceFeeAddress, marketplaceFeeAmount } = body;
+    const { listingId, buyerPublicKey, paymentTx, walletParams, marketplaceFeeAmount } = body;
 
     // Validate required fields
     if (!listingId || !buyerPublicKey || !paymentTx || !walletParams) {
@@ -183,15 +183,25 @@ export async function POST(request: NextRequest) {
       }
     ];
 
+    const mergedBeef = new Beef();
+    mergedBeef.mergeBeef(ordLockTransaction.toBEEF());
+    mergedBeef.mergeBeef(paymentTransaction.toBEEF());
+    const inputBEEF = mergedBeef.toBinary();
+
     // STEP 1: createAction - Prepare transaction
-    const actionRes = await serverWallet.createAction({
+    // OrdLock purchase unlocking script length depends on the final transaction outputs,
+    // so we do a quick two-pass createAction: first with a conservative placeholder,
+    // then compute the exact length from the signable transaction and recreate.
+    const ordLockUnlockingLengthPlaceholder = 400;
+
+    let actionRes = await serverWallet.createAction({
       description: "Purchasing marketplace item",
-      inputBEEF: ordLockTxData.outputs[parseInt(ordLockVout)].beef,
+      inputBEEF,
       inputs: [
         {
           inputDescription: "OrdLock UTXO to purchase",
           outpoint: listing.ordLockOutpoint,
-          unlockingScriptLength: 0, // Will be calculated by purchaseUnlockTemplate
+          unlockingScriptLength: ordLockUnlockingLengthPlaceholder,
         },
         {
           inputDescription: "Buyer payment for item and fees",
@@ -205,6 +215,37 @@ export async function POST(request: NextRequest) {
         acceptDelayedBroadcast: false,
       }
     });
+
+    if (!actionRes.signableTransaction) {
+      throw new Error('Failed to create signable transaction');
+    }
+
+    const txForLength = Transaction.fromBEEF(actionRes.signableTransaction.tx);
+    const ordLockUnlockingLength = await purchaseUnlockTemplate.estimateLength(txForLength, 0);
+
+    if (ordLockUnlockingLength !== ordLockUnlockingLengthPlaceholder) {
+      actionRes = await serverWallet.createAction({
+        description: "Purchasing marketplace item",
+        inputBEEF,
+        inputs: [
+          {
+            inputDescription: "OrdLock UTXO to purchase",
+            outpoint: listing.ordLockOutpoint,
+            unlockingScriptLength: ordLockUnlockingLength,
+          },
+          {
+            inputDescription: "Buyer payment for item and fees",
+            outpoint: paymentOutpoint,
+            unlockingScriptLength: paymentUnlockingLength,
+          }
+        ],
+        outputs,
+        options: {
+          randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
+        }
+      });
+    }
 
     if (!actionRes.signableTransaction) {
       throw new Error('Failed to create signable transaction');

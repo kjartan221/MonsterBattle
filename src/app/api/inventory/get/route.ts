@@ -112,6 +112,13 @@ export async function GET(request: NextRequest) {
           if (nftLoot) {
             // Extract txid from mintOutpoint (format: "txid.vout")
             item.mintTransactionId = nftLoot.mintOutpoint?.split('.')[0];
+
+			// Ensure mintOutpoint is always present for minted items.
+			// Older records may not have had mintOutpoint copied onto UserInventory.
+			if (!item.mintOutpoint && nftLoot.mintOutpoint) {
+				item.mintOutpoint = nftLoot.mintOutpoint;
+			}
+
             // Provide current token location (full outpoint format: txid.vout)
             item.tokenId = nftLoot.tokenId; // Current location on blockchain
             item.currentTokenId = nftLoot.tokenId; // Backward compatibility

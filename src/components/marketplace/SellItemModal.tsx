@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { WalletClient } from '@bsv/sdk';
-import { createWalletPayment } from '@/utils/createWalletPayment';
+import { WalletClient, PublicKey, Transaction } from '@bsv/sdk';
+import OrdLock from '@/utils/orderLock';
+import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
 import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
+import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 
 interface SellItemModalProps {
   wallet: WalletClient | null;
@@ -22,9 +24,14 @@ interface SellableItem {
   tier: number;
   isMinted: boolean;
   tokenId?: string;
+  mintOutpoint?: string;
+  transactionId?: string;
   quantity?: number;
   isMaterialToken: boolean;
   equipmentStats?: Record<string, number>;
+  crafted?: boolean;
+  statRoll?: number;
+  isEmpowered?: boolean;
   prefix?: any;
   suffix?: any;
 }
@@ -93,9 +100,14 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
             tier: item.tier || 1,
             isMinted: item.isMinted,
             tokenId: item.tokenId,
+            mintOutpoint: item.mintOutpoint,
+            transactionId: item.transactionId,
             quantity: item.quantity,
             isMaterialToken: item.isMaterialToken || false,
             equipmentStats: item.equipmentStats,
+            crafted: item.crafted,
+            statRoll: item.statRoll,
+            isEmpowered: item.isEmpowered,
             prefix: item.prefix,
             suffix: item.suffix,
           }));
@@ -144,28 +156,139 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
         keyID: "0",
       });
 
-      // Fetch server identity key
-      const serverPubKeyResponse = await fetch('/api/server-identity-key');
-      if (!serverPubKeyResponse.ok) {
-        throw new Error('Failed to fetch server identity key');
+      if (!selectedItem.tokenId) {
+        throw new Error('Item missing tokenId');
       }
-      const { publicKey: serverIdentityKey } = await serverPubKeyResponse.json();
 
-      console.log('Creating payment transaction for listing...');
+      if (!selectedItem.mintOutpoint) {
+        throw new Error('Item missing mintOutpoint');
+      }
 
-      // Create WalletP2PKH payment with derivation params (100 sats for fees)
-      const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
-        wallet,
-        serverIdentityKey,
-        100,
-        `Payment for listing ${selectedItem.name}`
+      const [tokenTxId, tokenVoutStr] = selectedItem.tokenId.split('.');
+      const tokenVout = parseInt(tokenVoutStr, 10);
+      if (!tokenTxId || Number.isNaN(tokenVout)) {
+        throw new Error('Invalid tokenId format');
+      }
+
+      const tokenTxData = await getTransactionByTxID(tokenTxId);
+      if (!tokenTxData?.outputs?.[tokenVout]?.beef) {
+        throw new Error(`Could not find token transaction: ${tokenTxId}`);
+      }
+
+      const tokenBeef = tokenTxData.outputs[tokenVout].beef;
+      const tokenTransaction = Transaction.fromBEEF(tokenBeef);
+
+      const payAddress = PublicKey.fromString(userPublicKey).toAddress();
+      const cancelAddress = payAddress;
+      const assetId = selectedItem.mintOutpoint.replace('.', '_');
+
+      const itemData: Record<string, any> = selectedItem.isMaterialToken
+        ? {
+          materialTokenId: selectedItem.id,
+          lootTableId: selectedItem.lootTableId,
+          itemName: selectedItem.name,
+          itemIcon: selectedItem.icon,
+          itemType: selectedItem.type,
+          rarity: selectedItem.rarity,
+          tier: selectedItem.tier,
+          tokenId: selectedItem.tokenId,
+          transactionId: selectedItem.transactionId,
+          quantity: selectedItem.quantity,
+        }
+        : {
+          inventoryItemId: selectedItem.id,
+          lootTableId: selectedItem.lootTableId,
+          itemName: selectedItem.name,
+          itemIcon: selectedItem.icon,
+          itemType: selectedItem.type,
+          rarity: selectedItem.rarity,
+          tier: selectedItem.tier,
+          tokenId: selectedItem.tokenId,
+          equipmentStats: selectedItem.equipmentStats,
+          crafted: selectedItem.crafted,
+          statRoll: selectedItem.statRoll,
+          isEmpowered: selectedItem.isEmpowered,
+          prefix: selectedItem.prefix,
+          suffix: selectedItem.suffix,
+        };
+
+      const ordLock = new OrdLock();
+      const ordLockScript = ordLock.lock(
+        cancelAddress,
+        payAddress,
+        priceNum,
+        assetId,
+        itemData
       );
 
-      console.log('Payment transaction created:', {
-        txid: paymentTxId,
-        satoshis: 100,
-        walletParams,
+      const ordinalP2PKH = new OrdinalsP2PKH();
+      const tokenUnlockTemplate = ordinalP2PKH.unlock(wallet, 'single', true);
+      const tokenUnlockingLength = await tokenUnlockTemplate.estimateLength();
+
+      const actionRes = await wallet.createAction({
+        description: 'Creating marketplace listing with OrdLock',
+        inputBEEF: tokenBeef,
+        inputs: [
+          {
+            inputDescription: 'Item to list',
+            outpoint: selectedItem.tokenId,
+            unlockingScriptLength: tokenUnlockingLength,
+          }
+        ],
+        outputs: [
+          {
+            outputDescription: 'OrdLock listing',
+            lockingScript: ordLockScript.toHex(),
+            satoshis: 1,
+          }
+        ],
+        options: {
+          randomizeOutputs: false,
+          acceptDelayedBroadcast: false,
+        }
       });
+
+      if (!actionRes.signableTransaction) {
+        throw new Error('Failed to create signable transaction');
+      }
+
+      const reference = actionRes.signableTransaction.reference;
+      const txToSign = Transaction.fromBEEF(actionRes.signableTransaction.tx);
+      txToSign.inputs[0].unlockingScriptTemplate = tokenUnlockTemplate;
+      txToSign.inputs[0].sourceTransaction = tokenTransaction;
+      await txToSign.sign();
+
+      const tokenUnlockingScript = txToSign.inputs[0].unlockingScript;
+      if (!tokenUnlockingScript) {
+        throw new Error('Missing unlocking script after signing');
+      }
+
+      const action = await wallet.signAction({
+        reference,
+        spends: {
+          '0': { unlockingScript: tokenUnlockingScript.toHex() }
+        }
+      });
+
+      if (!action.tx) {
+        throw new Error('Failed to sign action');
+      }
+
+      const tx = Transaction.fromAtomicBEEF(action.tx);
+      const ordLockVout = tx.outputs.findIndex(
+        o => (o.satoshis || 0) === 1 && o.lockingScript.toHex() === ordLockScript.toHex()
+      );
+      if (ordLockVout < 0) {
+        throw new Error('Could not locate OrdLock output');
+      }
+
+      const broadcast = await broadcastTX(tx);
+      const txid = broadcast.txid;
+      if (!txid) {
+        throw new Error('Failed to get transaction ID from broadcast');
+      }
+
+      const ordLockOutpoint = `${txid}.${ordLockVout}`;
 
       const response = await fetch('/api/marketplace/list-item', {
         method: 'POST',
@@ -175,8 +298,8 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
           materialTokenId: selectedItem.isMaterialToken ? selectedItem.id : undefined,
           price: priceNum,
           userPublicKey,
-          paymentTx,
-          walletParams,
+          ordLockOutpoint,
+          ordLockScript: ordLockScript.toHex(),
         }),
       });
 

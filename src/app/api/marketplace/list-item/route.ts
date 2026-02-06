@@ -4,17 +4,14 @@ import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { getLootItemById, LootItem, EquipmentStats } from '@/lib/loot-table';
-import { getServerWallet } from '@/lib/serverWallet';
 import OrdLock from '@/utils/orderLock';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { Transaction, P2PKH, PublicKey } from '@bsv/sdk';
-import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
-import { WalletP2PKH } from '@bsv/wallet-helper';
+import { Transaction, PublicKey } from '@bsv/sdk';
+import { getTransactionByTxID } from '@/utils/overlayFunctions';
 
 /**
  * POST /api/marketplace/list-item
  * List an item (NFT or material token) for sale on the marketplace
- * Creates an OrdLock transaction that locks the item for sale
+ * Validates client-created OrdLock transaction and persists listing
  */
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +27,7 @@ export async function POST(request: NextRequest) {
     const userId = payload.userId as string;
 
     const body = await request.json();
-    const { inventoryItemId, materialTokenId, price, userPublicKey, paymentTx, walletParams } = body;
+    const { inventoryItemId, materialTokenId, price, userPublicKey, ordLockOutpoint, ordLockScript } = body;
 
     // Validate price
     if (!price || isNaN(price) || price <= 0) {
@@ -46,15 +43,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields for on-chain listing
-    if (!userPublicKey || !paymentTx || !walletParams) {
+    if (!userPublicKey || !ordLockOutpoint || !ordLockScript) {
       return NextResponse.json(
-        { error: 'Missing required fields: userPublicKey, paymentTx, walletParams' },
+        { error: 'Missing required fields: userPublicKey, ordLockOutpoint, ordLockScript' },
         { status: 400 }
       );
     }
 
     const {
       usersCollection,
+      nftLootCollection,
       userInventoryCollection,
       materialTokensCollection,
       marketplaceItemsCollection
@@ -195,6 +193,8 @@ export async function POST(request: NextRequest) {
       const tokenMetadata = token.metadata as { tier?: number } | undefined;
       const tier = tokenMetadata?.tier || 1;
 
+      const derivedTransactionId = token.lastTransactionId || token.tokenId?.split('.')[0];
+
       itemData = {
         materialTokenId: materialTokenId,
         lootTableId: token.lootTableId,
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         rarity: lootItem.rarity,
         tier: tier,
         tokenId: currentTokenId,
-        transactionId: token.transactionId,
+        transactionId: derivedTransactionId,
         quantity: token.quantity,
       };
     }
@@ -217,39 +217,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ===== CREATE ORDLOCK TRANSACTION =====
-
-    const serverWallet = await getServerWallet();
-
-    // Parse payment transaction
-    const paymentTransaction = Transaction.fromBEEF(paymentTx);
-    const paymentTxId = paymentTransaction.id('hex');
-    const paymentOutpoint = `${paymentTxId}.0`;
-
-    console.log('📥 [LIST-ITEM] Payment transaction:', {
-      txid: paymentTxId,
-      paymentOutpoint,
-    });
-
-    // Fetch the current item transaction for spending
-    const [tokenTxId, tokenVout] = currentTokenId.split('.');
-    const tokenTxData = await getTransactionByTxID(tokenTxId);
-
-    if (!tokenTxData || !tokenTxData.outputs || !tokenTxData.outputs[parseInt(tokenVout)] || !tokenTxData.outputs[parseInt(tokenVout)].beef) {
-      throw new Error(`Could not find token transaction: ${tokenTxId}`);
-    }
-
-    const tokenTransaction = Transaction.fromBEEF(tokenTxData.outputs[parseInt(tokenVout)].beef!);
-
-    console.log('📥 [LIST-ITEM] Token transaction:', {
-      tokenId: currentTokenId,
-      txid: tokenTxId,
-      vout: tokenVout,
-    });
-
-    // Create OrdLock locking script
+    // ===== VALIDATE CLIENT-CREATED ORDLOCK TRANSACTION (ON-CHAIN) =====
+    // Recompute the expected OrdLock locking script and verify it matches the
+    // client-provided script and the actual transaction output.
     const ordLock = new OrdLock();
-    const ordLockScript = ordLock.lock(
+    const expectedOrdLockScript = ordLock.lock(
       cancelAddress,  // cancelAddress (seller can cancel)
       payAddress,  // payAddress (seller receives payment)
       parseInt(price, 10),
@@ -257,109 +229,63 @@ export async function POST(request: NextRequest) {
       itemData  // Full item metadata
     );
 
-    console.log('🔒 [LIST-ITEM] Created OrdLock script:', {
+    if (expectedOrdLockScript.toHex() !== ordLockScript) {
+      return NextResponse.json(
+        { error: 'ordLockScript does not match expected script for this item/price/userPublicKey' },
+        { status: 400 }
+      );
+    }
+
+    const [ordLockTxId, ordLockVoutStr] = String(ordLockOutpoint).split('.');
+    const ordLockVout = parseInt(ordLockVoutStr, 10);
+    if (!ordLockTxId || Number.isNaN(ordLockVout)) {
+      return NextResponse.json(
+        { error: 'Invalid ordLockOutpoint format' },
+        { status: 400 }
+      );
+    }
+
+    const listingTxData = await getTransactionByTxID(ordLockTxId);
+    if (!listingTxData?.outputs?.[ordLockVout]?.beef) {
+      return NextResponse.json(
+        { error: `Could not find listing transaction: ${ordLockTxId}` },
+        { status: 400 }
+      );
+    }
+
+    const listingTx = Transaction.fromBEEF(listingTxData.outputs[ordLockVout].beef);
+
+    const hasTokenInput = listingTx.inputs.some(i => {
+      const inTxid = i.sourceTXID || i.sourceTransaction?.id('hex');
+      return `${inTxid}.${i.sourceOutputIndex}` === currentTokenId;
+    });
+
+    if (!hasTokenInput) {
+      return NextResponse.json(
+        { error: 'Listing transaction does not spend the expected tokenId for this user/item' },
+        { status: 400 }
+      );
+    }
+
+    const output = listingTx.outputs[ordLockVout];
+    if (!output || (output.satoshis || 0) !== 1) {
+      return NextResponse.json(
+        { error: 'OrdLock output must be 1 satoshi' },
+        { status: 400 }
+      );
+    }
+
+    if (output.lockingScript.toHex() !== ordLockScript) {
+      return NextResponse.json(
+        { error: 'OrdLock output script does not match ordLockScript' },
+        { status: 400 }
+      );
+    }
+
+    console.log(' [LIST-ITEM] Validated OrdLock script and outpoint:', {
       payAddress,
       price: parseInt(price, 10),
       assetId,
-      scriptLength: ordLockScript.toHex().length,
-    });
-
-    // Create unlocking templates for both inputs
-    const ordinalP2PKH = new OrdinalsP2PKH();
-    const tokenUnlockTemplate = ordinalP2PKH.unlock(serverWallet, "all", false);
-    const tokenUnlockingLength = await tokenUnlockTemplate.estimateLength();
-
-    // Create WalletP2PKH unlocking template
-    const walletp2pkh = new WalletP2PKH(serverWallet);
-    const paymentUnlockTemplate = walletp2pkh.unlock({
-      protocolID: walletParams.protocolID,
-      keyID: walletParams.keyID,
-      counterparty: walletParams.counterparty,
-    });
-    const paymentUnlockingLength = await paymentUnlockTemplate.estimateLength();
-
-    // STEP 1: createAction - Prepare transaction
-    const actionRes = await serverWallet.createAction({
-      description: "Creating marketplace listing with OrdLock",
-      inputBEEF: tokenTxData.outputs[parseInt(tokenVout)].beef,
-      inputs: [
-        {
-          inputDescription: "Item to list",
-          outpoint: currentTokenId,
-          unlockingScriptLength: tokenUnlockingLength,
-        },
-        {
-          inputDescription: "User payment for fees",
-          outpoint: paymentOutpoint,
-          unlockingScriptLength: paymentUnlockingLength,
-        }
-      ],
-      outputs: [
-        {
-          outputDescription: "OrdLock listing",
-          lockingScript: ordLockScript.toHex(),
-          satoshis: 1,
-        }
-      ],
-      options: {
-        randomizeOutputs: false,
-        acceptDelayedBroadcast: false,
-      }
-    });
-
-    if (!actionRes.signableTransaction) {
-      throw new Error('Failed to create signable transaction');
-    }
-
-    // STEP 2: Sign - Generate unlocking scripts
-    const reference = actionRes.signableTransaction.reference;
-    const txToSign = Transaction.fromBEEF(actionRes.signableTransaction.tx);
-
-    // Attach templates and source transactions
-    txToSign.inputs[0].unlockingScriptTemplate = tokenUnlockTemplate;
-    txToSign.inputs[0].sourceTransaction = tokenTransaction;
-    txToSign.inputs[1].unlockingScriptTemplate = paymentUnlockTemplate;
-    txToSign.inputs[1].sourceTransaction = paymentTransaction;
-
-    // Sign the transaction
-    await txToSign.sign();
-
-    // Extract unlocking scripts
-    const tokenUnlockingScript = txToSign.inputs[0].unlockingScript;
-    const paymentUnlockingScript = txToSign.inputs[1].unlockingScript;
-
-    if (!tokenUnlockingScript || !paymentUnlockingScript) {
-      throw new Error('Missing unlocking scripts after signing');
-    }
-
-    console.log('🔓 [LIST-ITEM] Transaction signed, unlocking scripts generated');
-
-    // STEP 3: signAction - Finalize transaction
-    const action = await serverWallet.signAction({
-      reference,
-      spends: {
-        '0': { unlockingScript: tokenUnlockingScript.toHex() },
-        '1': { unlockingScript: paymentUnlockingScript.toHex() }
-      }
-    });
-
-    if (!action.tx) {
-      throw new Error('Failed to sign action');
-    }
-
-    // Broadcast transaction
-    const tx = Transaction.fromAtomicBEEF(action.tx);
-    const broadcast = await broadcastTX(tx);
-    const txid = broadcast.txid;
-
-    if (!txid) {
-      throw new Error('Failed to get transaction ID from broadcast');
-    }
-
-    const ordLockOutpoint = `${txid}.0`;
-
-    console.log('✅ [LIST-ITEM] OrdLock transaction broadcast:', {
-      txid,
       ordLockOutpoint,
     });
 
@@ -368,9 +294,10 @@ export async function POST(request: NextRequest) {
       sellerId: userId,
       sellerUsername: user.username,
       ...itemData,
+      tokenId: ordLockOutpoint,
       price: parseInt(price, 10),
       ordLockOutpoint: ordLockOutpoint,
-      ordLockScript: ordLockScript.toHex(),
+      ordLockScript: ordLockScript,
       payAddress: payAddress,
       assetId: assetId,
       status: 'active' as const,
@@ -378,6 +305,42 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await marketplaceItemsCollection.insertOne(marketplaceItem);
+
+    if (inventoryItemId) {
+      const item = await userInventoryCollection.findOne({ _id: new ObjectId(inventoryItemId), userId });
+      await userInventoryCollection.updateOne(
+        { _id: new ObjectId(inventoryItemId), userId },
+        {
+          $set: {
+            tokenId: ordLockOutpoint,
+            updatedAt: new Date(),
+          }
+        }
+      );
+
+      if (item?.nftLootId) {
+        await nftLootCollection.updateOne(
+          { _id: item.nftLootId },
+          {
+            $set: {
+              tokenId: ordLockOutpoint,
+              updatedAt: new Date(),
+            }
+          }
+        );
+      }
+    } else if (materialTokenId) {
+      await materialTokensCollection.updateOne(
+        { _id: new ObjectId(materialTokenId), userId },
+        {
+          $set: {
+            previousTokenId: currentTokenId,
+            tokenId: ordLockOutpoint,
+            updatedAt: new Date(),
+          }
+        }
+      );
+    }
 
     console.log('[MARKETPLACE LIST] Item listed with OrdLock:', {
       listingId: result.insertedId,
