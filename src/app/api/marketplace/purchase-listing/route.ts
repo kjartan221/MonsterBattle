@@ -6,7 +6,7 @@ import { ObjectId } from 'mongodb';
 import { getServerWallet } from '@/lib/serverWallet';
 import OrdLock from '@/utils/orderLock';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { Beef, Transaction, Script, P2PKH, Utils } from '@bsv/sdk';
+import { Beef, Transaction, Script, P2PKH } from '@bsv/sdk';
 import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 import { WalletP2PKH } from '@bsv/wallet-helper';
 
@@ -32,7 +32,12 @@ export async function POST(request: NextRequest) {
     const userId = payload.userId as string;
 
     const body = await request.json();
-    const { listingId, buyerPublicKey, paymentTx, walletParams, marketplaceFeeAmount } = body;
+    const {
+      listingId,
+      buyerPublicKey,
+      paymentTx,
+      walletParams,
+    } = body;
 
     // Validate required fields
     if (!listingId || !buyerPublicKey || !paymentTx || !walletParams) {
@@ -154,13 +159,12 @@ export async function POST(request: NextRequest) {
     });
     const paymentUnlockingLength = await paymentUnlockTemplate.estimateLength();
 
-    // Calculate total payment needed
-    const totalPayment = listing.price + (marketplaceFeeAmount || 0);
-
     // Validate payment is sufficient
-    if (!paymentTransaction.outputs[0] || (paymentTransaction.outputs[0].satoshis || 0) < totalPayment) {
+    const feeBufferSatoshis = 100;
+    const requiredPayment = listing.price + feeBufferSatoshis;
+    if (!paymentTransaction.outputs[0] || (paymentTransaction.outputs[0].satoshis || 0) < requiredPayment) {
       return NextResponse.json(
-        { error: `Insufficient payment. Required: ${totalPayment} sats` },
+        { error: `Invalid payment amount. Required: ${requiredPayment} sats (price ${listing.price} + ${feeBufferSatoshis} sats fees)` },
         { status: 400 }
       );
     }
@@ -171,17 +175,17 @@ export async function POST(request: NextRequest) {
       lockingScript: string;
       satoshis: number;
     }> = [
-      {
-        outputDescription: "Transfer item to buyer",
-        lockingScript: transferLockingScript.toHex(),
-        satoshis: 1,
-      },
-      {
-        outputDescription: "Payment to seller",
-        lockingScript: sellerPaymentScript.toHex(),
-        satoshis: listing.price,
-      }
-    ];
+        {
+          outputDescription: "Transfer item to buyer",
+          lockingScript: transferLockingScript.toHex(),
+          satoshis: 1,
+        },
+        {
+          outputDescription: "Payment to seller",
+          lockingScript: sellerPaymentScript.toHex(),
+          satoshis: listing.price,
+        }
+      ];
 
     const mergedBeef = new Beef();
     mergedBeef.mergeBeef(ordLockTransaction.toBEEF());
@@ -193,7 +197,6 @@ export async function POST(request: NextRequest) {
     // so we do a quick two-pass createAction: first with a conservative placeholder,
     // then compute the exact length from the signable transaction and recreate.
     const ordLockUnlockingLengthPlaceholder = 400;
-
     let actionRes = await serverWallet.createAction({
       description: "Purchasing marketplace item",
       inputBEEF,
@@ -222,30 +225,29 @@ export async function POST(request: NextRequest) {
 
     const txForLength = Transaction.fromBEEF(actionRes.signableTransaction.tx);
     const ordLockUnlockingLength = await purchaseUnlockTemplate.estimateLength(txForLength, 0);
+    const ordLockUnlockingLengthWithBuffer = ordLockUnlockingLength + 68;
 
-    if (ordLockUnlockingLength !== ordLockUnlockingLengthPlaceholder) {
-      actionRes = await serverWallet.createAction({
-        description: "Purchasing marketplace item",
-        inputBEEF,
-        inputs: [
-          {
-            inputDescription: "OrdLock UTXO to purchase",
-            outpoint: listing.ordLockOutpoint,
-            unlockingScriptLength: ordLockUnlockingLength,
-          },
-          {
-            inputDescription: "Buyer payment for item and fees",
-            outpoint: paymentOutpoint,
-            unlockingScriptLength: paymentUnlockingLength,
-          }
-        ],
-        outputs,
-        options: {
-          randomizeOutputs: false,
-          acceptDelayedBroadcast: false,
+    actionRes = await serverWallet.createAction({
+      description: "Purchasing marketplace item",
+      inputBEEF,
+      inputs: [
+        {
+          inputDescription: "OrdLock UTXO to purchase",
+          outpoint: listing.ordLockOutpoint,
+          unlockingScriptLength: ordLockUnlockingLengthWithBuffer,
+        },
+        {
+          inputDescription: "Buyer payment for item and fees",
+          outpoint: paymentOutpoint,
+          unlockingScriptLength: paymentUnlockingLength,
         }
-      });
-    }
+      ],
+      outputs,
+      options: {
+        randomizeOutputs: false,
+        acceptDelayedBroadcast: false,
+      }
+    });
 
     if (!actionRes.signableTransaction) {
       throw new Error('Failed to create signable transaction');

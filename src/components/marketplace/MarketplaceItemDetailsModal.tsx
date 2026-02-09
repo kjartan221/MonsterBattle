@@ -317,9 +317,6 @@ export default function MarketplaceItemDetailsModal({
           buyerPublicKey,
           paymentTx,
           walletParams,
-          // Optional marketplace fee (disabled for now)
-          // marketplaceFeeAddress: "...",
-          // marketplaceFeeAmount: 50,
         }),
       });
 
