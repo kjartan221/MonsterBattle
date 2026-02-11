@@ -8,15 +8,17 @@ interface BiomeMapWidgetProps {
   unlockedZones: string[]; // Array of "biome-tier" keys like ["forest-1", "desert-1"]
   onSelectBiomeTier: (biome: BiomeId, tier: Tier) => void;
   disabled?: boolean; // Disable during active battle
+  defaultExpanded?: boolean;
 }
 
 export default function BiomeMapWidget({
   unlockedZones,
   onSelectBiomeTier,
-  disabled = false
+  disabled = false,
+  defaultExpanded = false
 }: BiomeMapWidgetProps) {
   const { selectedBiome, selectedTier } = useBiome();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const isBiomeTierUnlocked = (biome: BiomeId, tier: Tier): boolean => {
     const key = formatBiomeTierKey(biome, tier);
@@ -58,12 +60,12 @@ export default function BiomeMapWidget({
   };
 
   return (
-    <div className="fixed top-4 left-2 sm:left-4 z-50 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
+    <div className="relative md:fixed md:top-4 md:left-2 md:sm:left-4 z-50 w-full max-w-none md:w-[320px] md:max-w-[320px]">
       {/* Collapsed View - Show current biome */}
       {!isExpanded && selectedBiome && selectedTier && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="bg-gray-900/95 border-2 border-gray-700 rounded-lg px-5 py-4 shadow-xl hover:border-blue-500 transition-colors cursor-pointer w-full sm:w-[320px]"
+          className="bg-gray-900/95 border-2 border-gray-700 rounded-lg px-5 py-4 shadow-xl hover:border-blue-500 transition-colors cursor-pointer w-full md:w-[320px]"
         >
           <div className="flex items-center gap-3 justify-between">
             <div className="flex items-center gap-3">
@@ -84,7 +86,7 @@ export default function BiomeMapWidget({
 
       {/* Expanded View - Show all biomes and tiers */}
       {isExpanded && (
-        <div className="bg-gray-900/98 border-2 border-gray-700 rounded-lg shadow-2xl overflow-hidden w-full sm:w-[320px]">
+        <div className="bg-gray-900/98 border-2 border-gray-700 rounded-lg shadow-2xl overflow-hidden w-full md:w-[320px]">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 px-5 py-4 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -100,7 +102,7 @@ export default function BiomeMapWidget({
           </div>
 
           {/* Biome List */}
-          <div className="max-h-[calc(100vh-16rem)] sm:max-h-[500px] overflow-y-auto p-4 space-y-4">
+          <div className="max-h-[calc(100vh-16rem)] md:max-h-[500px] overflow-y-auto p-4 space-y-4">
             {Object.values(BIOMES).map((biome) => {
               // Skip biomes that aren't implemented yet (maxTier = 0)
               if (biome.maxTier === 0) return null;

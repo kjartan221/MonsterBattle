@@ -10,6 +10,7 @@ interface NavigationButtonsProps {
   showCrafting?: boolean;
   showBattle?: boolean;
   showLogout?: boolean;
+  containerClassName?: string;
 }
 
 export default function NavigationButtons({
@@ -19,6 +20,7 @@ export default function NavigationButtons({
   showCrafting = false,
   showBattle = false,
   showLogout = false,
+  containerClassName,
 }: NavigationButtonsProps) {
   const router = useRouter();
 
@@ -34,11 +36,11 @@ export default function NavigationButtons({
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={containerClassName || 'flex flex-wrap gap-2'}>
       {showMarketplace && (
         <button
           onClick={() => router.push('/marketplace')}
-          className="px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           🏪 <span className="hidden sm:inline">Marketplace</span>
         </button>
@@ -47,7 +49,7 @@ export default function NavigationButtons({
       {showInventory && (
         <button
           onClick={() => router.push('/inventory')}
-          className="px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           📦 <span className="hidden sm:inline">Inventory</span>
         </button>
@@ -56,7 +58,7 @@ export default function NavigationButtons({
       {showBlacksmith && (
         <button
           onClick={() => router.push('/blacksmith')}
-          className="px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           🔨 <span className="hidden sm:inline">Blacksmith</span>
         </button>
@@ -65,7 +67,7 @@ export default function NavigationButtons({
       {showCrafting && (
         <button
           onClick={() => router.push('/crafting')}
-          className="px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           ⚒️ <span className="hidden sm:inline">Crafting</span>
         </button>
@@ -74,7 +76,7 @@ export default function NavigationButtons({
       {showBattle && (
         <button
           onClick={() => router.push('/battle')}
-          className="px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           ⚔️ <span className="hidden sm:inline">Battle</span>
         </button>
@@ -83,7 +85,7 @@ export default function NavigationButtons({
       {showLogout && (
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-gradient-to-br from-red-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-red-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
         >
           🚪 <span className="hidden sm:inline">Logout</span>
         </button>

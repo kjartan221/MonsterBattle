@@ -45,7 +45,7 @@ export default function CorruptionOverlay({
 
       {/* Top edge spikes */}
       <svg
-        className="absolute top-0 left-0 right-0 pointer-events-none z-10 rounded-t-lg"
+        className="absolute top-0 left-0 right-0 pointer-events-none z-10 rounded-t-[inherit]"
         style={{ height: `${horizontal}px` }}
         viewBox="0 0 300 12"
         preserveAspectRatio="none"
@@ -66,7 +66,7 @@ export default function CorruptionOverlay({
 
       {/* Bottom edge spikes */}
       <svg
-        className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 rounded-b-lg"
+        className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 rounded-b-[inherit]"
         style={{ height: `${horizontal}px` }}
         viewBox="0 0 300 12"
         preserveAspectRatio="none"
@@ -87,7 +87,7 @@ export default function CorruptionOverlay({
 
       {/* Left edge spikes */}
       <svg
-        className="absolute top-0 bottom-0 left-0 pointer-events-none z-10 rounded-l-lg"
+        className="absolute top-0 bottom-0 left-0 pointer-events-none z-10 rounded-l-[inherit]"
         style={{ width: `${vertical}px` }}
         viewBox="0 0 12 300"
         preserveAspectRatio="none"
@@ -108,7 +108,7 @@ export default function CorruptionOverlay({
 
       {/* Right edge spikes */}
       <svg
-        className="absolute top-0 bottom-0 right-0 pointer-events-none z-10 rounded-r-lg"
+        className="absolute top-0 bottom-0 right-0 pointer-events-none z-10 rounded-r-[inherit]"
         style={{ width: `${vertical}px` }}
         viewBox="0 0 12 300"
         preserveAspectRatio="none"
@@ -129,16 +129,16 @@ export default function CorruptionOverlay({
 
       {/* Optional "CORRUPTED" label */}
       {showLabel && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
-          <div className="bg-purple-900/90 text-purple-200 px-3 py-1 rounded-md border-2 border-purple-500 shadow-lg flex items-center gap-1.5">
-            <span className="text-sm font-bold tracking-wider">⚡ CORRUPTED</span>
+        <div className="absolute top-1 sm:top-2 left-1/2 -translate-x-1/2 z-30">
+          <div className="bg-purple-900/90 text-purple-200 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md border-2 border-purple-500 shadow-lg flex items-center gap-1.5">
+            <span className="text-xs sm:text-sm font-bold tracking-wider">⚡ CORRUPTED</span>
           </div>
         </div>
       )}
 
       {/* Purple glow effect */}
       <div
-        className="absolute inset-0 pointer-events-none animate-pulse rounded-lg z-5"
+        className="absolute inset-0 pointer-events-none animate-pulse rounded-[inherit] z-5"
         style={{
           boxShadow: 'inset 0 0 30px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.2)',
         }}
@@ -151,7 +151,7 @@ export default function CorruptionOverlay({
   if (children) {
     return (
       <div className={`relative rounded-lg ${className}`}>
-        <div className="overflow-hidden rounded-lg">
+        <div className="overflow-hidden rounded-[inherit]">
           {overlayElements}
           {children}
         </div>
@@ -161,7 +161,7 @@ export default function CorruptionOverlay({
 
   // Standalone mode - just render overlay elements
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
       {overlayElements}
     </div>
   );

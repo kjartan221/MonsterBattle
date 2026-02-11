@@ -87,7 +87,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
 
   if (isLoading) {
     return (
-      <div className="fixed top-[560px] sm:top-[600px] left-2 sm:left-4 z-40 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
+      <div className="relative md:fixed md:top-[600px] md:left-2 md:sm:left-4 z-40 w-full max-w-none md:w-[320px] md:max-w-[320px]">
         <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 border border-white/20">
           <div className="text-white text-sm text-center">Loading equipment...</div>
         </div>
@@ -96,7 +96,7 @@ export default function EquipmentWidget({ onSlotClick, disabled = false }: Equip
   }
 
   return (
-    <div className="fixed top-[560px] sm:top-[600px] left-2 sm:left-4 z-40 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
+    <div className="relative md:fixed md:top-[600px] md:left-2 md:sm:left-4 z-40 w-full max-w-none md:w-[320px] md:max-w-[320px]">
       <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 border border-white/20">
         {/* Header */}
         <div className="flex items-center gap-2 mb-3">

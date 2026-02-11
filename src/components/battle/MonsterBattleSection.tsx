@@ -1436,8 +1436,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Loot selection modal
   if (gameState.canShowLootModal() && gameState.lootOptions) {
     return (
-      <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
+      <div className="flex flex-col items-center gap-4 sm:gap-6 max-w-2xl w-full">
+        <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2 sm:mb-4">Monster Battle</h1>
         <LootSelectionModal
           lootOptions={gameState.lootOptions}
           tier={gameState.session?.tier || 1}
@@ -1503,12 +1503,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         );
       })()}
 
-      <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-4">Monster Battle</h1>
+      <div className="flex flex-col items-center gap-4 sm:gap-6 max-w-2xl w-full">
+        <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2 sm:mb-4">Monster Battle</h1>
 
       {/* Monster Info */}
       <div className="text-center mb-2">
-        <h2 className="text-3xl font-bold text-white mb-1">{gameState.monster.name}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">{gameState.monster.name}</h2>
         <div className="flex items-center justify-center gap-2">
           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
             gameState.monster.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white' :
@@ -1579,7 +1579,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         {/* Monster Battle Arena - Center piece, always visible */}
         <div className="flex-shrink-0">
           {gameState.monster.isCorrupted ? (
-            <CorruptionOverlay showLabel={true} size="large">
+            <CorruptionOverlay showLabel={true} size="large" className="rounded-2xl overflow-hidden w-fit">
               <MonsterBattleArena
                 monster={gameState.monster}
                 isAttacking={isAttacking}
@@ -1686,16 +1686,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         isInvulnerable={isInvulnerable}
       />
 
-      {/* Click Counter */}
-      <div className="px-8 py-3 bg-black/30 rounded-lg border border-white/20">
-        <p className="text-white text-lg">
-          Damage: <span className="font-bold text-yellow-400">{totalDamage}</span> / {gameState.monster.clicksRequired}
-        </p>
-      </div>
-
       {/* Victory: Calculating rewards */}
       {isDefeated && gameState.gameState === 'BATTLE_COMPLETING' && (
-        <div className="mt-4 p-6 bg-green-500/20 rounded-lg border-2 border-green-400 animate-pulse">
+        <div className="hidden sm:block mt-4 p-6 bg-green-500/20 rounded-lg border-2 border-green-400 animate-pulse">
           <p className="text-green-400 text-xl font-bold text-center">
             🎉 Victory! Monster Defeated! 🎉
           </p>
@@ -1707,7 +1700,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       {/* Victory: Rest phase */}
       {isDefeated && gameState.gameState === 'BATTLE_VICTORY' && (
-        <div className="mt-3 sm:mt-4 p-4 sm:p-6 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg border border-green-400 sm:border-2">
+        <div className="hidden sm:block mt-3 sm:mt-4 p-4 sm:p-6 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg border border-green-400 sm:border-2">
           <p className="text-green-400 text-base sm:text-xl font-bold text-center mb-1.5 sm:mb-2">
             🎉 Victory Complete! 🎉
           </p>
@@ -1735,7 +1728,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       {gameState.canShowNextMonsterButton() && (
         <button
           onClick={() => handleNextMonster()}
-          className="fixed right-4 top-1/2 -translate-y-1/2 md:right-8 flex flex-col items-center gap-1 sm:gap-2 px-4 py-4 sm:px-6 sm:py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-2 sm:border-4 border-green-400 cursor-pointer z-40"
+          className="fixed right-2 top-1/2 -translate-y-1/2 md:right-8 flex flex-col items-center gap-1 sm:gap-2 px-4 py-3 sm:px-6 sm:py-8 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl transition-all duration-300 hover:scale-110 animate-pulse border-2 sm:border-4 border-green-400 cursor-pointer z-40"
         >
           <span className="text-sm sm:text-lg">Next</span>
           <span className="text-sm sm:text-lg">Monster</span>

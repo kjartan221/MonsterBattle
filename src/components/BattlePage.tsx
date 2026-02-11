@@ -5,7 +5,7 @@ import { usePlayer } from '@/contexts/PlayerContext';
 import { EquipmentSlot, useEquipment } from '@/contexts/EquipmentContext';
 import { useGameState } from '@/contexts/GameStateContext';
 import { useBiome } from '@/contexts/BiomeContext';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
 import { usePlayerBuffs } from '@/hooks/usePlayerBuffs';
 import { BuffSource } from '@/types/buffs';
@@ -58,6 +58,7 @@ export default function BattlePage() {
   const [showMonsterManual, setShowMonsterManual] = useState(false);
   const [showGuidebook, setShowGuidebook] = useState(false);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [showMobileQuickActions, setShowMobileQuickActions] = useState(false);
   const [selectedLootItem, setSelectedLootItem] = useState<LootItem | null>(null);
 
   // Buff system (managed at page level, passed to child components)
@@ -99,6 +100,14 @@ export default function BattlePage() {
 
   // Ref to MonsterBattleSection's shield removal handler
   const removeMonsterShieldHandlerRef = useRef<(() => boolean) | null>(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const handleEquipmentSlotClick = (slot: EquipmentSlot) => {
     setEquipmentModal({ show: true, slot });
@@ -337,22 +346,43 @@ export default function BattlePage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative">
-      {/* Player Stats - Top Left (Always visible on desktop, top on mobile) */}
-      <PlayerStatsDisplay activeDebuffs={activeDebuffs} activeBuffs={activeBuffs} />
+    <div className="relative flex h-[100dvh] flex-col items-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 dark:from-purple-950 dark:via-blue-950 dark:to-indigo-950 p-2 sm:p-4 overflow-hidden">
+      <div className="w-full flex flex-col gap-2">
+        <div className="w-full flex items-start justify-between gap-2">
+          <div className="flex flex-col items-start gap-2 flex-1">
+            {/* Player Stats - Top Left (md+), stacked on mobile */}
+            <PlayerStatsDisplay
+              activeDebuffs={activeDebuffs}
+              activeBuffs={activeBuffs}
+            />
+
+            <div className="md:hidden w-full flex justify-start -mt-1">
+              <button
+                type="button"
+                className="w-7 h-7 rounded-md bg-black/40 border border-white/10 text-white text-sm flex items-center justify-center cursor-pointer"
+                onClick={() => setShowMobileQuickActions((v) => !v)}
+                title={showMobileQuickActions ? 'Hide Actions' : 'Show Actions'}
+              >
+                {showMobileQuickActions ? '▶' : '▼'}
+              </button>
+            </div>
+
+            {showMobileQuickActions && (
+              <div className="md:hidden w-full mt-1">
+                <QuickActionsBar
+                  onMonsterManualClick={handleOpenMonsterManual}
+                  onGuidebookClick={handleOpenGuidebook}
+                  onChallengeClick={handleOpenChallengeModal}
+                  disabled={false}
+                />
+              </div>
+            )}
 
       {/* Biome Map Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
         <>
-          {/* Backdrop overlay for mobile */}
-          {showBiomeMap && (
-            <div
-              className="md:hidden fixed inset-0 bg-black/60 z-40"
-              onClick={() => setShowBiomeMap(false)}
-            />
-          )}
-          {/* Widget container */}
-          <div className={`hidden md:block ${showBiomeMap ? '!block !fixed !inset-4 !z-50 md:!static md:!z-auto' : ''}`}>
+          {/* Desktop widget */}
+          <div className="hidden md:block">
             <BiomeMapWidget
               unlockedZones={playerStats.unlockedZones}
               onSelectBiomeTier={(biome, tier) => {
@@ -362,21 +392,37 @@ export default function BattlePage() {
               disabled={gameState.canAttackMonster()}
             />
           </div>
+
+          {/* Mobile modal */}
+          {showBiomeMap && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-4 pb-4 px-4"
+              onClick={() => setShowBiomeMap(false)}
+            >
+              <div
+                className="w-full max-w-[380px] max-h-[85vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <BiomeMapWidget
+                  unlockedZones={playerStats.unlockedZones}
+                  onSelectBiomeTier={(biome, tier) => {
+                    setBiomeTier(biome, tier);
+                    setShowBiomeMap(false); // Auto-close on selection
+                  }}
+                  disabled={gameState.canAttackMonster()}
+                  defaultExpanded
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Equipment Widget - Hidden on mobile, show on tablet+, full-screen modal when toggled */}
       {playerStats && (
         <>
-          {/* Backdrop overlay for mobile */}
-          {showEquipment && (
-            <div
-              className="md:hidden fixed inset-0 bg-black/60 z-40"
-              onClick={() => setShowEquipment(false)}
-            />
-          )}
-          {/* Widget container */}
-          <div className={`hidden md:block ${showEquipment ? '!block !fixed !inset-4 !z-50 md:!static md:!z-auto' : ''}`}>
+          {/* Desktop widget */}
+          <div className="hidden md:block">
             <EquipmentWidget
               onSlotClick={(slot) => {
                 handleEquipmentSlotClick(slot);
@@ -385,45 +431,79 @@ export default function BattlePage() {
               disabled={false}
             />
           </div>
+
+          {/* Mobile modal */}
+          {showEquipment && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-4 pb-4 px-4"
+              onClick={() => setShowEquipment(false)}
+            >
+              <div
+                className="w-full max-w-[380px] max-h-[85vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <EquipmentWidget
+                  onSlotClick={(slot) => {
+                    handleEquipmentSlotClick(slot);
+                    setShowEquipment(false); // Auto-close on selection
+                  }}
+                  disabled={false}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {/* Quick Actions Bar - Below BiomeMapWidget */}
-      <QuickActionsBar
-        onMonsterManualClick={handleOpenMonsterManual}
-        onGuidebookClick={handleOpenGuidebook}
-        onChallengeClick={handleOpenChallengeModal}
-        disabled={false}
-      />
+            <div className="hidden md:block">
+              <QuickActionsBar
+                onMonsterManualClick={handleOpenMonsterManual}
+                onGuidebookClick={handleOpenGuidebook}
+                onChallengeClick={handleOpenChallengeModal}
+                disabled={false}
+              />
+            </div>
+          </div>
 
-      {/* Mobile Toggle Buttons - Left Middle (only visible on mobile) */}
-      <div className="md:hidden fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
-        <button
-          onClick={() => setShowBiomeMap(!showBiomeMap)}
-          className={`w-14 h-14 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-2xl ${
-            showBiomeMap
-              ? 'bg-blue-600 hover:bg-blue-700'
-              : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
-          }`}
-          title="Toggle World Map"
-        >
-          🗺️
-        </button>
-        <button
-          onClick={() => setShowEquipment(!showEquipment)}
-          className={`w-14 h-14 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-2xl ${
-            showEquipment
-              ? 'bg-purple-600 hover:bg-purple-700'
-              : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
-          }`}
-          title="Toggle Equipment"
-        >
-          ⚔️
-        </button>
+          {/* Navigation Buttons - stacked on mobile */}
+          <div className="md:hidden flex-shrink-0">
+            <NavigationButtons
+              showMarketplace
+              showInventory
+              showLogout
+              containerClassName="flex flex-col gap-2 items-end"
+            />
+
+            <div className="mt-2 flex flex-col gap-2 items-end">
+              <button
+                onClick={() => setShowBiomeMap(!showBiomeMap)}
+                className={`w-12 h-12 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-xl ${
+                  showBiomeMap
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
+                }`}
+                title="Toggle World Map"
+              >
+                🗺️
+              </button>
+              <button
+                onClick={() => setShowEquipment(!showEquipment)}
+                className={`w-12 h-12 rounded-full shadow-xl transition-all cursor-pointer flex items-center justify-center text-xl ${
+                  showEquipment
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-gray-800 hover:bg-gray-700 border-2 border-gray-600'
+                }`}
+                title="Toggle Equipment"
+              >
+                ⚔️
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Navigation Buttons - Top Right (responsive sizing) */}
-      <div className="absolute top-4 right-4 flex gap-2">
+      {/* Navigation Buttons - Top Right (md+ only) */}
+      <div className="hidden md:flex absolute top-4 right-4 gap-2">
         <NavigationButtons
           showMarketplace
           showInventory
@@ -432,17 +512,19 @@ export default function BattlePage() {
       </div>
 
       {/* Monster Battle Section - Center */}
-      <MonsterBattleSection
-        applyDebuff={applyDebuff}
-        clearDebuffs={clearDebuffs}
-        spellDamageHandler={spellDamageHandlerRef}
-        activeBuffs={activeBuffs}
-        activeDebuffs={activeDebuffs}
-        damageShield={damageShield}
-        healingReportHandler={healingReportHandlerRef}
-        buffReportHandler={buffReportHandlerRef}
-        removeMonsterShieldHandler={removeMonsterShieldHandlerRef}
-      />
+      <div className="flex-1 w-full flex items-center justify-center pb-44 sm:pb-32 md:pb-0">
+        <MonsterBattleSection
+          applyDebuff={applyDebuff}
+          clearDebuffs={clearDebuffs}
+          spellDamageHandler={spellDamageHandlerRef}
+          activeBuffs={activeBuffs}
+          activeDebuffs={activeDebuffs}
+          damageShield={damageShield}
+          healingReportHandler={healingReportHandlerRef}
+          buffReportHandler={buffReportHandlerRef}
+          removeMonsterShieldHandler={removeMonsterShieldHandlerRef}
+        />
+      </div>
 
       {/* Hotbar - Bottom Center (isolated from MonsterBattleSection re-renders) */}
       <Hotbar

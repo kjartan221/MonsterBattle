@@ -16,7 +16,10 @@ interface PlayerStatsDisplayProps {
   activeBuffs?: Buff[];
 }
 
-export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [] }: PlayerStatsDisplayProps) {
+export default function PlayerStatsDisplay({
+  activeDebuffs = [],
+  activeBuffs = [],
+}: PlayerStatsDisplayProps) {
   const { playerStats, getCurrentStreak } = usePlayer();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const { selectedBiome, selectedTier } = useBiome();
@@ -105,8 +108,8 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
   const xpProgress = xpForNextLevel > 0 ? (experience / xpForNextLevel) * 100 : 0;
 
   return (
-    <div className="absolute top-16 sm:top-[195px] left-2 sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-3 sm:p-5 border border-white/20 w-[calc(100vw-1rem)] sm:w-[320px] max-w-[320px]">
-      <div className="text-white text-sm sm:text-base mb-2 sm:mb-3 flex justify-between items-center">
+    <div className="relative md:absolute md:top-[195px] md:left-2 md:sm:left-4 bg-black/30 backdrop-blur-sm rounded-lg p-2 sm:p-5 border border-white/20 w-full max-w-[320px] md:w-[320px]">
+      <div className="text-white text-sm sm:text-base mb-1.5 sm:mb-3 flex justify-between items-center">
         <div>
           <span className="font-bold text-base sm:text-lg">Level {level}</span>
           <span className="ml-2 sm:ml-3 text-gray-300 text-sm sm:text-base">{coins} 💰</span>
@@ -117,7 +120,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
       </div>
 
       {/* HP Bar */}
-      <div className="mb-1 sm:mb-1.5">
+      <div className="mb-1">
         <div className="flex justify-between text-white text-xs sm:text-sm mb-1">
           <span>HP</span>
           <span className="font-bold">
@@ -164,7 +167,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
       </div>
 
       {/* XP Bar */}
-      <div className="mb-1.5 sm:mb-2">
+      <div className="mb-1.5">
         <div className="flex justify-between text-white text-[10px] sm:text-xs mb-1">
           <span>XP</span>
           <span className="font-bold">
@@ -296,6 +299,7 @@ export default function PlayerStatsDisplay({ activeDebuffs = [], activeBuffs = [
           </div>
         )}
       </div>
+
     </div>
   );
 }
