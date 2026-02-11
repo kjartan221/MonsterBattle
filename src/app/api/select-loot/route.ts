@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, userInventoryCollection, monstersCollection } = await connectToMongo();
+    const { battleSessionsCollection, battleHistoryCollection, userInventoryCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -96,6 +96,22 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      await battleHistoryCollection.updateOne(
+        { sessionId: sessionObjectId },
+        {
+          $setOnInsert: {
+            userId,
+            sessionId: sessionObjectId,
+            monsterTemplateName: session.monsterTemplateName,
+            createdAt: session.completedAt ? new Date(session.completedAt) : new Date()
+          },
+          $set: {
+            selectedLootId: 'SKIPPED'
+          }
+        },
+        { upsert: true }
+      );
+
       console.log(`⏭️ User ${userId} skipped loot selection for session ${sessionId}`);
 
       return NextResponse.json({
@@ -132,11 +148,25 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    await battleHistoryCollection.updateOne(
+      { sessionId: sessionObjectId },
+      {
+        $setOnInsert: {
+          userId,
+          sessionId: sessionObjectId,
+          monsterTemplateName: session.monsterTemplateName,
+          createdAt: session.completedAt ? new Date(session.completedAt) : new Date()
+        },
+        $set: {
+          selectedLootId: lootId
+        }
+      },
+      { upsert: true }
+    );
+
     console.log(`✅ User ${userId} selected loot: ${lootId} from session ${sessionId}`);
 
-    // Check if monster was corrupted (for empowered items)
-    const monster = await monstersCollection.findOne({ _id: session.monsterId });
-    const isEmpowered = monster?.isCorrupted === true;
+    const isEmpowered = session.monster?.isCorrupted === true;
 
     // Generate unique gradient colors from user's public key (userId)
     // The userId IS the public key in BSV
@@ -157,7 +187,6 @@ export async function POST(request: NextRequest) {
       tier: itemTier, // Spell scrolls always Tier 1, everything else scales with zone tier
       borderGradient: { color1, color2 }, // Store gradient here
       acquiredAt: new Date(),
-      fromMonsterId: session.monsterId,
       fromSessionId: sessionObjectId,
       isEmpowered, // Mark item as empowered if dropped by corrupted monster (+20% stats)
     });

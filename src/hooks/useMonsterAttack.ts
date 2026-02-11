@@ -87,23 +87,16 @@ export function useMonsterAttack({
     // Calculate attack interval based on attack speed bonuses
     const interval = calculateMonsterAttackInterval(1000, equipmentStats.attackSpeed);
 
-    console.log(`⚔️ Monster attack: ${totalDamage} damage every ${interval}ms (base: ${monster.attackDamage}, defense: ${effectiveDefense}${defenseReduction > 0 ? ` (${equipmentStats.defense}-${defenseReduction})` : ''}, summons: +${additionalDamage})`);
-
     // Monster attacks player at calculated interval
     const attackInterval = setInterval(async () => {
-      console.log(`[useMonsterAttack] Interval tick - dealing ${totalDamage} damage`);
-
       // Visual feedback: show attack animation
       setIsAttacking(true);
 
       // Calculate what the player's HP will be after damage
       const hpAfterDamage = Math.max(0, playerStats.currentHealth - totalDamage);
-      console.log(`[useMonsterAttack] HP calculation: ${playerStats.currentHealth} - ${totalDamage} = ${hpAfterDamage}`);
 
       // Deal total damage to player (monster + summons)
-      console.log(`[useMonsterAttack] Calling takeDamage with ${totalDamage}`);
       await takeDamage(totalDamage);
-      console.log(`[useMonsterAttack] takeDamage completed`);
 
       // Apply defensive lifesteal healing (% of damage taken)
       // IMPORTANT: Only heal if player HP > 0 AFTER damage (don't revive dead players)
@@ -115,10 +108,6 @@ export function useMonsterAttack({
         if (onDefensiveLifesteal) {
           onDefensiveLifesteal(healAmount);
         }
-
-        console.log(`💚 [DEFENSIVE LIFESTEAL] Healed ${healAmount} HP | Stat: ${equipmentStats.defensiveLifesteal}% | Damage Taken: ${totalDamage} | Calculation: ceil(${totalDamage} × ${equipmentStats.defensiveLifesteal}%)`);
-      } else if (equipmentStats.defensiveLifesteal > 0 && hpAfterDamage <= 0) {
-        console.log(`💀 [DEFENSIVE LIFESTEAL] Skipped healing - player is defeated (HP after damage: ${hpAfterDamage})`);
       }
 
       // Apply thorns damage (% of pre-mitigation damage reflected back to monster)
@@ -127,15 +116,11 @@ export function useMonsterAttack({
         const preMitigationDamage = monster.attackDamage + additionalDamage;
         const thornsDamage = Math.ceil(preMitigationDamage * (equipmentStats.thorns / 100));
         onThornsDamage(thornsDamage);
-        console.log(`🔱 [THORNS] Reflected ${thornsDamage} damage to monster | Stat: ${equipmentStats.thorns}% | Pre-Mitigation Damage: ${preMitigationDamage} (Base: ${monster.attackDamage} + Summons: ${additionalDamage}) | Calculation: ceil(${preMitigationDamage} × ${equipmentStats.thorns}%)`);
       }
 
       // Check for skillshot trigger on monster attack
       if (onSkillShotTrigger) {
-        console.log('⚔️ [useMonsterAttack] Monster attacked, calling onSkillShotTrigger()');
         onSkillShotTrigger();
-      } else {
-        console.log('⚔️ [useMonsterAttack] Monster attacked, but onSkillShotTrigger is not defined');
       }
 
       // Report summon damage separately for cheat detection (not reduced by armor)
@@ -146,9 +131,6 @@ export function useMonsterAttack({
       // Apply DoT effect if monster has one
       if (monster.dotEffect && applyDebuff) {
         const applied = applyDebuff(monster.dotEffect, monster._id);
-        if (applied) {
-          console.log(`🦠 Monster applied ${monster.dotEffect.type} debuff!`);
-        }
       }
 
       // Reset attack animation after 300ms

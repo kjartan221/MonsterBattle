@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    const { battleSessionsCollection } = await connectToMongo();
+    const { battleSessionsCollection, battleHistoryCollection } = await connectToMongo();
 
     // Convert sessionId to ObjectId
     let sessionObjectId: ObjectId;
@@ -63,15 +63,38 @@ export async function POST(request: NextRequest) {
 
     // Mark session as defeated (player died, no loot awarded)
     const now = new Date();
+
+    const expiresAt = session.expiresAt
+      ? new Date(session.expiresAt)
+      : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
     await battleSessionsCollection.updateOne(
       { _id: sessionObjectId },
       {
         $set: {
           isDefeated: true,
           completedAt: now,
+          expiresAt,
           // No lootOptions or selectedLootId - player gets nothing
         }
       }
+    );
+
+    await battleHistoryCollection.updateOne(
+      { sessionId: sessionObjectId },
+      {
+        $setOnInsert: {
+          userId,
+          sessionId: sessionObjectId,
+          monsterTemplateName: session.monsterTemplateName,
+          createdAt: session.startedAt ? new Date(session.startedAt) : now
+        },
+        $set: {
+          completedAt: now,
+          selectedLootId: 'DEFEATED'
+        }
+      },
+      { upsert: true }
     );
 
     console.log(`Player ${userId} was defeated in session ${sessionId}`);

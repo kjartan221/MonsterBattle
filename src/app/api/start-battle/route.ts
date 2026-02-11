@@ -8,7 +8,6 @@ import { generateMonsterBuffs } from '@/utils/monsterBuffs';
 import { getCorruptionRateForStreak } from '@/utils/playerProgression';
 import { getStreakForZone } from '@/utils/streakHelpers';
 import { MonsterBuffType } from '@/lib/types';
-import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,30 +31,50 @@ export async function POST(request: NextRequest) {
     let requestedTier = body.tier as Tier | undefined;
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, monstersCollection, playerStatsCollection } = await connectToMongo();
+    const { battleSessionsCollection, playerStatsCollection } = await connectToMongo();
 
-    // Check if user already has an active battle session
-    const activeSession = await battleSessionsCollection.findOne({
-      userId,
-      isDefeated: false,
-      completedAt: { $exists: false }
-    });
+    // Check if user already has an active battle session (in-progress OR pending loot selection)
+    const activeSession = await battleSessionsCollection.findOne(
+      {
+        userId,
+        selectedLootId: { $exists: false },
+        $or: [
+          {
+            isDefeated: false,
+            completedAt: { $exists: false }
+          },
+          {
+            isDefeated: true,
+            completedAt: { $exists: true },
+            lootOptions: { $exists: true }
+          }
+        ]
+      },
+      {
+        sort: { startedAt: -1 }
+      }
+    );
 
     if (activeSession) {
-      // Return existing active session with monster details
-      const monster = await monstersCollection.findOne({
-        _id: activeSession.monsterId
-      });
+      if (!activeSession.expiresAt) {
+        const baseTime = activeSession.completedAt ? new Date(activeSession.completedAt).getTime() : new Date(activeSession.startedAt).getTime();
+        const expiresAt = new Date(baseTime + 24 * 60 * 60 * 1000);
+        await battleSessionsCollection.updateOne(
+          { _id: activeSession._id },
+          { $set: { expiresAt } }
+        );
+        (activeSession as any).expiresAt = expiresAt;
+      }
 
       return NextResponse.json({
         session: {
           ...activeSession,
           _id: activeSession._id?.toString(),
-          monsterId: activeSession.monsterId.toString()
+          expiresAt: activeSession.expiresAt
         },
-        monster: monster ? {
-          ...monster,
-          _id: monster._id?.toString()
+        monster: activeSession.monster ? {
+          ...activeSession.monster,
+          _id: activeSession._id?.toString()
         } : null,
         isNewSession: false
       });
@@ -152,22 +171,13 @@ export async function POST(request: NextRequest) {
     // Get current streak for this zone
     const currentStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, biome, tier);
 
-    console.log(`🎯 [STREAK DEBUG - START BATTLE] Biome: ${biome}, Tier: ${tier}, Current Streak: ${currentStreak}`);
-    console.log(`🎯 [STREAK DEBUG - START BATTLE] battlesWonStreaks:`, JSON.stringify(playerStats.stats.battlesWonStreaks));
-
     // Calculate corruption rate based on streak (higher streak = more corrupted spawns)
     const corruptionRate = getCorruptionRateForStreak(currentStreak);
     const isCorrupted = Math.random() < corruptionRate;
 
-    console.log(`🎯 [STREAK DEBUG - START BATTLE] Corruption Rate: ${(corruptionRate * 100).toFixed(1)}% (streak ${currentStreak}), isCorrupted: ${isCorrupted}`);
-
     // Apply corruption multipliers if corrupted
     let finalClicksRequired = isCorrupted ? Math.round(clicksRequired * 1.5) : clicksRequired; // +50% HP
     let finalAttackDamage = isCorrupted ? Math.round(attackDamage * 1.25) : attackDamage; // +25% damage
-
-    if (isCorrupted) {
-      console.log(`🎯 [STREAK DEBUG - START BATTLE] Corrupted multipliers applied: HP ${clicksRequired} → ${finalClicksRequired} (+50%), DMG ${attackDamage} → ${finalAttackDamage} (+25%)`);
-    }
 
     // Apply Challenge Mode multipliers (Phase 3.3)
     // (challengeConfig already loaded above for buff exclusion)
@@ -331,6 +341,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newMonster = {
+      templateName: monsterTemplate.name,
       name: monsterTemplate.name,
       imageUrl: monsterTemplate.imageUrl,
       clicksRequired: finalClicksRequired,
@@ -348,19 +359,19 @@ export async function POST(request: NextRequest) {
       createdAt: new Date()
     };
 
-    const monsterResult = await monstersCollection.insertOne(newMonster);
-    const monsterId = monsterResult.insertedId;
-
     // Create new battle session with biome/tier tracking
+    const now = new Date();
     const newSession = {
       userId,
-      monsterId,
       biome,
       tier,
+      monsterTemplateName: monsterTemplate.name,
+      monster: newMonster,
       clickCount: 0,
       isDefeated: false,
-      usedItems: [], // Initialize empty array for tracking used items
-      startedAt: new Date()
+      usedItems: {},
+      startedAt: now,
+      expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000)
     };
 
     const sessionResult = await battleSessionsCollection.insertOne(newSession);
@@ -371,11 +382,11 @@ export async function POST(request: NextRequest) {
       session: {
         ...newSession,
         _id: sessionResult.insertedId.toString(),
-        monsterId: monsterId.toString()
+        expiresAt: newSession.expiresAt
       },
       monster: {
         ...newMonster,
-        _id: monsterId.toString()
+        _id: sessionResult.insertedId.toString()
       },
       isNewSession: true
     });

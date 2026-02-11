@@ -206,20 +206,51 @@ export interface PlayerStats {
   lastBattleAt?: Date;
 }
 
+export interface BattleMonsterSnapshot {
+  templateName: string;
+  name: string;
+  imageUrl: string; // URL or path to monster PNG
+  clicksRequired: number; // Number of clicks needed to defeat (scaled by tier)
+  attackDamage: number; // Damage per second dealt to player (scaled by tier)
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  biome: BiomeId; // Which biome this monster belongs to
+  tier: Tier; // Which tier this monster instance is at
+  moveInterval: number; // Time in milliseconds between position changes (700-3000ms)
+  isBoss?: boolean; // True for boss monsters (enables phase system)
+  isCorrupted?: boolean; // True for corrupted monsters (+50% HP, +25% damage, drops empowered items)
+  dotEffect?: DebuffEffect; // Optional DoT effect on attack
+  buffs?: MonsterBuff[]; // Monster buffs (Shield, Fast, etc.)
+  specialAttacks?: SpecialAttack[]; // Boss special attacks (fireball, etc.)
+  bossPhases?: BossPhase[]; // Boss phase system (for multi-phase bosses)
+  createdAt: Date;
+}
+
 // Battle Session document
 export interface BattleSession {
   _id?: ObjectId;
   userId: string; // Reference to User.userId
-  monsterId: ObjectId; // Reference to Monster._id
   biome: BiomeId; // Which biome this battle is in
   tier: Tier; // Which tier this battle is at
+  monsterTemplateName: string;
+  monster: BattleMonsterSnapshot;
   clickCount: number;
   isDefeated: boolean;
   lootOptions?: string[]; // Array of lootIds from loot-table (the 5 options shown)
   selectedLootId?: string; // The lootId the user chose, or 'SKIPPED' if user skipped loot selection
-  usedItems: Array<{ lootTableId: string; usedAt: Date }>; // Track items used during battle (for HP verification)
+  usedItems: Record<string, number>; // Track items used during battle (for HP verification)
   startedAt: Date; // When session was created (monster spawned)
   actualBattleStartedAt?: Date; // When user clicked "Start Battle" button (for HP verification)
+  completedAt?: Date;
+  expiresAt: Date;
+}
+
+export interface BattleHistory {
+  _id?: ObjectId;
+  userId: string;
+  sessionId: ObjectId;
+  monsterTemplateName: string;
+  selectedLootId?: string;
+  createdAt: Date;
   completedAt?: Date;
 }
 
@@ -362,17 +393,19 @@ export interface MonsterFrontend {
 export interface BattleSessionFrontend {
   _id?: string;
   userId: string;
-  monsterId: string;
   biome: BiomeId;
   tier: Tier;
+  monsterTemplateName?: string;
+  monster?: MonsterFrontend;
   clickCount: number;
   isDefeated: boolean;
   lootOptions?: string[];
   selectedLootId?: string;
-  usedItems?: Array<{ lootTableId: string; usedAt: Date | string }>; // Track items used during battle
+  usedItems?: Record<string, number>; // Track items used during battle
   startedAt: Date | string;
   actualBattleStartedAt?: Date | string; // When user clicked "Start Battle" button
   completedAt?: Date | string;
+  expiresAt?: Date | string;
 }
 
 // Material Token document (for tracking blockchain material tokens with quantities)

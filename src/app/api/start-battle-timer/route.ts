@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the actualBattleStartedAt timestamp
+    const actualBattleStartedAt = new Date();
     await battleSessionsCollection.updateOne(
       { _id: sessionObjectId },
-      { $set: { actualBattleStartedAt: new Date() } }
+      { $set: { actualBattleStartedAt } }
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, actualBattleStartedAt });
   } catch (error) {
     console.error('Error starting battle timer:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

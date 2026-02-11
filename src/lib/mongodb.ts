@@ -1,5 +1,5 @@
 import { MongoClient, ServerApiVersion, Db, Collection, Document } from 'mongodb';
-import type { User, Monster, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken, MarketplaceItem } from './types';
+import type { User, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken, MarketplaceItem, BattleHistory } from './types';
 
 // Extract database name from URI
 function getDatabaseNameFromUri(connectionUri: string): string {
@@ -51,10 +51,10 @@ let clientPromise: Promise<MongoClient>;
 // Collection names
 export const COLLECTIONS = {
   USERS: 'users',
-  MONSTERS: 'monsters',
   NFT_LOOT: 'nft_loot',
   USER_INVENTORY: 'user_inventory',
   BATTLE_SESSIONS: 'battle_sessions',
+  BATTLE_HISTORY: 'battle_history',
   PLAYER_STATS: 'player_stats',
   MATERIAL_TOKENS: 'material_tokens',
   MARKETPLACE_ITEMS: 'marketplace_items',
@@ -63,10 +63,10 @@ export const COLLECTIONS = {
 // Database and collections cache
 let db: Db | null = null;
 let usersCollection: Collection<User> | null = null;
-let monstersCollection: Collection<Monster> | null = null;
 let nftLootCollection: Collection<NFTLoot> | null = null;
 let userInventoryCollection: Collection<UserInventory> | null = null;
 let battleSessionsCollection: Collection<BattleSession> | null = null;
+let battleHistoryCollection: Collection<BattleHistory> | null = null;
 let playerStatsCollection: Collection<PlayerStats> | null = null;
 let materialTokensCollection: Collection<MaterialToken> | null = null;
 let marketplaceItemsCollection: Collection<MarketplaceItem> | null = null;
@@ -85,10 +85,10 @@ async function connectToMongo() {
     return {
       db: db!,
       usersCollection: usersCollection!,
-      monstersCollection: monstersCollection!,
       nftLootCollection: nftLootCollection!,
       userInventoryCollection: userInventoryCollection!,
       battleSessionsCollection: battleSessionsCollection!,
+      battleHistoryCollection: battleHistoryCollection!,
       playerStatsCollection: playerStatsCollection!,
       materialTokensCollection: materialTokensCollection!,
       marketplaceItemsCollection: marketplaceItemsCollection!
@@ -101,10 +101,10 @@ async function connectToMongo() {
     return {
       db: db!,
       usersCollection: usersCollection!,
-      monstersCollection: monstersCollection!,
       nftLootCollection: nftLootCollection!,
       userInventoryCollection: userInventoryCollection!,
       battleSessionsCollection: battleSessionsCollection!,
+      battleHistoryCollection: battleHistoryCollection!,
       playerStatsCollection: playerStatsCollection!,
       materialTokensCollection: materialTokensCollection!,
       marketplaceItemsCollection: marketplaceItemsCollection!
@@ -129,10 +129,10 @@ async function connectToMongo() {
 
       // Get typed collection handles
       usersCollection = db.collection<User>(COLLECTIONS.USERS);
-      monstersCollection = db.collection<Monster>(COLLECTIONS.MONSTERS);
       nftLootCollection = db.collection<NFTLoot>(COLLECTIONS.NFT_LOOT);
       userInventoryCollection = db.collection<UserInventory>(COLLECTIONS.USER_INVENTORY);
       battleSessionsCollection = db.collection<BattleSession>(COLLECTIONS.BATTLE_SESSIONS);
+      battleHistoryCollection = db.collection<BattleHistory>(COLLECTIONS.BATTLE_HISTORY);
       playerStatsCollection = db.collection<PlayerStats>(COLLECTIONS.PLAYER_STATS);
       materialTokensCollection = db.collection<MaterialToken>(COLLECTIONS.MATERIAL_TOKENS);
       marketplaceItemsCollection = db.collection<MarketplaceItem>(COLLECTIONS.MARKETPLACE_ITEMS);
@@ -174,10 +174,6 @@ async function connectToMongo() {
           safeCreateIndex(usersCollection, { userId: 1 }, { unique: true }),
           usersCollection.createIndex({ username: 1 }),
 
-          // Monsters indexes
-          monstersCollection.createIndex({ rarity: 1 }),
-          monstersCollection.createIndex({ createdAt: -1 }),
-
           // NFT Loot indexes
           nftLootCollection.createIndex({ rarity: 1 }),
           nftLootCollection.createIndex({ lootTableId: 1 }),
@@ -197,7 +193,11 @@ async function connectToMongo() {
           // Battle Sessions indexes
           battleSessionsCollection.createIndex({ userId: 1, startedAt: -1 }),
           battleSessionsCollection.createIndex({ userId: 1, isDefeated: 1 }),
-          battleSessionsCollection.createIndex({ monsterId: 1 }),
+          battleSessionsCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+
+          // Battle History indexes
+          safeCreateIndex(battleHistoryCollection, { sessionId: 1 }, { unique: true }),
+          battleHistoryCollection.createIndex({ userId: 1, createdAt: -1 }),
 
           // Player Stats indexes
           playerStatsCollection.createIndex({ userId: 1 }, { unique: true }),
@@ -244,10 +244,10 @@ async function connectToMongo() {
   return {
     db: db!,
     usersCollection: usersCollection!,
-    monstersCollection: monstersCollection!,
     nftLootCollection: nftLootCollection!,
     userInventoryCollection: userInventoryCollection!,
     battleSessionsCollection: battleSessionsCollection!,
+    battleHistoryCollection: battleHistoryCollection!,
     playerStatsCollection: playerStatsCollection!,
     materialTokensCollection: materialTokensCollection!,
     marketplaceItemsCollection: marketplaceItemsCollection!
@@ -270,8 +270,7 @@ export async function getUsersCollection() {
 }
 
 export async function getMonstersCollection() {
-  const { monstersCollection } = await connectToMongo();
-  return monstersCollection;
+  throw new Error('Monsters collection is no longer used. Monster snapshots are stored on battle sessions.');
 }
 
 export async function getNftLootCollection() {

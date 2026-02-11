@@ -32,8 +32,8 @@ interface GameStateContextType {
   // State transitions
   setInitializing: () => void;
   setBattleLoading: () => void;
-  setBattleStartScreen: (monster: MonsterFrontend, session: BattleSessionFrontend) => void;
-  setBattleInProgress: (monster?: MonsterFrontend, session?: BattleSessionFrontend) => void;
+  setBattleStartScreen: (session: BattleSessionFrontend) => void;
+  setBattleInProgress: (session?: BattleSessionFrontend) => void;
   setBattleCompleting: () => void;
   setLootSelection: (loot: LootItem[]) => void; // Pass loot when transitioning
   setBattleVictory: () => void;                  // Rest phase after loot claimed
@@ -54,15 +54,15 @@ const GameStateContext = createContext<GameStateContextType | undefined>(undefin
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
   const [gameState, setGameState] = useState<GameState>(GameState.INITIALIZING);
-  const [monster, setMonster] = useState<MonsterFrontend | null>(null);
   const [session, setSession] = useState<BattleSessionFrontend | null>(null);
   const [lootOptions, setLootOptionsState] = useState<LootItem[] | null>(null);
+
+  const monster = session?.monster || null;
 
   // State transition functions
   const setInitializing = () => {
     console.log('🎮 Game State: INITIALIZING');
     setGameState(GameState.INITIALIZING);
-    setMonster(null);
     setSession(null);
     setLootOptionsState(null);
   };
@@ -74,18 +74,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setLootOptionsState(null);
   };
 
-  const setBattleStartScreen = (newMonster: MonsterFrontend, newSession: BattleSessionFrontend) => {
-    console.log('🎮 Game State: BATTLE_START_SCREEN with monster:', newMonster.name);
-    setMonster(newMonster);
+  const setBattleStartScreen = (newSession: BattleSessionFrontend) => {
+    console.log('🎮 Game State: BATTLE_START_SCREEN with monster:', newSession.monster?.name);
     setSession(newSession);
     setGameState(GameState.BATTLE_START_SCREEN);
     setLootOptionsState(null);
   };
 
-  const setBattleInProgress = (newMonster?: MonsterFrontend, newSession?: BattleSessionFrontend) => {
-    if (newMonster && newSession) {
-      console.log('🎮 Game State: BATTLE_IN_PROGRESS with new monster:', newMonster.name);
-      setMonster(newMonster);
+  const setBattleInProgress = (newSession?: BattleSessionFrontend) => {
+    if (newSession) {
+      console.log('🎮 Game State: BATTLE_IN_PROGRESS with new monster:', newSession.monster?.name);
       setSession(newSession);
     } else {
       console.log('🎮 Game State: BATTLE_IN_PROGRESS (keeping current monster/session)');

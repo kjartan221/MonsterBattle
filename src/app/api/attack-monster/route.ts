@@ -10,7 +10,8 @@ import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { ObjectId } from 'mongodb';
 
-const MAX_CLICKS_PER_SECOND = 15;
+const MAX_CLICKS_PER_SECOND = 20;
+const MIN_BATTLE_DURATION_MS_FOR_VALIDATION = 1000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB and get collections
-    const { battleSessionsCollection, monstersCollection, playerStatsCollection, userInventoryCollection } = await connectToMongo();
+    const { battleSessionsCollection, battleHistoryCollection, playerStatsCollection, userInventoryCollection } = await connectToMongo();
 
     // Get the battle session
     const session = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
@@ -80,13 +81,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the monster
-    const monster = await monstersCollection.findOne({ _id: session.monsterId });
+    const monster = session.monster;
 
-    if (!monster) {
-      return NextResponse.json(
-        { error: 'Monster not found' },
-        { status: 404 }
+    // Ensure we have a battle start timestamp that excludes time spent on the start screen.
+    // If missing (older sessions), set it now so anti-cheat/HP verification doesn't falsely
+    // count long idle time.
+    let actualBattleStartedAt: Date;
+    if (session.actualBattleStartedAt) {
+      actualBattleStartedAt = new Date(session.actualBattleStartedAt);
+    } else {
+      actualBattleStartedAt = new Date();
+      await battleSessionsCollection.updateOne(
+        { _id: sessionObjectId },
+        { $set: { actualBattleStartedAt } }
       );
     }
 
@@ -94,16 +101,15 @@ export async function POST(request: NextRequest) {
     // actualBattleStartedAt is set when user clicks "Start Battle" button
     // This prevents client-side time manipulation and excludes time spent on start screen
     const currentTime = Date.now();
-    const startTime = session.actualBattleStartedAt
-      ? new Date(session.actualBattleStartedAt).getTime()
-      : new Date(session.startedAt).getTime();
-    const timeElapsed = currentTime - startTime;
-    const timeInSeconds = timeElapsed / 1000;
+    const startTime = actualBattleStartedAt.getTime();
+    const timeElapsedRaw = currentTime - startTime;
+    const timeElapsedMs = Math.max(MIN_BATTLE_DURATION_MS_FOR_VALIDATION, timeElapsedRaw);
+    const timeInSeconds = timeElapsedMs / 1000;
 
-    // Calculate click rate (clicks per second)
+    // Calculate manual click rate (manual clicks per second)
     const clickRate = clickCount / timeInSeconds;
 
-    console.log(`User ${userId} - Click rate: ${clickRate.toFixed(2)} clicks/second (${clickCount} clicks in ${timeInSeconds.toFixed(2)}s)`);
+    console.log(`User ${userId} - Manual click rate: ${clickRate.toFixed(2)} clicks/second (${clickCount} clicks in ${timeInSeconds.toFixed(2)}s)`);
 
     // HP VERIFICATION: Check if player should have survived
     // Get player stats to check max HP
@@ -251,8 +257,7 @@ export async function POST(request: NextRequest) {
     const totalHealing = reportedHealing;
     console.log(`Actual healing reported from frontend: ${totalHealing} HP`);
 
-    // Keep usedItems array for battle session tracking (even though we don't estimate healing from it)
-    const usedItemsArray = Array.isArray(usedItems) ? usedItems : [];
+    const usedItemsCounts: Record<string, number> = (usedItems && typeof usedItems === 'object' && !Array.isArray(usedItems)) ? usedItems : {};
 
     // Calculate expected HP after battle (including equipment max HP bonuses)
     const totalMaxHP = playerStats.maxHealth + equipmentStats.maxHpBonus;
@@ -301,6 +306,22 @@ export async function POST(request: NextRequest) {
             // No lootOptions - cheater gets nothing
           }
         }
+      );
+
+      await battleHistoryCollection.updateOne(
+        { sessionId: sessionObjectId },
+        {
+          $setOnInsert: {
+            userId,
+            sessionId: sessionObjectId,
+            monsterTemplateName: session.monsterTemplateName,
+            createdAt: now
+          },
+          $set: {
+            completedAt: now
+          }
+        },
+        { upsert: true }
       );
 
       // Deduct gold as penalty (10% like death)
@@ -365,17 +386,7 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ Cheat detected! User ${userId} exceeded max click potential: ${totalClickPotential} > ${maxAllowedTotal}`);
       console.warn(`   Manual: ${clickCount} (${manualClickRate.toFixed(2)}/sec), Auto: ${expectedAutoClicks} (${equipmentStats.autoClickRate}/sec), Time: ${timeInSeconds.toFixed(2)}s`);
 
-      // Punish cheater by doubling the required clicks
       const newClicksRequired = monster.clicksRequired * 2;
-
-      await monstersCollection.updateOne(
-        { _id: monster._id },
-        {
-          $set: {
-            clicksRequired: newClicksRequired
-          }
-        }
-      );
 
       // Return cheat detection response
       return NextResponse.json({
@@ -383,6 +394,20 @@ export async function POST(request: NextRequest) {
         message: 'That was quite fast for a human, are you cheating?',
         newClicksRequired,
         clickRate: (totalClickPotential / timeInSeconds).toFixed(2)
+      }, { status: 200 });
+    }
+
+    // Extra guard: manual click rate alone (independent of auto-clicks)
+    // Use same 20% tolerance as above.
+    if (clickRate > MAX_CLICKS_PER_SECOND * 1.2) {
+      console.warn(`⚠️ Cheat detected! User ${userId} exceeded max manual click rate: ${clickRate.toFixed(2)} > ${(MAX_CLICKS_PER_SECOND * 1.2).toFixed(2)} clicks/sec`);
+
+      const newClicksRequired = monster.clicksRequired * 2;
+      return NextResponse.json({
+        cheatingDetected: true,
+        message: 'That was quite fast for a human, are you cheating?',
+        newClicksRequired,
+        clickRate: clickRate.toFixed(2)
       }, { status: 200 });
     }
 
@@ -409,10 +434,6 @@ export async function POST(request: NextRequest) {
     const currentTier = session.tier;
     const winStreak = getStreakForZone(playerStats.stats.battlesWonStreaks, currentBiome, currentTier);
     const streakMultiplier = (1.0 + Math.min(winStreak * 0.03, 0.30)).toFixed(2);
-
-    console.log(`🎯 [STREAK DEBUG] Biome: ${currentBiome}, Tier: ${currentTier}, Current Streak: ${winStreak}`);
-    console.log(`🎯 [STREAK DEBUG] Streak Multiplier for loot: ${streakMultiplier}x (${winStreak} * 0.03)`);
-    console.log(`🎯 [STREAK DEBUG] battlesWonStreaks:`, JSON.stringify(playerStats.stats.battlesWonStreaks));
 
     // Calculate Challenge Mode reward bonuses (Phase 3.3)
     const challengeConfig = playerStats.battleChallengeConfig || {
@@ -535,9 +556,25 @@ export async function POST(request: NextRequest) {
           isDefeated: true,
           completedAt: now,
           lootOptions: lootOptionIds, // Save the loot option IDs
-          usedItems: usedItemsArray // Save the items used during battle
+          usedItems: usedItemsCounts // Save the items used during battle
         }
       }
+    );
+
+    await battleHistoryCollection.updateOne(
+      { sessionId: sessionObjectId },
+      {
+        $setOnInsert: {
+          userId,
+          sessionId: sessionObjectId,
+          monsterTemplateName: session.monsterTemplateName,
+          createdAt: now
+        },
+        $set: {
+          completedAt: now
+        }
+      },
+      { upsert: true }
     );
 
     // BIOME UNLOCK PROGRESSION: Unlock next biome/tier after victory
@@ -677,12 +714,11 @@ export async function POST(request: NextRequest) {
       success: true,
       monster: {
         ...monster,
-        _id: monster._id?.toString()
+        _id: session._id?.toString()
       },
       session: {
         ...session,
         _id: session._id?.toString(),
-        monsterId: session.monsterId.toString(),
         clickCount,
         isDefeated: true,
         completedAt: now

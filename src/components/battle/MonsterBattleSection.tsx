@@ -80,7 +80,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const [totalStunTime, setTotalStunTime] = useState(0); // Track time monster was stunned (ms)
   const [skillshotBonusDamage, setSkillshotBonusDamage] = useState(0); // Track extra damage from skillshot boosts
   const [clickCount, setClickCount] = useState(0);
-  const [lastSavedClickCount, setLastSavedClickCount] = useState(0);
   const [critTrigger, setCritTrigger] = useState(0);
   const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
     goldLost: 0,
@@ -623,27 +622,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     return () => clearInterval(interval);
   }, [escapeTimer, gameState.gameState]);
 
-  // Auto-save clicks periodically
-  useEffect(() => {
-    if (!gameState.canAttackMonster() || !gameState.session || gameState.session.isDefeated) return;
-
-    const interval = setInterval(() => {
-      if (clickCount > lastSavedClickCount) {
-        saveClicksToBackend();
-      }
-    }, 10000); // Save every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [clickCount, lastSavedClickCount, gameState.gameState, gameState.session]);
-
-  // Save clicks when reaching thresholds
-  useEffect(() => {
-    if (!gameState.canAttackMonster()) return;
-    if (clickCount > 0 && clickCount % 5 === 0 && clickCount > lastSavedClickCount) {
-      saveClicksToBackend();
-    }
-  }, [clickCount, lastSavedClickCount, gameState.gameState]);
-
   // Check for player death
   useEffect(() => {
     if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster()) {
@@ -709,27 +687,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     await startBattle();
   };
 
-  const saveClicksToBackend = async () => {
-    if (!gameState.session || clickCount <= lastSavedClickCount) return;
-
-    try {
-      await fetch('/api/update-clicks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: gameState.session._id,
-          clickCount: clickCount,
-        }),
-      });
-
-      setLastSavedClickCount(clickCount);
-    } catch (err) {
-      console.error('Error saving clicks:', err);
-    }
-  };
-
   const startBattle = async (useBiome?: BiomeId, useTier?: Tier, isConsecutiveBattle = false) => {
     try {
       gameState.setBattleLoading();
@@ -756,7 +713,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       // Reset clicks for new sessions, restore for resumed sessions
       const initialClickCount = data.isNewSession ? 0 : data.session.clickCount;
       setClickCount(initialClickCount);
-      setLastSavedClickCount(initialClickCount);
       
       // Calculate initial totalDamage based on clicks (for resumed sessions)
       // Estimate: (baseDamage + equipmentBonus) per click, with crit chance factor
@@ -784,13 +740,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       } else if (!data.isNewSession) {
         // Resuming in-progress battle
         toast.success(`Resuming battle (${data.session.clickCount} attacks)`, { duration: 2000 });
-        gameState.setBattleStartScreen(data.monster, data.session);
+        gameState.setBattleStartScreen(data.session);
       } else if (isConsecutiveBattle) {
         // Consecutive battle - skip start screen
-        gameState.setBattleInProgress(data.monster, data.session);
+        gameState.setBattleInProgress(data.session);
       } else {
         // New battle - show start screen
-        gameState.setBattleStartScreen(data.monster, data.session);
+        gameState.setBattleStartScreen(data.session);
       }
 
     } catch (err) {
@@ -829,7 +785,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           sessionId: gameState.session._id,
           clickCount: finalClickCount,
           totalDamage: finalTotalDamage,
-          usedItems: [],
+          usedItems: {},
           currentShieldHP: totalShieldGained,
           damageReductionPercent: totalDamageReduction,
           actualHealing: totalHealing,
@@ -858,7 +814,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           message: data.message || 'Suspicious click rate detected!'
         });
         setClickCount(0);
-        setLastSavedClickCount(0);
         setTotalDamage(0);
         setTotalHealing(0); // Reset healing tracker on cheat reset
         setTotalShieldGained(0); // Reset shield tracker on cheat reset
@@ -901,8 +856,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           const currentStreak = getCurrentStreak(selectedBiome, selectedTier);
           let healPercent = 1.0; // 100%
 
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Biome: ${selectedBiome}, Tier: ${selectedTier}, Current Streak: ${currentStreak}`);
-
           if (currentStreak === 0) {
             healPercent = 1.0; // 100%
           } else if (currentStreak <= 2) {
@@ -921,28 +874,18 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
             healPercent = 0.2; // 20% - hardcore mode!
           }
 
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Base heal percent for streak ${currentStreak}: ${Math.round(healPercent * 100)}%`);
-
           // Calculate total max HP with equipment bonuses
           const baseMaxHP = playerStats?.maxHealth || 100;
           const totalMaxHP = baseMaxHP + equipmentStats.maxHpBonus;
           const currentHP = playerStats?.currentHealth || totalMaxHP;
 
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Base Max HP: ${baseMaxHP}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}`);
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Current HP: ${currentHP}`);
-
           // Apply equipment heal bonus (adds percentage points to base heal percent)
           const equipmentHealBonus = equipmentStats.healBonus / 100;
           const finalHealPercent = healPercent + equipmentHealBonus;
 
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Equipment Heal Bonus: +${equipmentStats.healBonus}%, Final Heal Percent: ${Math.round(finalHealPercent * 100)}%`);
-
           // Calculate heal amount (percentage of total max HP)
           const healAmount = Math.ceil(totalMaxHP * finalHealPercent);
           const newHP = Math.min(totalMaxHP, currentHP + healAmount);
-
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] Heal Amount: ${healAmount} HP (${Math.round(finalHealPercent * 100)}% of ${totalMaxHP})`);
-          console.log(`🎯 [STREAK DEBUG - VICTORY HEALING] New HP after heal: ${newHP} (capped at ${totalMaxHP})`);
 
           // Update HP directly (partial heal based on streak + equipment)
           await updatePlayerStats({ currentHealth: newHP });
@@ -1418,7 +1361,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearDebuffs();
     clearInteractiveAttacks();
     setClickCount(0);
-    setLastSavedClickCount(0);
     setTotalDamage(0);
     setTotalHealing(0); // Reset healing tracker on new monster
     setTotalShieldGained(0); // Reset shield tracker on new monster
@@ -1456,15 +1398,27 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     await startBattle(overrideBiome, overrideTier, true);
   };
 
-  const handleStartBattle = () => {
+  const handleStartBattle = async () => {
     if (!gameState.session) return;
 
     // Update battle timer on server (non-blocking)
-    fetch('/api/start-battle-timer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: gameState.session._id })
-    }).catch(error => console.error('Failed to start battle timer:', error));
+    try {
+      const response = await fetch('/api/start-battle-timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: gameState.session._id })
+      });
+
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.actualBattleStartedAt) {
+        gameState.updateSession({
+          ...gameState.session,
+          actualBattleStartedAt: data.actualBattleStartedAt
+        });
+      }
+    } catch (error) {
+      console.error('Failed to start battle timer:', error);
+    }
 
     gameState.setBattleInProgress();
   };
