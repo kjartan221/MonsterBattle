@@ -480,11 +480,13 @@ export interface MarketplaceItem {
   listingNonce?: string;      // Per-listing nonce to re-derive the orderlock cancel/payout key (absent = legacy static-key listing)
 
   // Status
-  status: 'active' | 'sold' | 'cancelled';
+  status: 'active' | 'pending' | 'sold' | 'cancelled';
   listedAt: Date;
   soldAt?: Date;
   soldTo?: string;            // Buyer's userId
   cancelledAt?: Date;
+  pendingBuyerId?: string;    // Buyer claiming this listing during purchase (transient)
+  pendingAt?: Date;           // When the claim was made (transient)
 
   // Sale proceeds (sold listings)
   payoutOutpoint?: string;    // Outpoint of the seller-payment output (txid.1) — internalize to claim proceeds

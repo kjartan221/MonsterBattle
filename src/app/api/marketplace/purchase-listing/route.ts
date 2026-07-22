@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT } from '@/utils/jwt';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo, getClient } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { getServerWallet, getServerIdentityPublicKey } from '@/lib/serverWallet';
 import { WalletOrdLock } from '@bsv/wallet-helper';
@@ -51,21 +51,35 @@ export async function POST(request: NextRequest) {
 
     const { marketplaceItemsCollection, marketplaceListingBeefsCollection, userInventoryCollection, materialTokensCollection, usersCollection } = await connectToMongo();
 
-    // Fetch the listing
-    const listing = await marketplaceItemsCollection.findOne({
-      _id: new ObjectId(listingId),
-      status: 'active'
-    });
+    const listingObjectId = new ObjectId(listingId);
 
-    if (!listing) {
+    // Atomically claim the listing before any wallet work, so only one concurrent buyer proceeds.
+    const claimed = await marketplaceItemsCollection.findOneAndUpdate(
+      { _id: listingObjectId, status: 'active' },
+      { $set: { status: 'pending', pendingBuyerId: userId, pendingAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!claimed) {
       return NextResponse.json(
-        { error: 'Listing not found or already cancelled/sold' },
-        { status: 404 }
+        { error: 'Listing is not available' },
+        { status: 409 }
       );
     }
 
+    const listing = claimed;
+
+    // Releases a claimed listing back to active; used on any failure after the claim so it's never stranded in 'pending'.
+    const releaseListing = async () => {
+      await marketplaceItemsCollection.updateOne(
+        { _id: listingObjectId, status: 'pending', pendingBuyerId: userId },
+        { $set: { status: 'active' }, $unset: { pendingBuyerId: '', pendingAt: '' } }
+      );
+    };
+
     // Can't buy your own listing
     if (listing.sellerId === userId) {
+      await releaseListing();
       return NextResponse.json(
         { error: 'You cannot purchase your own listing' },
         { status: 400 }
@@ -74,6 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Ensure listing has OrdLock data
     if (!listing.ordLockOutpoint || !listing.ordLockScript || !listing.assetId || !listing.payAddress) {
+      await releaseListing();
       return NextResponse.json(
         { error: 'Listing is missing OrdLock data' },
         { status: 400 }
@@ -88,6 +103,15 @@ export async function POST(request: NextRequest) {
     });
 
     // ===== CREATE PURCHASE TRANSACTION =====
+    // Wallet build + sign + broadcast; any failure here releases the claim back to 'active'.
+    let purchaseResult: {
+      action: Awaited<ReturnType<Awaited<ReturnType<typeof getServerWallet>>['signAction']>>;
+      txid: string;
+      buyerTokenId: string;
+      purchaseNonce: string;
+      serverIdentityKey: string;
+    };
+    try {
 
     const serverWallet = await getServerWallet();
 
@@ -175,6 +199,7 @@ export async function POST(request: NextRequest) {
     const feeBufferSatoshis = 100;
     const requiredPayment = listing.price + feeBufferSatoshis;
     if (!paymentTransaction.outputs[0] || (paymentTransaction.outputs[0].satoshis || 0) < requiredPayment) {
+      await releaseListing();
       return NextResponse.json(
         { error: `Invalid payment amount. Required: ${requiredPayment} sats (price ${listing.price} + ${feeBufferSatoshis} sats fees)` },
         { status: 400 }
@@ -317,57 +342,80 @@ export async function POST(request: NextRequest) {
       buyerTokenId,
     });
 
-    // Update marketplace listing status
-    await marketplaceItemsCollection.updateOne(
-      { _id: new ObjectId(listingId) },
-      {
-        $set: {
-          status: 'sold',
-          soldAt: new Date(),
-          soldTo: userId,
-          payoutOutpoint: `${txid}.1`, // output 1 = seller payment (claimable proceeds)
-        }
-      }
-    );
+    purchaseResult = { action, txid, buyerTokenId, purchaseNonce, serverIdentityKey };
 
-    // Listing spent — drop the BEEF backup.
-    await marketplaceListingBeefsCollection.deleteOne({ listingId });
-
-    // Get buyer user info
-    const buyerUser = await usersCollection.findOne({ userId });
-    if (!buyerUser) {
-      throw new Error('Buyer user not found');
+    } catch (err) {
+      await releaseListing();
+      console.error('Purchase failed, listing released:', err);
+      return NextResponse.json({ error: 'Purchase failed; listing released' }, { status: 502 });
     }
 
-    // Transfer item ownership in database
-    if (listing.inventoryItemId) {
-      // Transfer inventory item to buyer
-      await userInventoryCollection.updateOne(
-        { _id: new ObjectId(listing.inventoryItemId) },
-        {
-          $set: {
-            userId: userId, // New owner
-            tokenId: buyerTokenId,
-            keyId: purchaseNonce,
-            counterparty: serverIdentityKey,
-            updatedAt: new Date(),
-          }
+    const { action, txid, buyerTokenId, purchaseNonce, serverIdentityKey } = purchaseResult;
+
+    // ===== FINALIZE (post-broadcast DB mutations, atomic) =====
+    const client = await getClient();
+    const dbSession = client.startSession();
+    try {
+      await dbSession.withTransaction(async () => {
+        // Update marketplace listing status (only if still claimed by this buyer)
+        await marketplaceItemsCollection.updateOne(
+          { _id: listingObjectId, status: 'pending' },
+          {
+            $set: {
+              status: 'sold',
+              soldAt: new Date(),
+              soldTo: userId,
+              payoutOutpoint: `${txid}.1`, // output 1 = seller payment (claimable proceeds)
+            },
+            $unset: { pendingBuyerId: '', pendingAt: '' }
+          },
+          { session: dbSession }
+        );
+
+        // Listing spent — drop the BEEF backup.
+        await marketplaceListingBeefsCollection.deleteOne({ listingId }, { session: dbSession });
+
+        // Get buyer user info
+        const buyerUser = await usersCollection.findOne({ userId }, { session: dbSession });
+        if (!buyerUser) {
+          throw new Error('Buyer user not found');
         }
-      );
-    } else if (listing.materialTokenId) {
-      // Transfer material token to buyer
-      await materialTokensCollection.updateOne(
-        { _id: new ObjectId(listing.materialTokenId) },
-        {
-          $set: {
-            userId: userId, // New owner
-            tokenId: buyerTokenId,
-            keyId: purchaseNonce,
-            counterparty: serverIdentityKey,
-            updatedAt: new Date(),
-          }
+
+        // Transfer item ownership in database
+        if (listing.inventoryItemId) {
+          // Transfer inventory item to buyer
+          await userInventoryCollection.updateOne(
+            { _id: new ObjectId(listing.inventoryItemId) },
+            {
+              $set: {
+                userId: userId, // New owner
+                tokenId: buyerTokenId,
+                keyId: purchaseNonce,
+                counterparty: serverIdentityKey,
+                updatedAt: new Date(),
+              }
+            },
+            { session: dbSession }
+          );
+        } else if (listing.materialTokenId) {
+          // Transfer material token to buyer
+          await materialTokensCollection.updateOne(
+            { _id: new ObjectId(listing.materialTokenId) },
+            {
+              $set: {
+                userId: userId, // New owner
+                tokenId: buyerTokenId,
+                keyId: purchaseNonce,
+                counterparty: serverIdentityKey,
+                updatedAt: new Date(),
+              }
+            },
+            { session: dbSession }
+          );
         }
-      );
+      });
+    } finally {
+      await dbSession.endSession();
     }
 
     console.log('[MARKETPLACE PURCHASE] Item purchased:', {
