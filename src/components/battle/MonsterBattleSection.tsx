@@ -64,7 +64,7 @@ interface MonsterBattleSectionProps {
 }
 
 export default function MonsterBattleSection({ onBattleComplete, applyDebuff, clearDebuffs, spellDamageHandler, activeBuffs = [], activeDebuffs = [], damageShield, healingReportHandler, buffReportHandler, removeMonsterShieldHandler }: MonsterBattleSectionProps) {
-  const { playerStats, resetHealth, incrementStreak, resetStreak, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
+  const { playerStats, resetHealth, getCurrentStreak, takeDamage, healHealth, updatePlayerStats, fetchPlayerStats } = usePlayer();
   const { selectedBiome, selectedTier, setBiomeTier } = useBiome();
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
@@ -645,36 +645,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       skillShot.handleComplete(); // Force close any active skillshot overlay
     }
 
-    // Calculate gold loss (10% of current gold, rounded)
-    const goldLost = Math.floor(playerStats.coins * 0.10);
-    const streakLost = selectedBiome && selectedTier ? getCurrentStreak(selectedBiome, selectedTier) : 0;
-
-    // Deduct gold and reset streak
-    await updatePlayerStats({
-      coins: Math.max(0, playerStats.coins - goldLost),
-      stats: {
-        ...playerStats.stats,
-        battlesWonStreak: 0
-      }
-    });
-
-    // Reset streak for current zone
-    if (selectedBiome && selectedTier) {
-      await resetStreak(selectedBiome, selectedTier);
-    }
-
-    // Mark session as defeated (no loot)
+    // Server owns the penalty (gold loss + streak reset); mark session defeated and read it back.
+    let goldLost = 0, streakLost = 0;
     try {
-      await fetch('/api/end-battle', {
+      const res = await fetch('/api/end-battle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: gameState.session._id
-        }),
+        body: JSON.stringify({ sessionId: gameState.session._id, outcome: 'defeated' }),
       });
+      const data = await res.json();
+      goldLost = data.goldLost ?? 0;
+      streakLost = data.streakLost ?? 0;
     } catch (err) {
       console.error('Error ending battle session:', err);
     }
+    await fetchPlayerStats(); // pull the server-applied penalty
 
     // Store defeat data and transition to defeat screen
     setDefeatData({ goldLost, streakLost });
@@ -846,10 +831,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       // Handle victory
       if (data.success && data.lootOptions) {
-        // Increment streak for current zone
-        if (selectedBiome && selectedTier) {
-          await incrementStreak(selectedBiome, selectedTier);
-        }
+        // Server already incremented the zone streak in attack-monster; refetch to sync.
+        await fetchPlayerStats();
 
         // Apply streak-based healing after victory (unless leveled up - level up does full heal)
         if (!data.levelUp && selectedBiome && selectedTier) {
@@ -1279,31 +1262,23 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     toast.error('The monster escaped!', { duration: 3000 });
 
-    // Treat escape as battle loss (same as player death)
-    const goldLost = Math.floor((playerStats?.coins || 0) * 0.10);
-    const streakLost = selectedBiome && selectedTier ? getCurrentStreak(selectedBiome, selectedTier) : 0;
-
-    setDefeatData({ goldLost, streakLost });
-
-    // Deduct gold and reset streak
-    if (goldLost > 0) {
-      await updatePlayerStats({ coins: (playerStats?.coins || 0) - goldLost });
-    }
-    if (selectedBiome && selectedTier) {
-      await resetStreak(selectedBiome, selectedTier);
-    }
-
-    // Mark session as defeated
+    // Treat escape as battle loss (same as player death) - server owns the penalty.
+    let goldLost = 0, streakLost = 0;
     try {
-      await fetch('/api/end-battle', {
+      const res = await fetch('/api/end-battle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: gameState.session._id }),
+        body: JSON.stringify({ sessionId: gameState.session._id, outcome: 'escaped' }),
       });
+      const data = await res.json();
+      goldLost = data.goldLost ?? 0;
+      streakLost = data.streakLost ?? 0;
     } catch (err) {
       console.error('Error ending battle after escape:', err);
     }
+    await fetchPlayerStats(); // pull the server-applied penalty
 
+    setDefeatData({ goldLost, streakLost });
     gameState.setPlayerDefeated();
   };
 

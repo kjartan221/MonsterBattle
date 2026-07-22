@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import type { BiomeId, Tier } from '@/lib/biome-config';
-import { getStreakForZone, incrementStreakForZone, resetStreakForZone, initializeStreaks, migrateLegacyStreak } from '@/utils/streakHelpers';
+import { getStreakForZone, migrateLegacyStreak } from '@/utils/streakHelpers';
 import { useAuthContext } from './WalletContext';
 
 export interface PlayerStats {
@@ -82,10 +82,6 @@ interface PlayerContextType {
   resetHealth: (maxHpBonus?: number) => Promise<void>;
   takeDamage: (amount: number) => Promise<void>;
   healHealth: (amount: number, maxHpBonus?: number) => Promise<void>;
-  addCoins: (amount: number) => Promise<void>;
-  addExperience: (amount: number) => Promise<void>;
-  incrementStreak: (biome: BiomeId, tier: Tier) => Promise<void>;
-  resetStreak: (biome: BiomeId, tier: Tier) => Promise<void>;
   getCurrentStreak: (biome: BiomeId, tier: Tier) => number;
 }
 
@@ -232,46 +228,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, []); // Empty dependency array - function uses functional setState
 
-  const addCoins = async (amount: number) => {
-    if (!playerStats) return;
-
-    const newCoins = playerStats.coins + amount;
-
-    // Update local state immediately using functional setState to avoid overwriting other changes
-    setPlayerStats((prevStats) => {
-      if (!prevStats) return prevStats;
-      return {
-        ...prevStats,
-        coins: newCoins,
-      };
-    });
-
-    // Update backend
-    await updatePlayerStats({
-      coins: newCoins,
-    });
-  };
-
-  const addExperience = async (amount: number) => {
-    if (!playerStats) return;
-
-    const newExperience = playerStats.experience + amount;
-
-    // Update local state immediately using functional setState to avoid overwriting other changes
-    setPlayerStats((prevStats) => {
-      if (!prevStats) return prevStats;
-      return {
-        ...prevStats,
-        experience: newExperience,
-      };
-    });
-
-    // Update backend
-    await updatePlayerStats({
-      experience: newExperience,
-    });
-  };
-
   /**
    * Get current streak for a specific biome/tier
    */
@@ -287,80 +243,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return getStreakForZone(playerStats.stats.battlesWonStreaks, biome, tier);
   };
 
-  const incrementStreak = async (biome: BiomeId, tier: Tier) => {
-    if (!playerStats) return;
-
-    // Initialize or migrate streaks if needed
-    let streaks = playerStats.stats.battlesWonStreaks;
-    if (!streaks) {
-      streaks = migrateLegacyStreak(playerStats, biome, tier);
-    }
-
-    // Increment the specific zone's streak
-    const updatedStreaks = incrementStreakForZone(streaks, biome, tier);
-
-    // Update local state immediately using functional setState to avoid overwriting HP changes
-    setPlayerStats((prevStats) => {
-      if (!prevStats) return prevStats;
-
-      return {
-        ...prevStats,
-        stats: {
-          ...prevStats.stats,
-          battlesWon: prevStats.stats.battlesWon + 1,
-          battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier), // Keep legacy field synced
-          battlesWonStreaks: updatedStreaks,
-        },
-      };
-    });
-
-    // Update backend
-    await updatePlayerStats({
-      stats: {
-        ...playerStats.stats,
-        battlesWon: playerStats.stats.battlesWon + 1,
-        battlesWonStreak: getStreakForZone(updatedStreaks, biome, tier),
-        battlesWonStreaks: updatedStreaks,
-      },
-    });
-  };
-
-  const resetStreak = async (biome: BiomeId, tier: Tier) => {
-    if (!playerStats) return;
-
-    // Initialize or migrate streaks if needed
-    let streaks = playerStats.stats.battlesWonStreaks;
-    if (!streaks) {
-      streaks = initializeStreaks();
-    }
-
-    // Reset the specific zone's streak
-    const updatedStreaks = resetStreakForZone(streaks, biome, tier);
-
-    // Update local state immediately using functional setState to avoid overwriting HP changes
-    setPlayerStats((prevStats) => {
-      if (!prevStats) return prevStats;
-
-      return {
-        ...prevStats,
-        stats: {
-          ...prevStats.stats,
-          battlesWonStreak: 0, // Keep legacy field synced
-          battlesWonStreaks: updatedStreaks,
-        },
-      };
-    });
-
-    // Update backend
-    await updatePlayerStats({
-      stats: {
-        ...playerStats.stats,
-        battlesWonStreak: 0,
-        battlesWonStreaks: updatedStreaks,
-      },
-    });
-  };
-
   const value: PlayerContextType = {
     playerStats,
     loading,
@@ -370,10 +252,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     resetHealth,
     takeDamage,
     healHealth,
-    addCoins,
-    addExperience,
-    incrementStreak,
-    resetStreak,
     getCurrentStreak,
   };
 
