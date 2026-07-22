@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
-import { verifyJWT } from '@/utils/jwt';
+import { requireAuthProof } from '@/lib/requireAuthProof';
 
 /**
  * POST /api/materials/update-tokens
@@ -28,22 +27,12 @@ import { verifyJWT } from '@/utils/jwt';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get cookies using next/headers
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId;
-
-    // Parse request body
+    // Parse request body and verify auth proof
     const body = await request.json();
+    const auth = await requireAuthProof(request, 'update-material', body.proof);
+    if (auth instanceof NextResponse) return auth;
+    const userId = auth.userId;
+
     const { updates } = body;
 
     // Validate required fields

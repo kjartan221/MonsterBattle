@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuthContext } from './WalletContext';
+import { createAuthProof } from '@/utils/authProofClient';
 
 export interface ChallengeConfig {
   forceShield: boolean;
@@ -45,7 +46,7 @@ const DEFAULT_CONFIG: ChallengeConfig = {
 export function ChallengeProvider({ children }: { children: ReactNode }) {
   const [challengeConfig, setChallengeConfig] = useState<ChallengeConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, userWallet } = useAuthContext();
 
   const refreshChallengeConfig = useCallback(async () => {
     if (!isAuthenticated) {
@@ -72,12 +73,16 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
     if (isAuthenticated !== true) {
       throw new Error('Not authenticated');
     }
+    if (!userWallet) {
+      throw new Error('Wallet not connected');
+    }
 
     try {
+      const proof = await createAuthProof(userWallet, 'challenge');
       const response = await fetch('/api/challenge/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config })
+        body: JSON.stringify({ config, proof })
       });
 
       if (response.ok) {
@@ -89,7 +94,7 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
       console.error('Error updating challenge config:', error);
       throw error;
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userWallet]);
 
   // Fetch challenge config on mount
   useEffect(() => {

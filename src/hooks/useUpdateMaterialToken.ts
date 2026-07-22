@@ -7,6 +7,7 @@ import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
 import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
 import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
+import { createAuthProof } from '@/utils/authProofClient';
 
 /**
  * Hook for updating material token quantities on the BSV blockchain
@@ -274,6 +275,7 @@ export function useUpdateMaterialToken() {
 
           console.log('WalletP2PKH payment created:', { txid: paymentTxId, satoshis: 100 });
 
+          const mergeProof = await createAuthProof(wallet, 'merge-material');
           const mergeResponse = await fetch('/api/materials/add-and-merge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -295,6 +297,7 @@ export function useUpdateMaterialToken() {
               reason: update.reason,
               acquiredFrom: update.acquiredFrom,
               inventoryItemIds: update.inventoryItemIds || [], // consumed server-side in the merge
+              proof: mergeProof,
             }),
           });
 
@@ -514,6 +517,7 @@ export function useUpdateMaterialToken() {
         .filter(({ result }) => result.operation !== 'add');
 
       if (dbUpdates.length > 0) {
+        const updateProof = await createAuthProof(wallet, 'update-material');
         const apiResult = await fetch('/api/materials/update-tokens', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -530,6 +534,7 @@ export function useUpdateMaterialToken() {
               inventoryItemIds: src.inventoryItemIds || [],
               reason: src.reason,
             })),
+            proof: updateProof,
           }),
         });
 

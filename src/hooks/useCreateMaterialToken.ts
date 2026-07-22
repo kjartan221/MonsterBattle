@@ -3,6 +3,7 @@ import { WalletClient } from '@bsv/sdk';
 import { createWalletPayment } from '@/utils/createWalletPayment';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
 import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
+import { createAuthProof } from '@/utils/authProofClient';
 
 /**
  * Hook for creating material tokens on the BSV blockchain.
@@ -113,6 +114,7 @@ export function useCreateMaterialToken() {
       });
 
       // Call server API for mint-and-transfer
+      const proof = await createAuthProof(wallet, 'mint-material');
       const apiResult = await fetch('/api/materials/mint-and-transfer', {
         method: 'POST',
         headers: {
@@ -133,6 +135,7 @@ export function useCreateMaterialToken() {
           userIdentityKey,
           paymentTx: encodeBeef(paymentTx),  // base64 BEEF, symmetric with server decodeBeef
           walletParams,
+          proof,
         }),
       });
 

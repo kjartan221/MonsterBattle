@@ -10,6 +10,7 @@ import { broadcastTX } from '@/utils/overlayFunctions';
 import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
 import { TOKEN_PROTOCOL, generateNonce, deriveOwnKey } from '@/utils/tokenDerivation';
 import { encodeBeef } from '@/utils/beefEncoding';
+import { createAuthProof } from '@/utils/authProofClient';
 
 interface SellItemModalProps {
   wallet: WalletClient | null;
@@ -299,6 +300,7 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
 
       const ordLockOutpoint = `${txid}.${ordLockVout}`;
 
+      const proof = await createAuthProof(wallet, 'list');
       const response = await fetch('/api/marketplace/list-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,6 +313,7 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
           ordLockOutpoint,
           ordLockScript: ordLockScript.toHex(),
           ordLockBeef: encodeBeef(Array.from(action.tx!)), // server validates from this (no overlay race)
+          proof,
         }),
       });
 

@@ -6,6 +6,7 @@ import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
 import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
 import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
+import { createAuthProof } from '@/utils/authProofClient';
 
 /**
  * Hook for crafting items on the BSV blockchain (derived-key pattern).
@@ -226,6 +227,7 @@ export function useCraftItemNFT() {
       // SERVER: Craft item + return BEEF for internalization
       // ===================================================
 
+      const proof = await createAuthProof(wallet, 'craft');
       const apiResult = await fetch('/api/crafting/mint-and-transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -260,6 +262,7 @@ export function useCraftItemNFT() {
           batchTransferBeef: encodeBeef(Array.from(transferAction.tx!)),
           transferNonce,
           walletParams,
+          proof,
         }),
       });
 

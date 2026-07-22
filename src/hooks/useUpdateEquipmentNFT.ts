@@ -6,6 +6,7 @@ import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
 import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
 import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
+import { createAuthProof } from '@/utils/authProofClient';
 
 /**
  * Hook for updating equipment NFTs with inscription scrolls (derived-key pattern).
@@ -270,6 +271,7 @@ export function useUpdateEquipmentNFT() {
         }
       }
 
+      const proof = await createAuthProof(wallet, 'update-equipment');
       const apiResult = await fetch('/api/equipment/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -298,6 +300,7 @@ export function useUpdateEquipmentNFT() {
           updatedSuffix,
           paymentTx: encodeBeef(paymentTx),
           walletParams,
+          proof,
         }),
       });
 

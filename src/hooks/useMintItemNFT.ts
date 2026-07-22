@@ -3,6 +3,7 @@ import { WalletClient } from '@bsv/sdk';
 import { createWalletPayment } from '@/utils/createWalletPayment';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
 import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
+import { createAuthProof } from '@/utils/authProofClient';
 
 /**
  * Hook for minting a dropped item as an NFT on the BSV blockchain
@@ -162,6 +163,7 @@ export function useMintItemNFT() {
       };
 
       // Call server API for mint-and-transfer
+      const proof = await createAuthProof(wallet, 'mint-item');
       const apiResult = await fetch('/api/items/mint-and-transfer', {
         method: 'POST',
         headers: {
@@ -173,6 +175,7 @@ export function useMintItemNFT() {
           userIdentityKey,
           paymentTx: encodeBeef(paymentTx),  // base64 BEEF, symmetric with server decodeBeef
           walletParams,       // Derivation params for unlocking
+          proof,
         }),
       });
 

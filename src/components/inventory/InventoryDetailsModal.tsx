@@ -11,6 +11,7 @@ import { useMintItemNFT } from '@/hooks/useMintItemNFT';
 import { useCreateMaterialToken } from '@/hooks/useCreateMaterialToken';
 import { useUpdateMaterialToken } from '@/hooks/useUpdateMaterialToken';
 import { useAuthContext } from '@/contexts/WalletContext';
+import { createAuthProof } from '@/utils/authProofClient';
 import MaterialMintModal from './MaterialMintModal';
 
 interface InventoryDetailsModalProps {
@@ -461,6 +462,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
     const refiningToast = toast.loading('Refining equipment...');
 
     try {
+      // Refine is a value-moving action - requires a wallet proof
+      if (!userWallet) {
+        throw new Error('Wallet not connected. Please connect your BSV wallet first.');
+      }
+
       // Get first refine stone from inventory (must be minted to use)
       const inventoryRes = await fetch('/api/inventory/get?mintedOnly=true');
       const inventoryData = await inventoryRes.json();
@@ -474,6 +480,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
         throw new Error('No refine stone found in inventory');
       }
 
+      const proof = await createAuthProof(userWallet, 'refine');
       const response = await fetch('/api/crafting/refine', {
         method: 'POST',
         headers: {
@@ -482,6 +489,7 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
         body: JSON.stringify({
           targetItemId: item.inventoryId,
           refineStoneId: refineStone._id,
+          proof,
         }),
       });
 

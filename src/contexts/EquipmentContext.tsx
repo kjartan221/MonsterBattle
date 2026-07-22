@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getLootItemById, LootItem } from '@/lib/loot-table';
 import type { Inscription } from '@/lib/types';
 import { useAuthContext } from './WalletContext';
+import { createAuthProof } from '@/utils/authProofClient';
 
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
 
@@ -39,7 +40,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
   const [equippedAccessory1, setEquippedAccessory1] = useState<EquippedItem | null>(null);
   const [equippedAccessory2, setEquippedAccessory2] = useState<EquippedItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, userWallet } = useAuthContext();
 
   /**
    * Fetch equipped items from the server
@@ -155,12 +156,16 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated) {
       throw new Error('Not authenticated');
     }
+    if (!userWallet) {
+      throw new Error('Wallet not connected');
+    }
 
     try {
+      const proof = await createAuthProof(userWallet, 'equip');
       const response = await fetch('/api/equipment/equip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventoryId, slot })
+        body: JSON.stringify({ inventoryId, slot, proof })
       });
 
       if (!response.ok) {
@@ -201,7 +206,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to equip item:', error);
       throw error;
     }
-  }, [isAuthenticated, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
+  }, [isAuthenticated, userWallet, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   /**
    * Unequip an item from a specific slot
@@ -211,12 +216,16 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     if (isAuthenticated !== true) {
       throw new Error('Not authenticated');
     }
+    if (!userWallet) {
+      throw new Error('Wallet not connected');
+    }
 
     try {
+      const proof = await createAuthProof(userWallet, 'unequip');
       const response = await fetch('/api/equipment/unequip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slot })
+        body: JSON.stringify({ slot, proof })
       });
 
       if (!response.ok) {
@@ -246,7 +255,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       console.error('Failed to unequip item:', error);
       throw error;
     }
-  }, [isAuthenticated, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
+  }, [isAuthenticated, userWallet, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
   // Load equipment on mount
   useEffect(() => {

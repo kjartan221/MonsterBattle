@@ -11,6 +11,7 @@ import { useUpdateEquipmentNFT } from '@/hooks/useUpdateEquipmentNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
+import { createAuthProof } from '@/utils/authProofClient';
 
 interface InventoryItem {
   _id: string;
@@ -224,13 +225,19 @@ export default function BlacksmithPage() {
 
       } else {
         // Use regular API for non-NFT items
+        if (!userWallet || !isAuthenticated) {
+          throw new Error('Wallet not connected. Please connect your BSV wallet to apply inscriptions.');
+        }
+
+        const proof = await createAuthProof(userWallet, 'inscribe');
         const response = await fetch('/api/inscriptions/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             equipmentId: selectedEquipment._id,
             scrollId: selectedScroll._id,
-            overwriteExisting: overwrite
+            overwriteExisting: overwrite,
+            proof,
           })
         });
 

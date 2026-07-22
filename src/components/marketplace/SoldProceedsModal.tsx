@@ -5,6 +5,7 @@ import { WalletClient } from '@bsv/sdk';
 import toast from 'react-hot-toast';
 import { getTransactionByTxID } from '@/utils/overlayFunctions';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
+import { createAuthProof } from '@/utils/authProofClient';
 
 interface SaleItem {
   _id: string;
@@ -106,10 +107,11 @@ export default function SoldProceedsModal({ wallet, onClose, onClaimed }: SoldPr
         'Sale proceeds',
       );
 
+      const proof = await createAuthProof(wallet, 'claim');
       const response = await fetch('/api/marketplace/claim-proceeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listingId: sale._id }),
+        body: JSON.stringify({ listingId: sale._id, proof }),
       });
 
       const data = await response.json();

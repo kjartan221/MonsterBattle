@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/utils/jwt';
+import { requireAuthProof } from '@/lib/requireAuthProof';
 import { connectToMongo } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
@@ -14,18 +13,11 @@ import { decodeBeef } from '@/utils/beefEncoding';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get cookies using next/headers
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId as string;
-
     const body = await request.json();
+    const auth = await requireAuthProof(request, 'cancel', body.proof);
+    if (auth instanceof NextResponse) return auth;
+    const userId = auth.userId;
+
     const { listingId, returnTokenId, cancelBeef, keyId, counterparty } = body;
 
     // Validate required fields

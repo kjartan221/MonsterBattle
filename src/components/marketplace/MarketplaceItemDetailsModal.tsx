@@ -10,6 +10,7 @@ import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
 import { generateNonce, deriveOwnKey, TOKEN_PROTOCOL } from '@/utils/tokenDerivation';
 import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
 import { internalizeToBasket } from '@/utils/internalizeToBasket';
+import { createAuthProof } from '@/utils/authProofClient';
 
 interface MarketplaceItemDetailsModalProps {
   item: {
@@ -263,6 +264,7 @@ export default function MarketplaceItemDetailsModal({
         console.warn('Listing cancelled on-chain but wallet internalize failed (recoverable via reindexFromBasket):', e);
       }
 
+      const cancelProof = await createAuthProof(wallet, 'cancel');
       const response = await fetch('/api/marketplace/cancel-listing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -272,6 +274,7 @@ export default function MarketplaceItemDetailsModal({
           cancelBeef: encodeBeef(Array.from(signed.tx!)), // server validates from this (no overlay race)
           keyId: cancelNonce,
           counterparty: serverIdentityKey,
+          proof: cancelProof,
         }),
       });
 
@@ -326,6 +329,7 @@ export default function MarketplaceItemDetailsModal({
         `Payment for marketplace purchase: ${item.itemName}`
       );
 
+      const purchaseProof = await createAuthProof(wallet, 'purchase');
       const response = await fetch('/api/marketplace/purchase-listing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -334,6 +338,7 @@ export default function MarketplaceItemDetailsModal({
           buyerIdentityKey,
           paymentTx: encodeBeef(paymentTx), // base64 BEEF
           walletParams,
+          proof: purchaseProof,
         }),
       });
 
