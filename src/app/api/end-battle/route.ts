@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Atomic claim: idempotent close, no double penalty on retry.
     // mongodb@6 returns the matched doc directly (no `{ value }` wrapper).
     const session = await battleSessionsCollection.findOneAndUpdate(
-      { _id: sessionObjectId, userId, isDefeated: false, completedAt: { $exists: false } },
+      { _id: sessionObjectId, userId, isDefeated: false, completedAt: { $exists: false }, completionClaimedAt: { $exists: false } },
       { $set: { isDefeated: true, completedAt: now, expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) } },
       { returnDocument: 'before' }
     );
