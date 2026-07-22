@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
+import { sanitizePlayerStatsUpdate } from '@/lib/playerStatsSanitize';
 
 /**
  * Get or initialize player stats
@@ -183,11 +184,11 @@ export async function PATCH(request: NextRequest) {
 
     // Get update data from request
     const body = await request.json();
-    const { updates } = body;
+    const safeUpdates = sanitizePlayerStatsUpdate(body);
 
-    if (!updates) {
+    if (!safeUpdates) {
       return NextResponse.json(
-        { error: 'Updates object is required' },
+        { error: 'No permitted fields to update (only currentHealth is client-writable)' },
         { status: 400 }
       );
     }
@@ -198,7 +199,7 @@ export async function PATCH(request: NextRequest) {
     // Update player stats
     const result = await playerStatsCollection.updateOne(
       { userId },
-      { $set: updates }
+      { $set: safeUpdates }
     );
 
     if (result.matchedCount === 0) {

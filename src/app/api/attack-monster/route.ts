@@ -9,6 +9,7 @@ import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterA
 import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { ObjectId } from 'mongodb';
+import { buildVictoryStatMutation } from '@/lib/battleOutcome';
 
 const MAX_CLICKS_PER_SECOND = 20;
 const MIN_BATTLE_DURATION_MS_FOR_VALIDATION = 1000;
@@ -330,11 +331,7 @@ export async function POST(request: NextRequest) {
       if (goldLost > 0) {
         await playerStatsCollection.updateOne(
           { userId },
-          {
-            $set: {
-              coins: Math.max(0, playerStats.coins - goldLost)
-            }
-          }
+          { $inc: { coins: -Math.min(goldLost, playerStats.coins) } }
         );
       }
 
@@ -426,6 +423,16 @@ export async function POST(request: NextRequest) {
     // For bosses, log the damage discrepancy for debugging
     if (isBossMonster && totalDamage < monster.clicksRequired) {
       console.log(`ℹ️ Boss defeated with ${totalDamage}/${monster.clicksRequired} damage (phases may affect this)`);
+    }
+
+    // Atomically claim completion so concurrent duplicate submissions can't both reward.
+    const completionClaim = await battleSessionsCollection.findOneAndUpdate(
+      { _id: sessionObjectId, userId, isDefeated: false, completedAt: { $exists: false }, completionClaimedAt: { $exists: false } },
+      { $set: { completionClaimedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!completionClaim) {
+      return NextResponse.json({ error: 'Battle session already completed' }, { status: 400 });
     }
 
     // Generate random loot drops (5 items) with streak multiplier
@@ -658,9 +665,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, Tier ${currentTier}, streak ${winStreak})`);
 
-    // Calculate new XP and coins
+    // Calculate new XP (used for level-up check)
     const newXP = playerStats.experience + rewards.xp;
-    const newCoins = playerStats.coins + rewards.coins;
 
     // Check for level up
     const levelUpResult = checkLevelUp(playerStats.level, newXP);
@@ -669,13 +675,6 @@ export async function POST(request: NextRequest) {
       console.log(`🎊 LEVEL UP! ${levelUpResult.previousLevel} → ${levelUpResult.newLevel}`);
       console.log(`   +${levelUpResult.statIncreases.maxHealth} max HP, +${levelUpResult.statIncreases.baseDamage} base damage`);
 
-      // Calculate remaining XP after level up
-      const xpForPreviousLevel = newXP;
-      const xpForNextLevel = xpForPreviousLevel; // This will be recalculated on next level
-      const remainingXP = xpForPreviousLevel; // Keep all XP for now, let checkLevelUp handle it
-
-      // Update player stats with level up
-      // Calculate total max HP including equipment bonuses
       const newMaxHealth = playerStats.maxHealth + levelUpResult.statIncreases.maxHealth;
       const totalMaxHP = newMaxHealth + equipmentStats.maxHpBonus;
 
@@ -683,32 +682,21 @@ export async function POST(request: NextRequest) {
       console.log(`🎯 [LEVEL UP HEAL] Equipment Bonus: +${equipmentStats.maxHpBonus}`);
       console.log(`🎯 [LEVEL UP HEAL] Total Max HP (with equipment): ${totalMaxHP}`);
       console.log(`🎯 [LEVEL UP HEAL] Setting currentHealth to: ${totalMaxHP} (full heal with equipment)`);
-
-      await playerStatsCollection.updateOne(
-        { userId },
-        {
-          $set: {
-            level: levelUpResult.newLevel,
-            experience: 0, // Reset XP for new level
-            coins: newCoins,
-            maxHealth: newMaxHealth, // Store base max health (without equipment)
-            currentHealth: totalMaxHP, // Full heal including equipment bonuses
-            baseDamage: playerStats.baseDamage + levelUpResult.statIncreases.baseDamage
-          }
-        }
-      );
-    } else {
-      // Just add XP and coins (no level up)
-      await playerStatsCollection.updateOne(
-        { userId },
-        {
-          $set: {
-            experience: newXP,
-            coins: newCoins
-          }
-        }
-      );
     }
+
+    const victoryUpdate = buildVictoryStatMutation({
+      playerStats,
+      rewards,
+      levelUp: {
+        leveledUp: levelUpResult.leveledUp,
+        newLevel: levelUpResult.newLevel,
+        statIncreases: levelUpResult.statIncreases,
+      },
+      equipmentMaxHpBonus: equipmentStats.maxHpBonus,
+      biome: currentBiome,
+      tier: currentTier,
+    });
+    await playerStatsCollection.updateOne({ userId }, victoryUpdate);
 
     return NextResponse.json({
       success: true,

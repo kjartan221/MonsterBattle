@@ -2,83 +2,70 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
 import { verifyJWT } from '@/utils/jwt';
+import { buildDefeatStatMutation } from '@/lib/battleOutcome';
+import { getStreakForZone } from '@/utils/streakHelpers';
 import { ObjectId } from 'mongodb';
 
 /**
- * API Route: End Battle (Player Death)
- * Called when player HP reaches 0 during battle
- * Marks the session as defeated with no loot rewards
+ * API Route: End Battle (Player Death or Monster Escape)
+ * Server-authoritative penalty (10% gold loss) + per-zone streak reset, applied
+ * atomically.
+ *
+ * `outcome` is optional and defaults to 'defeated' so the existing client
+ * (which posts only { sessionId }) keeps working; both outcomes apply the same
+ * penalty and differ only in the recorded battle-history label.
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get cookies using next/headers
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
+    const token = (await cookies()).get('verified')?.value;
     if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payload = await verifyJWT(token);
-    const userId = payload.userId;
+    let userId: string;
+    try {
+      userId = (await verifyJWT(token)).userId;
+    } catch {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    }
 
-    const { sessionId } = await request.json();
-
+    const { sessionId, outcome = 'defeated' } = await request.json();
     if (!sessionId) {
+      return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
+    }
+    if (outcome !== 'defeated' && outcome !== 'escaped') {
       return NextResponse.json(
-        { error: 'Missing sessionId' },
+        { error: "outcome, if provided, must be 'defeated' or 'escaped'" },
         { status: 400 }
       );
     }
 
-    // Connect to MongoDB
-    const { battleSessionsCollection, battleHistoryCollection } = await connectToMongo();
-
-    // Convert sessionId to ObjectId
     let sessionObjectId: ObjectId;
     try {
       sessionObjectId = new ObjectId(sessionId);
-    } catch (err) {
-      return NextResponse.json(
-        { error: 'Invalid sessionId format' },
-        { status: 400 }
-      );
+    } catch {
+      return NextResponse.json({ error: 'Invalid sessionId format' }, { status: 400 });
     }
 
-    // Verify session belongs to user
-    const session = await battleSessionsCollection.findOne({
-      _id: sessionObjectId,
-      userId
-    });
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found or does not belong to user' },
-        { status: 404 }
-      );
-    }
-
-    // Mark session as defeated (player died, no loot awarded)
+    const { battleSessionsCollection, battleHistoryCollection, playerStatsCollection } = await connectToMongo();
     const now = new Date();
 
-    const expiresAt = session.expiresAt
-      ? new Date(session.expiresAt)
-      : new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-    await battleSessionsCollection.updateOne(
-      { _id: sessionObjectId },
-      {
-        $set: {
-          isDefeated: true,
-          completedAt: now,
-          expiresAt,
-          // No lootOptions or selectedLootId - player gets nothing
-        }
-      }
+    // Atomic claim: idempotent close, no double penalty on retry.
+    // mongodb@6 returns the matched doc directly (no `{ value }` wrapper).
+    const session = await battleSessionsCollection.findOneAndUpdate(
+      { _id: sessionObjectId, userId, isDefeated: false, completedAt: { $exists: false } },
+      { $set: { isDefeated: true, completedAt: now, expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) } },
+      { returnDocument: 'before' }
     );
+
+    if (!session) {
+      // Null = already closed (retry) or not ours: 404 only if it truly doesn't exist.
+      const existing = await battleSessionsCollection.findOne({ _id: sessionObjectId, userId });
+      if (!existing) {
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, goldLost: 0, streakLost: 0, alreadyClosed: true });
+    }
 
     await battleHistoryCollection.updateOne(
       { sessionId: sessionObjectId },
@@ -87,28 +74,34 @@ export async function POST(request: NextRequest) {
           userId,
           sessionId: sessionObjectId,
           monsterTemplateName: session.monsterTemplateName,
-          createdAt: session.startedAt ? new Date(session.startedAt) : now
+          createdAt: session.startedAt ? new Date(session.startedAt) : now,
         },
         $set: {
           completedAt: now,
-          selectedLootId: 'DEFEATED'
-        }
+          selectedLootId: outcome === 'escaped' ? 'ESCAPED' : 'DEFEATED',
+        },
       },
       { upsert: true }
     );
 
-    console.log(`Player ${userId} was defeated in session ${sessionId}`);
+    const playerStats = await playerStatsCollection.findOne({ userId });
+    if (!playerStats) {
+      return NextResponse.json({ error: 'Player stats not found' }, { status: 404 });
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Battle session ended (player defeated)'
+    const streakLost = getStreakForZone(playerStats.stats.battlesWonStreaks, session.biome, session.tier);
+    const { goldLost, update } = buildDefeatStatMutation({
+      coins: playerStats.coins,
+      stats: { battlesWonStreaks: playerStats.stats.battlesWonStreaks },
+      biome: session.biome,
+      tier: session.tier,
     });
 
+    await playerStatsCollection.updateOne({ userId }, update);
+
+    return NextResponse.json({ success: true, goldLost, streakLost });
   } catch (error) {
     console.error('End battle error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -138,15 +138,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save the selected loot
-    await battleSessionsCollection.updateOne(
-      { _id: sessionObjectId },
-      {
-        $set: {
-          selectedLootId: lootId
-        }
-      }
+    // Atomically claim the loot selection; only the first request proceeds to insert.
+    const claim = await battleSessionsCollection.findOneAndUpdate(
+      { _id: sessionObjectId, userId, isDefeated: true, selectedLootId: { $exists: false } },
+      { $set: { selectedLootId: lootId } },
+      { returnDocument: 'after' }
     );
+    if (!claim) {
+      return NextResponse.json(
+        { error: 'Loot already selected for this battle' },
+        { status: 409 }
+      );
+    }
 
     await battleHistoryCollection.updateOne(
       { sessionId: sessionObjectId },

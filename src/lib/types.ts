@@ -243,6 +243,7 @@ export interface BattleSession {
   startedAt: Date; // When session was created (monster spawned)
   actualBattleStartedAt?: Date; // When user clicked "Start Battle" button (for HP verification)
   completedAt?: Date;
+  completionClaimedAt?: Date; // Atomic completion claim marker (prevents concurrent double-reward)
   expiresAt: Date;
 }
 
