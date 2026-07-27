@@ -3,16 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/WalletContext';
-import { useEquipment } from '@/contexts/EquipmentContext';
-import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
 import { authClient } from '@/lib/authProof';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { initializeWallet, userWallet, checkAuth } = useAuthContext();
-  const { refreshEquipment } = useEquipment();
-  const { fetchPlayerStats } = usePlayer();
+  const { initializeWallet, userWallet, refreshSession } = useAuthContext();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,19 +21,15 @@ export default function LoginPage() {
     const loadingToast = toast.loading('Connecting wallet...');
 
     try {
-      // Initialize wallet using context
-      await initializeWallet();
-
-      // Wait a tick for state to update, then get fresh values
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Access wallet from context to get public key directly
-      if (!userWallet) {
+      // Initialize wallet using context; use the returned instance directly
+      // (context state updates aren't visible in this closure until next render)
+      const wallet = await initializeWallet() ?? userWallet;
+      if (!wallet) {
         throw new Error('Wallet not initialized');
       }
 
       // Use non-derived key for login
-      const { publicKey } = await userWallet.getPublicKey({
+      const { publicKey } = await wallet.getPublicKey({
         identityKey: true,
       });
 
@@ -50,7 +42,7 @@ export default function LoginPage() {
       // Fetch server identity key, then build a signed, expiry-bound, single-use proof
       const serverKeyRes = await fetch('/api/server-identity-key');
       const { publicKey: serverIdentityKey } = await serverKeyRes.json();
-      const proof = await authClient.createAuthProof(userWallet, serverIdentityKey, 'login');
+      const proof = await authClient.createAuthProof(wallet, serverIdentityKey, 'login');
 
       toast.loading('Logging in...', { id: loadingToast });
 
@@ -72,18 +64,9 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Update auth state after successful login
+      // Flip hasSession true; PlayerContext/EquipmentContext/ChallengeContext react by fetching
       toast.loading('Loading player data...', { id: loadingToast });
-      await checkAuth();
-
-      // Wait a moment for contexts to receive auth state update
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Fetch player data and equipment
-      await Promise.all([
-        fetchPlayerStats(),
-        refreshEquipment()
-      ]);
+      await refreshSession();
 
       toast.success('Login successful!', { id: loadingToast });
 

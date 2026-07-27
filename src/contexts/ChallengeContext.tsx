@@ -46,10 +46,10 @@ const DEFAULT_CONFIG: ChallengeConfig = {
 export function ChallengeProvider({ children }: { children: ReactNode }) {
   const [challengeConfig, setChallengeConfig] = useState<ChallengeConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, userWallet } = useAuthContext();
+  const { isAuthenticated, userWallet, hasSession } = useAuthContext();
 
   const refreshChallengeConfig = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (hasSession !== true) {
       return;
     }
 
@@ -67,7 +67,7 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [hasSession]);
 
   const updateChallengeConfig = useCallback(async (config: ChallengeConfig) => {
     if (isAuthenticated !== true) {
@@ -96,19 +96,19 @@ export function ChallengeProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, userWallet]);
 
-  // Fetch challenge config on mount
+  // Fetch challenge config when an app session exists (mount-with-cookie or post-login)
   useEffect(() => {
-    if (isAuthenticated === true) {
+    if (hasSession === true) {
       refreshChallengeConfig();
       return;
     }
 
-    // Handle both false (not authenticated) and null (auth loading)
-    if (!isAuthenticated) {
+    // Handle both false (no session) and null (session check pending)
+    if (!hasSession) {
       setChallengeConfig(DEFAULT_CONFIG);
       setLoading(false);
     }
-  }, [isAuthenticated, refreshChallengeConfig]);
+  }, [hasSession, refreshChallengeConfig]);
 
   return (
     <ChallengeContext.Provider

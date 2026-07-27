@@ -11,10 +11,12 @@ type authContextType = {
     userPubKey: string | null; // DEPRECATED: Use userDerivedKey for blockchain ops
     userIdentityKey: string | null; // Non-derived key for user ID/database
     userDerivedKey: string | null; // Derived key for blockchain/token operations
-    initializeWallet: () => Promise<void>;
+    initializeWallet: () => Promise<WalletClient | null>;
     setIsAuthenticated: (value: boolean) => void;
     isAuthenticated: boolean | null;
     checkAuth: () => Promise<boolean>;
+    hasSession: boolean | null; // app session (verified cookie) valid, distinct from wallet connection
+    refreshSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<authContextType>({
@@ -22,10 +24,12 @@ const AuthContext = createContext<authContextType>({
     userPubKey: null,
     userIdentityKey: null,
     userDerivedKey: null,
-    initializeWallet: async () => { },
+    initializeWallet: async () => { return null; },
     setIsAuthenticated: () => { },
     isAuthenticated: null,
     checkAuth: async () => { return false; },
+    hasSession: null,
+    refreshSession: async () => { return false; },
 });
 export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => {
     const [userWallet, setUserWallet] = useState<authContextType['userWallet']>(null);
@@ -33,6 +37,21 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
     const [userIdentityKey, setUserIdentityKey] = useState<string | null>(null); // Non-derived
     const [userDerivedKey, setUserDerivedKey] = useState<string | null>(null); // Derived
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+    const [hasSession, setHasSession] = useState<boolean | null>(null);
+
+    // Check app session (verified cookie), independent of wallet connection state
+    const refreshSession = useCallback(async (): Promise<boolean> => {
+        try {
+            const res = await fetch('/api/check-session');
+            const data = await res.json();
+            const ok = !!data.authenticated;
+            setHasSession(ok);
+            return ok;
+        } catch {
+            setHasSession(false);
+            return false;
+        }
+    }, []);
 
     const checkAuth = useCallback(async (): Promise<boolean> => {
         try {
@@ -66,7 +85,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                     id: 'wallet-not-authenticated',
                 });
                 setIsAuthenticated(false);
-                return;
+                return null;
             }
 
             // Get identity key (non-derived) for database operations and user ID
@@ -90,11 +109,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
             const authenticated = await newWallet.isAuthenticated();
             setIsAuthenticated(!!authenticated);
 
-            toast.success('Wallet connected successfully', {
-                duration: 5000,
-                position: 'top-center',
-                id: 'wallet-connect-success',
-            });
+            return newWallet;
         } catch (error) {
             console.error('Failed to initialize wallet:', error);
             toast.error('Failed to connect wallet', {
@@ -103,12 +118,18 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
                 id: 'wallet-connect-error',
             });
             setIsAuthenticated(false);
+            return null;
         }
     }, []);
 
     useEffect(() => {
         initializeWallet();
     }, [initializeWallet]);
+
+    // Check app session on mount, independent of wallet connect
+    useEffect(() => {
+        refreshSession();
+    }, [refreshSession]);
 
     // Check auth when wallet changes (to handle reconnections)
     useEffect(() => {
@@ -118,7 +139,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
     }, [userWallet, checkAuth]);
 
     return (
-        <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth }}>
+        <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth, hasSession, refreshSession }}>
             {children}
         </AuthContext.Provider>
     );

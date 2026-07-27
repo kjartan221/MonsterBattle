@@ -40,14 +40,14 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
   const [equippedAccessory1, setEquippedAccessory1] = useState<EquippedItem | null>(null);
   const [equippedAccessory2, setEquippedAccessory2] = useState<EquippedItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, userWallet } = useAuthContext();
+  const { isAuthenticated, userWallet, hasSession } = useAuthContext();
 
   /**
    * Fetch equipped items from the server
    * Memoized with useCallback to prevent infinite loops in hooks that depend on this function
    */
   const refreshEquipment = useCallback(async () => {
-    if (isAuthenticated !== true) {
+    if (hasSession !== true) {
       return;
     }
 
@@ -146,7 +146,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [hasSession]);
 
   /**
    * Equip an item to a specific slot
@@ -257,22 +257,22 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, userWallet, refreshEquipment]); // Depends on refreshEquipment (which is memoized)
 
-  // Load equipment on mount
+  // Load equipment when an app session exists (mount-with-cookie or post-login)
   useEffect(() => {
-    if (isAuthenticated === true) {
+    if (hasSession === true) {
       refreshEquipment();
       return;
     }
 
-    // Handle both false (not authenticated) and null (auth loading)
-    if (!isAuthenticated) {
+    // Handle both false (no session) and null (session check pending)
+    if (!hasSession) {
       setEquippedWeapon(null);
       setEquippedArmor(null);
       setEquippedAccessory1(null);
       setEquippedAccessory2(null);
       setIsLoading(false);
     }
-  }, [isAuthenticated, refreshEquipment]); // Include refreshEquipment in deps (it's memoized, so won't cause re-runs)
+  }, [hasSession, refreshEquipment]); // Include refreshEquipment in deps (it's memoized, so won't cause re-runs)
 
   return (
     <EquipmentContext.Provider

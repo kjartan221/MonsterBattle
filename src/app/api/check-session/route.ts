@@ -11,7 +11,7 @@ import { verifyJWT } from '@/utils/jwt';
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
+    const token = cookieStore.get('verified')?.value;
 
     if (!token) {
       return NextResponse.json({ authenticated: false });

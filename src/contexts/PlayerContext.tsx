@@ -91,10 +91,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated } = useAuthContext();
+  const { hasSession } = useAuthContext();
 
   const fetchPlayerStats = useCallback(async () => {
-    if (isAuthenticated !== true) {
+    if (hasSession !== true) {
       return;
     }
 
@@ -118,25 +118,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [hasSession]);
 
-  // Fetch player stats on mount
+  // Fetch player stats when an app session exists (mount-with-cookie or post-login)
   useEffect(() => {
-    if (isAuthenticated === true) {
+    if (hasSession === true) {
       fetchPlayerStats();
       return;
     }
 
-    // Handle both false (not authenticated) and null (auth loading)
-    if (!isAuthenticated) {
+    // Handle both false (no session) and null (session check pending)
+    if (!hasSession) {
       setPlayerStats(null);
       setError(null);
       setLoading(false);
     }
-  }, [fetchPlayerStats, isAuthenticated]);
+  }, [fetchPlayerStats, hasSession]);
 
   const updatePlayerStats = async (updates: Partial<PlayerStats>) => {
-    if (isAuthenticated !== true) return;
+    if (hasSession !== true) return;
     if (!playerStats) return;
 
     try {
