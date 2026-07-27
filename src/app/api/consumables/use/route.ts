@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo, getClient } from '@/lib/mongodb';
+import { requireSession } from '@/lib/requireSession';
 
 /**
  * POST /api/consumables/use
@@ -13,16 +12,9 @@ import { connectToMongo, getClient } from '@/lib/mongodb';
  */
 export async function POST(request: NextRequest) {
     try {
-        // Verify the JWT
-        const cookieStore = await cookies();
-        const token = cookieStore.get('verified')?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const payload = await verifyJWT(token);
-        const userId = payload.userId;
+        const authSession = await requireSession();
+        if (authSession instanceof NextResponse) return authSession;
+        const userId = authSession.userId;
 
         // Get the request body
         const body = await request.json();

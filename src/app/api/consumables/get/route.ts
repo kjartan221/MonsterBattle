@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
+import { requireSession } from '@/lib/requireSession';
 
 /**
  * GET /api/consumables/get
@@ -9,17 +8,9 @@ import { connectToMongo } from '@/lib/mongodb';
  */
 export async function GET(request: NextRequest) {
     try {
-        // Get cookies from next/headers
-        const cookieStore = await cookies();
-        const token = cookieStore.get('verified')?.value;
-
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Verify JWT
-        const payload = await verifyJWT(token);
-        const userId = payload.userId;
+        const session = await requireSession();
+        if (session instanceof NextResponse) return session;
+        const userId = session.userId;
 
         // Fetch all items from the inventory
         const { userInventoryCollection } = await connectToMongo();

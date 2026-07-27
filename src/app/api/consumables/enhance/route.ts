@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
+import { requireSession } from '@/lib/requireSession';
 import { ObjectId } from 'mongodb';
 import { getLootItemById } from '@/lib/loot-table';
 
@@ -23,19 +22,9 @@ import { getLootItemById } from '@/lib/loot-table';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId;
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const userId = session.userId;
 
     // Parse request body
     const body = await request.json();

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/utils/jwt';
 import { connectToMongo } from '@/lib/mongodb';
+import { requireSession } from '@/lib/requireSession';
 
 /**
  * GET /api/marketplace/my-sales
@@ -10,15 +9,9 @@ import { connectToMongo } from '@/lib/mongodb';
  */
 export async function GET(_request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId as string;
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const userId = session.userId;
 
     const { marketplaceItemsCollection } = await connectToMongo();
 

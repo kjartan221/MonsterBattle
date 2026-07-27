@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
-import { verifyJWT } from '@/utils/jwt';
+import { requireSession } from '@/lib/requireSession';
 import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
 import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable, applyTierSpecialAttackScaling } from '@/lib/biome-config';
 import { generateMonsterBuffs } from '@/utils/monsterBuffs';
@@ -11,19 +10,9 @@ import { MonsterBuffType } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get cookies using next/headers
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId;
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const userId = session.userId;
 
     // Get biome/tier from request body (optional)
     const body = await request.json().catch(() => ({}));

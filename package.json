@@ -19,7 +19,7 @@
     "@bsv/wallet-toolbox-client": "^2.1.21",
     "jose": "^6.1.0",
     "mongodb": "^6.20.0",
-    "next": "16.0.0",
+    "next": "^16.2.10",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-hot-toast": "^2.6.0"
@@ -34,7 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "^16.2.10",
     "dotenv": "^17.2.2",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
-import { verifyJWT } from '@/utils/jwt';
+import { requireSession } from '@/lib/requireSession';
 import { buildDefeatStatMutation } from '@/lib/battleOutcome';
 import { getStreakForZone } from '@/utils/streakHelpers';
 import { ObjectId } from 'mongodb';
@@ -17,17 +16,9 @@ import { ObjectId } from 'mongodb';
  */
 export async function POST(request: NextRequest) {
   try {
-    const token = (await cookies()).get('verified')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let userId: string;
-    try {
-      userId = (await verifyJWT(token)).userId;
-    } catch {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
-    }
+    const authSession = await requireSession();
+    if (authSession instanceof NextResponse) return authSession;
+    const userId = authSession.userId;
 
     const { sessionId, outcome = 'defeated' } = await request.json();
     if (!sessionId) {

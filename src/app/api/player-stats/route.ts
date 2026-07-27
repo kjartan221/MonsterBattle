@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { connectToMongo } from '@/lib/mongodb';
-import { verifyJWT } from '@/utils/jwt';
+import { requireSession } from '@/lib/requireSession';
 import { sanitizePlayerStatsUpdate } from '@/lib/playerStatsSanitize';
 
 /**
@@ -10,19 +9,9 @@ import { sanitizePlayerStatsUpdate } from '@/lib/playerStatsSanitize';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get cookies using next/headers
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId as string;
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const userId = session.userId;
 
     // Connect to MongoDB
     const { playerStatsCollection } = await connectToMongo();
@@ -168,19 +157,9 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // Get cookies
-    const cookieStore = await cookies();
-    const token = cookieStore.get('verified')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const payload = await verifyJWT(token);
-    const userId = payload.userId as string;
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const userId = session.userId;
 
     // Get update data from request
     const body = await request.json();
