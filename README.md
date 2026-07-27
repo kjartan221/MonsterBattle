@@ -400,6 +400,18 @@ npm run lint
 
 ---
 
+## Database migration
+
+Index creation is **not** on the app's request path, and it is **not** a deploy step. Because MongoDB is a persistent, shared cloud cluster, indexes created once **persist** and every serverless invocation reuses them. So this is a **dev/ops one-off**: run it against the cloud cluster only when indexes change (a fresh DB, or after editing `ensureSchema()`), then deploy normally — Vercel does not run it.
+
+```bash
+npm run db:migrate    # needs MONGODB_URI in env / .env.local; runs against whatever cluster that points to
+```
+
+This runs `ensureSchema()` (`src/lib/mongodb.ts`) against `MONGODB_URI`, creating every index the app relies on. Run it once per cluster you deploy to (e.g. if prod and staging are separate DBs). The app itself only **verifies** (does not create) the security-critical unique indexes on boot, via `verifyCriticalIndexes()` — if any are missing it **fails fast** with an error telling you to run `npm run db:migrate`. That fail-fast is the safety net if someone deploys a schema change without migrating the cluster first.
+
+---
+
 ## 📂 Project Structure
 
 ```
