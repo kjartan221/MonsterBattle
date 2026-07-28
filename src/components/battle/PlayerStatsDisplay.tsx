@@ -103,6 +103,13 @@ export default function PlayerStatsDisplay({
   const excessCrit = Math.max(0, rawCritChance - 100);
   const critMultiplier = 2.0 + (excessCrit / 100); // Base 2x + excess crit
 
+  // Effective defense after active defense_reduction debuffs (mirrors useMonsterAttack)
+  const defenseReduction = Math.round(activeDebuffs
+    .filter(d => d.type === 'defense_reduction')
+    .reduce((sum, d) => sum + (Number(d.damageAmount) || 0), 0));
+  const rawDefense = Number(equipmentStats.defense) || 0;
+  const effectiveDefense = Math.max(0, rawDefense - defenseReduction);
+
   // XP progress - safe calculation to prevent NaN
   const xpForNextLevel = getXPForLevel(level);
   const xpProgress = xpForNextLevel > 0 ? (experience / xpForNextLevel) * 100 : 0;
@@ -241,10 +248,17 @@ export default function PlayerStatsDisplay({
         )}
         <div className="text-white/80">
           <span className="text-white/60">🛡️ Defense:</span>{' '}
-          {(Number(equipmentStats.defense) || 0) > 0 ? (
-            <span className="text-blue-400 font-semibold">
-              {Number(equipmentStats.defense) || 0} <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">({calculateActualReduction(Number(equipmentStats.defense) || 0)}%)</span>
-            </span>
+          {(rawDefense > 0 || defenseReduction > 0) ? (
+            <>
+              <span className={`font-semibold ${defenseReduction > 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                {effectiveDefense} <span className="text-gray-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">({calculateActualReduction(effectiveDefense)}%)</span>
+              </span>
+              {defenseReduction > 0 && (
+                <span className="text-red-400 text-[9px] sm:text-[10px] ml-0.5 sm:ml-1">
+                  (-{defenseReduction})
+                </span>
+              )}
+            </>
           ) : (
             <span className="text-white/60">0</span>
           )}
