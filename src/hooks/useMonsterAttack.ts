@@ -50,6 +50,10 @@ export function useMonsterAttack({
 }: UseMonsterAttackProps) {
   const [isAttacking, setIsAttacking] = useState(false);
 
+  // Derived boolean (not playerStats itself) so the interval tears down the instant HP hits 0
+  // without rebuilding on every HP tick.
+  const isPlayerDead = !playerStats || playerStats.currentHealth <= 0;
+
   useEffect(() => {
     // Stop attacking if any of these conditions are met:
     // - No monster/session/playerStats
@@ -60,7 +64,7 @@ export function useMonsterAttack({
     // - Monster is stunned (skillshot success)
     // Note: playerStats is checked for existence but NOT in dependency array
     // to prevent re-creating interval on every HP change
-    if (!monster || !session || session.isDefeated || !playerStats || isSubmitting || !battleStarted || isInvulnerable || isStunned) return;
+    if (!monster || !session || session.isDefeated || isPlayerDead || isSubmitting || !battleStarted || isInvulnerable || isStunned) return;
 
     // Safety check for monster.attackDamage
     if (typeof monster.attackDamage !== 'number' || isNaN(monster.attackDamage)) {
@@ -138,7 +142,7 @@ export function useMonsterAttack({
     }, interval);
 
     return () => clearInterval(attackInterval);
-  }, [monster, session, isSubmitting, takeDamage, healHealth, battleStarted, isInvulnerable, isStunned, equipmentStats, applyDebuff, additionalDamage, onSummonDamage, onThornsDamage, onDefensiveLifesteal, activeDebuffs, onSkillShotTrigger]);
+  }, [monster, session, isSubmitting, isPlayerDead, takeDamage, healHealth, battleStarted, isInvulnerable, isStunned, equipmentStats, applyDebuff, additionalDamage, onSummonDamage, onThornsDamage, onDefensiveLifesteal, activeDebuffs, onSkillShotTrigger]);
   // Note: playerStats intentionally excluded from dependencies to prevent infinite loop
   // when HP changes from takeDamage/healHealth calls
 

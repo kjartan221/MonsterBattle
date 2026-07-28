@@ -189,8 +189,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const newHealth = Math.max(0, prevStats.currentHealth - amount);
 
-      if (newHealth === 0) {
-        toast.error('You have been defeated!');
+      // Only on the >0 -> 0 transition (stable id) so repeated ticks at 0 HP don't stack toasts
+      if (prevStats.currentHealth > 0 && newHealth === 0) {
+        toast.error('You have been defeated!', { id: 'player-defeated' });
       }
 
       return {

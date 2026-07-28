@@ -156,9 +156,11 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
     // Create individual intervals for each debuff (to support different tick rates)
     const intervals: NodeJS.Timeout[] = [];
 
+    // Only damage-over-time types deal tick damage; stat/status modifiers
+    // (defense_reduction, slow, stun, freeze) are read elsewhere, not ticked.
+    const DOT_TYPES: DebuffType[] = ['poison', 'burn', 'bleed'];
     activeNonExpired.forEach(debuff => {
-      // Only tick damaging debuffs
-      if (debuff.damageAmount > 0) {
+      if (DOT_TYPES.includes(debuff.type) && debuff.damageAmount > 0) {
         const interval = setInterval(async () => {
           // Check if debuff is still valid (not expired)
           const elapsed = Date.now() - debuff.startTime;

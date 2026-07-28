@@ -115,6 +115,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Ref to store applyDamageToMonster to prevent interval resets
   const applyDamageRef = useRef<((isAutoHit: boolean) => void) | null>(null);
 
+  // Synchronous guard so death is handled exactly once (reset when a new battle starts)
+  const hasHandledDeathRef = useRef(false);
+
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
     calculateTotalEquipmentStats(
@@ -140,6 +143,20 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     battleStarted: gameState.canAttackMonster()
   });
 
+  // Memoized so useInteractiveAttacks' 100ms impact interval isn't rebuilt every render (was a lag source)
+  const handleInteractiveImpact = useCallback((damage: number, visualEffect?: string) => {
+    const damageAfterDefense = calculateMonsterDamage(damage, equipmentStats.defense);
+    takeDamage(damageAfterDefense);
+    setPhaseAttack({
+      type: 'meteor',
+      damage: damageAfterDefense, // Show reduced damage
+      cooldown: 0,
+      visualEffect: visualEffect || 'red',
+      message: '💥 Attack impacted!'
+    });
+    setTimeout(() => setPhaseAttack(null), 3500);
+  }, [equipmentStats, takeDamage]);
+
   // Interactive attacks management (must come before handleSpecialAttack)
   const {
     attacks: interactiveAttacks,
@@ -147,26 +164,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     damageAttack,
     clearAttacks: clearInteractiveAttacks
   } = useInteractiveAttacks({
-    onImpact: (damage, visualEffect) => {
-      // Apply defense reduction to interactive attack damage
-      const totalStats = calculateTotalEquipmentStats(
-        equippedWeapon,
-        equippedArmor,
-        equippedAccessory1,
-        equippedAccessory2
-      );
-      const damageAfterDefense = calculateMonsterDamage(damage, totalStats.defense);
-      takeDamage(damageAfterDefense);
-      // Trigger visual feedback
-      setPhaseAttack({
-        type: 'meteor',
-        damage: damageAfterDefense, // Show reduced damage
-        cooldown: 0,
-        visualEffect: visualEffect || 'red',
-        message: '💥 Attack impacted!'
-      });
-      setTimeout(() => setPhaseAttack(null), 3500);
-    }
+    onImpact: handleInteractiveImpact
   });
 
   // SkillShot system - Tier-based progression with challenge modifiers
@@ -254,7 +252,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         damageAmount: 30, // -30 defense
         tickInterval: 5000, // Doesn't tick, just duration tracker
         duration: 5000, // 5 seconds
-        applyChance: 1.0 // Always apply (100%)
+        applyChance: 100 // Always apply (0-100 scale; 1.0 meant 1% and was silently dropped)
       };
 
       applyDebuff(defenseDebuff, 'skillshot_failure');
@@ -394,18 +392,23 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Determine if this is a boss monster (before calling hooks)
   const isBoss = gameState.monster?.isBoss && gameState.monster.bossPhases && gameState.monster.bossPhases.length > 0;
 
+  // Memoized (stable identities) so useBossPhases' phase-transition effect only re-runs
+  // on real phase/HP changes — unstable inline callbacks caused double toasts/heals/summons.
+  const handleBossBattleComplete = useCallback(() => {
+    // Handled in the effect below (needs latest damage/click values)
+  }, []);
+  const handleInvulnerabilityStart = useCallback((duration: number) => {
+    setInvulnerabilityTime(prev => prev + duration);
+  }, []);
+
   // Boss phase management with stacked HP bar system (only for bosses)
   const bossPhaseData = useBossPhases({
     monster: isBoss ? gameState.monster : null, // Only pass monster if it's a boss
     battleStarted: gameState.canAttackMonster(),
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     onPhaseAttack: handleSpecialAttack,
-    onBattleComplete: () => {
-      // Will handle in useEffect below to access latest damage/click values
-    },
-    onInvulnerabilityStart: (duration) => {
-      setInvulnerabilityTime(prev => prev + duration);
-    }
+    onBattleComplete: handleBossBattleComplete,
+    onInvulnerabilityStart: handleInvulnerabilityStart
   });
 
   // Simple HP tracking for regular monsters (only for non-bosses)
@@ -597,7 +600,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Check for player death
   useEffect(() => {
-    if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster()) {
+    if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster() && !hasHandledDeathRef.current) {
+      hasHandledDeathRef.current = true;
       handlePlayerDeath();
     }
   }, [playerStats?.currentHealth, gameState.gameState]);
@@ -648,6 +652,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const startBattle = async (useBiome?: BiomeId, useTier?: Tier, isConsecutiveBattle = false) => {
     try {
       gameState.setBattleLoading();
+      hasHandledDeathRef.current = false; // new battle: allow death to be handled again
 
       const biome = useBiome || selectedBiome;
       const tier = useTier || selectedTier;

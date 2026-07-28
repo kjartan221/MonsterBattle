@@ -58,6 +58,9 @@ export function useBossPhases({
   const invulnerabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const phaseAttackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastInitializedMonsterIdRef = useRef<string | null>(null);
+  // Synchronous guard: setIsInvulnerable is async, so without this a re-run before it
+  // commits would schedule a second transition (double toast/heal/summon).
+  const isTransitioningRef = useRef(false);
 
   // Get boss data
   const bossPhases = monster?.bossPhases || [];
@@ -75,6 +78,7 @@ export function useBossPhases({
         setCurrentPhaseNumber(1);
         setPhasesRemaining(1);
         setIsInvulnerable(false);
+        isTransitioningRef.current = false;
       }
       return;
     }
@@ -120,6 +124,7 @@ export function useBossPhases({
       clearTimeout(phaseAttackTimeoutRef.current);
       phaseAttackTimeoutRef.current = null;
     }
+    isTransitioningRef.current = false;
   }, [monster, isBoss, bossPhases, totalPhases]);
 
   // Phase transition logic - triggers when phase HP reaches 0
@@ -129,7 +134,8 @@ export function useBossPhases({
     }
 
     // Check if phase HP depleted and more phases remain
-    if (currentPhaseHP <= 0 && phasesRemaining > 1 && !isInvulnerable) {
+    if (currentPhaseHP <= 0 && phasesRemaining > 1 && !isInvulnerable && !isTransitioningRef.current) {
+      isTransitioningRef.current = true;
       const nextPhaseNumber = currentPhaseNumber + 1;
       const phaseDefinition = bossPhases.find(p => p.phaseNumber === nextPhaseNumber);
 
@@ -150,6 +156,7 @@ export function useBossPhases({
       // Show phase message
       if (phaseDefinition.message) {
         toast(phaseDefinition.message, {
+          id: 'boss-phase-message',
           icon: '⚔️',
           duration: 3000,
           style: {
@@ -169,6 +176,7 @@ export function useBossPhases({
 
       // Execute phase-specific special attacks after 1 second (during invulnerability)
       if (phaseDefinition.specialAttacks && phaseDefinition.specialAttacks.length > 0) {
+        if (phaseAttackTimeoutRef.current) clearTimeout(phaseAttackTimeoutRef.current);
         phaseAttackTimeoutRef.current = setTimeout(() => {
           // First, set the new phase HP
           setCurrentPhaseNumber(nextPhaseNumber);
@@ -193,8 +201,10 @@ export function useBossPhases({
       }
 
       // End invulnerability after transition duration
+      if (invulnerabilityTimeoutRef.current) clearTimeout(invulnerabilityTimeoutRef.current);
       invulnerabilityTimeoutRef.current = setTimeout(() => {
         setIsInvulnerable(false);
+        isTransitioningRef.current = false; // transition complete: allow the next phase
 
         // Only set phase HP if no special attacks (they already set it)
         if (!phaseDefinition.specialAttacks || phaseDefinition.specialAttacks.length === 0) {
@@ -205,10 +215,11 @@ export function useBossPhases({
         }
 
         toast('The boss is vulnerable again!', {
+          id: 'boss-vulnerable',
           icon: '⚔️',
           duration: 2000
         });
-      }, phaseDefinition.invulnerabilityDuration);
+      }, invulnDuration);
     }
     // Check if last phase depleted
     else if (currentPhaseHP <= 0 && phasesRemaining === 1) {
