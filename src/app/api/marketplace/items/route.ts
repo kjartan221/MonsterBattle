@@ -66,16 +66,12 @@ export async function GET(request: NextRequest) {
       query.price = priceFilter as any;
     }
 
-    console.log('[MARKETPLACE GET] Query:', query);
-
     // Fetch marketplace items (sorted by newest first)
     const items = await marketplaceItemsCollection
       .find(query)
       .sort({ listedAt: -1 })
       .limit(100) // Limit to 100 items for performance
       .toArray();
-
-    console.log('[MARKETPLACE GET] Found items:', items.length);
 
     // Format items for frontend
     const formattedItems = items.map(item => ({

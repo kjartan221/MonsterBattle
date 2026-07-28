@@ -107,7 +107,6 @@ export async function GET(request: NextRequest) {
       };
 
       const result = await playerStatsCollection.insertOne(defaultStats);
-      console.log(`✅ Created player stats for user ${userId}`);
 
       // Fetch the newly created stats
       playerStats = await playerStatsCollection.findOne({ _id: result.insertedId });

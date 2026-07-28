@@ -98,11 +98,6 @@ export async function POST(request: NextRequest) {
     const paymentTransaction = Transaction.fromBEEF(paymentBeef);
     const paymentTxId = paymentTransaction.id('hex');
 
-    console.log('📥 [PAYMENT] Received WalletP2PKH payment transaction:', {
-      txid: paymentTxId,
-      walletParams,
-    });
-
     const paymentOutput = paymentTransaction.outputs[0];
     if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
       return NextResponse.json(
@@ -120,10 +115,6 @@ export async function POST(request: NextRequest) {
       counterparty: walletParams.counterparty,
     });
     const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
-
-    console.log('Server adding and merging materials:', {
-      lootTableId, itemName, transferredTokenId, currentQuantity, addedQuantity, userId,
-    });
 
     // Validate the transferred token from the posted BEEF (no overlay).
 
@@ -150,19 +141,12 @@ export async function POST(request: NextRequest) {
     // OrdinalsP2PKH embeds hash160(pubkey), so hash before comparing.
     const expectedScriptPattern = new P2PKH().lock(Hash.hash160(expectedServerKey, 'hex')).toHex();
 
-    console.log('🔍 [VALIDATE] Validating transferred token:', {
-      transferredTokenId,
-      containsExpectedP2PKH: transferScriptHex.includes(expectedScriptPattern),
-    });
-
     if (!transferScriptHex.includes(expectedScriptPattern)) {
       return NextResponse.json(
         { error: 'Transfer output not locked to server public key' },
         { status: 400 }
       );
     }
-
-    console.log('✅ [VALIDATE] Transferred token validated');
 
     // Mint the added quantity to a self-derived key.
 
@@ -180,8 +164,6 @@ export async function POST(request: NextRequest) {
     const mintNonce = generateNonce();
     const mintKey = await deriveSelfKey(serverWallet, mintNonce);
     const mintLockingScript = ordinalP2PKH.lock(mintKey, '', materialMetadata, 'deploy+mint', addedQuantity);
-
-    console.log('🔨 [MINT] Minting new material token:', { lootTableId, addedQuantity });
 
     const mintActionRes = await serverWallet.createAction({
       description: "Minting additional materials for merge with user WalletP2PKH payment",
@@ -225,8 +207,6 @@ export async function POST(request: NextRequest) {
     const mintTxId = mintBroadcast.txid!;
     const mintOutpoint = `${mintTxId}.0`;
 
-    console.log(`✅ [MINT] Minted ${addedQuantity}x ${itemName}: ${mintOutpoint}`);
-
     // Merge both tokens into one output locked to the user's recipient-derived key.
 
     const serverIdentityKey = await getServerIdentityPublicKey();
@@ -252,12 +232,6 @@ export async function POST(request: NextRequest) {
 
     const transferredUnlockLength = await transferredUnlock.estimateLength();
     const mintedUnlockLength = await mintedUnlock.estimateLength();
-
-    console.log('🔀 [MERGE] Creating merge transaction:', {
-      input1: transferredTokenId, input1Amt: currentQuantity,
-      input2: mintOutpoint, input2Amt: addedQuantity,
-      outputAmt: newQuantity,
-    });
 
     const mergedBeef = new Beef();
     mergedBeef.mergeBeef(transferTransaction.toBEEF());
@@ -323,8 +297,6 @@ export async function POST(request: NextRequest) {
     const mergeTxId = mergeBroadcast.txid!;
     const mergedTokenId = `${mergeTxId}.0`;
 
-    console.log(`✅ [MERGE] Merged tokens: ${mergedTokenId} (${newQuantity}x ${itemName})`);
-
     // Update the DB index and return the BEEF + nonce.
 
     await materialTokensCollection.updateOne(
@@ -359,10 +331,7 @@ export async function POST(request: NextRequest) {
       const { ObjectId } = await import('mongodb');
       const objectIds = inventoryItemIds.map((id: string) => new ObjectId(id));
       const deleteResult = await userInventoryCollection.deleteMany({ _id: { $in: objectIds }, userId });
-      console.log(`✅ [CONSUME] Removed ${deleteResult.deletedCount} UserInventory items after merging ${itemName}`);
     }
-
-    console.log('✅ [DATABASE] Updated material token document');
 
     return NextResponse.json({
       success: true,

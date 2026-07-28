@@ -116,8 +116,6 @@ export function useMintItemNFT() {
       }
       const { publicKey: serverIdentityKey } = await serverPubKeyResponse.json();
 
-      console.log('Creating WalletP2PKH payment transaction (100 sats)...');
-
       // Create WalletP2PKH payment with derivation params
       const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
         wallet,
@@ -125,21 +123,6 @@ export function useMintItemNFT() {
         100,
         'Payment for item minting fees'
       );
-
-      console.log('WalletP2PKH payment transaction created:', {
-        txid: paymentTxId,
-        satoshis: 100,
-        walletParams,
-      });
-
-      console.log('Requesting server-side mint for item:', {
-        itemName: itemData.name,
-        rarity: itemData.rarity,
-        type: itemData.type,
-        userIdentityKey,
-        paymentTxId,
-        walletParams,
-      });
 
       // Prepare item data for server minting
       const serverMintData = {
@@ -185,12 +168,6 @@ export function useMintItemNFT() {
       }
 
       const result = await apiResult.json();
-
-      console.log('Server minted and transferred item:', {
-        nftId: result.nftId,
-        tokenId: result.tokenId,        // Current location (after transfer)
-        mintOutpoint: result.mintOutpoint, // Proof of original mint
-      });
 
       // Record the output in the wallet basket. Non-fatal: the NFT is already
       // minted server-side, so a failure here is recoverable via reindexFromBasket.

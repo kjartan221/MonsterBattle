@@ -158,8 +158,6 @@ export async function ensureSchema(db: Db): Promise<void> {
   const marketplaceListingBeefsCollection = db.collection<MarketplaceListingBeef>(COLLECTIONS.MARKETPLACE_LISTING_BEEFS);
   const authNoncesCollection = db.collection(COLLECTIONS.AUTH_NONCES);
 
-  console.log('Initializing MongoDB indexes...');
-
   async function safeCreateIndex<T extends Document>(
     collection: Collection<T>,
     indexSpec: any,
@@ -259,7 +257,6 @@ export async function ensureSchema(db: Db): Promise<void> {
     authNoncesCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
   ]);
 
-  console.log('✅ MongoDB indexes created successfully');
 }
 
 // Connect + assign collection handles ONLY. Creates nothing, verifies nothing.
@@ -312,10 +309,8 @@ async function connectRaw() {
         client = new MongoClient(uri, options);
         await client.connect();
         globalForMongo._mbMongoClient = client;
-        console.log("Connected to MongoDB!");
       } else {
         // Reuse existing client if already connected
-        console.log("Reusing existing MongoDB connection");
       }
 
       // Initialize database with explicit name
@@ -332,7 +327,6 @@ async function connectRaw() {
       marketplaceItemsCollection = db.collection<MarketplaceItem>(COLLECTIONS.MARKETPLACE_ITEMS);
       marketplaceListingBeefsCollection = db.collection<MarketplaceListingBeef>(COLLECTIONS.MARKETPLACE_LISTING_BEEFS);
 
-      console.log(`✅ MongoDB connected to database: ${dbName}`);
     } catch (error) {
       console.error("❌ Error connecting to MongoDB:", error);
       try { await client?.close(); } catch { /* ignore */ }
@@ -440,7 +434,6 @@ if (process.env.NODE_ENV === 'development') {
     try {
       if (client) {
         await client.close();
-        console.log('🔌 MongoDB connection closed (SIGINT)');
       }
       process.exit(0);
     } catch (error) {

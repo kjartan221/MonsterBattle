@@ -111,16 +111,12 @@ export function useCraftItemNFT() {
         'Payment for crafting fees'
       );
 
-      console.log('WalletP2PKH payment created:', { txid: paymentTxId, satoshis: 100 });
-
       // ===================================================
       // CLIENT: Batch transfer all materials to server
       // ===================================================
 
       const ordinalP2PKH = new OrdinalsP2PKH();
       const materialInputs = inputItems.filter(input => input.tokenId && input.itemType === 'material');
-
-      console.log(`[TRANSFER] Transferring ${materialInputs.length} materials in single batch tx`);
 
       // Per-input unlock: each token has its own stored derivation (legacy fallback when absent)
       const buildUnlock = (m: { keyId?: string; counterparty?: string }) =>
@@ -221,8 +217,6 @@ export function useCraftItemNFT() {
         tier: input.tier || 1,
       }));
 
-      console.log('[TRANSFER] Batch transfer signed:', { txid: transferTxId, materialCount: materialInputs.length });
-
       // ===================================================
       // SERVER: Craft item + return BEEF for internalization
       // ===================================================
@@ -272,8 +266,6 @@ export function useCraftItemNFT() {
       }
 
       const result = await apiResult.json();
-
-      console.log('Server crafted item:', { nftId: result.nftId, tokenId: result.tokenId });
 
       // Internalize crafted item + change tokens (non-fatal)
       if (typeof result.transferBeef === 'string' && Array.isArray(result.received) && result.received.length) {

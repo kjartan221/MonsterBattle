@@ -61,21 +61,18 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   // State transition functions
   const setInitializing = () => {
-    console.log('🎮 Game State: INITIALIZING');
     setGameState(GameState.INITIALIZING);
     setSession(null);
     setLootOptionsState(null);
   };
 
   const setBattleLoading = () => {
-    console.log('🎮 Game State: BATTLE_LOADING');
     setGameState(GameState.BATTLE_LOADING);
     // Keep monster/session from previous state during loading
     setLootOptionsState(null);
   };
 
   const setBattleStartScreen = (newSession: BattleSessionFrontend) => {
-    console.log('🎮 Game State: BATTLE_START_SCREEN with monster:', newSession.monster?.name);
     setSession(newSession);
     setGameState(GameState.BATTLE_START_SCREEN);
     setLootOptionsState(null);
@@ -83,52 +80,44 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const setBattleInProgress = (newSession?: BattleSessionFrontend) => {
     if (newSession) {
-      console.log('🎮 Game State: BATTLE_IN_PROGRESS with new monster:', newSession.monster?.name);
       setSession(newSession);
     } else {
-      console.log('🎮 Game State: BATTLE_IN_PROGRESS (keeping current monster/session)');
     }
     setGameState(GameState.BATTLE_IN_PROGRESS);
     setLootOptionsState(null);
   };
 
   const setBattleCompleting = () => {
-    console.log('🎮 Game State: BATTLE_COMPLETING');
     // Keep monster/session during completion
     setGameState(GameState.BATTLE_COMPLETING);
     setLootOptionsState(null);
   };
 
   const setLootSelection = (loot: LootItem[]) => {
-    console.log('🎮 Game State: LOOT_SELECTION with', loot.length, 'items');
     // Keep monster/session during loot selection
     setLootOptionsState(loot);
     setGameState(GameState.LOOT_SELECTION);
   };
 
   const setBattleVictory = () => {
-    console.log('🎮 Game State: BATTLE_VICTORY (rest phase)');
     // Keep monster/session during victory phase
     setLootOptionsState(null); // Clear loot options
     setGameState(GameState.BATTLE_VICTORY);
   };
 
   const setNextMonsterReady = () => {
-    console.log('🎮 Game State: NEXT_MONSTER_READY');
     // Keep monster/session until next battle loads
     setLootOptionsState(null);
     setGameState(GameState.NEXT_MONSTER_READY);
   };
 
   const setPlayerDefeated = () => {
-    console.log('🎮 Game State: PLAYER_DEFEATED');
     // Keep monster/session to show which monster defeated player
     setLootOptionsState(null);
     setGameState(GameState.PLAYER_DEFEATED);
   };
 
   const updateSession = (newSession: BattleSessionFrontend) => {
-    console.log('🔄 Updating session (keeping current game state)');
     setSession(newSession);
   };
 

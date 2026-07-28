@@ -43,7 +43,6 @@ export function useSpecialAttacks({
 
         // If cooldown has passed, execute attack
         if (timeSinceLastAttack >= attack.cooldown) {
-          console.log(`🎯 Special Attack: ${attack.type} - ${attack.message}`);
 
           // Update cooldown
           setCooldowns(prev => ({

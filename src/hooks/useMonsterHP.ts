@@ -32,7 +32,6 @@ export function useMonsterHP({ monster }: UseMonsterHPProps): MonsterHPData {
     if (!monster) {
       // Only reset if we haven't already reset
       if (lastInitializedMonsterIdRef.current !== null) {
-        console.log('[useMonsterHP] No monster, resetting state');
         lastInitializedMonsterIdRef.current = null;
         setCurrentHP(0);
         setMaxHP(0);
@@ -48,7 +47,6 @@ export function useMonsterHP({ monster }: UseMonsterHPProps): MonsterHPData {
     }
 
     const totalHP = monster.clicksRequired;
-    console.log(`[useMonsterHP] Initializing ${monster.name} with ${totalHP} HP`);
 
     setMaxHP(totalHP);
     setCurrentHP(totalHP);

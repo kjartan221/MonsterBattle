@@ -52,15 +52,11 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
 
   const getCurrentlyEquipped = () => {
     if (slotType === 'spell') {
-      console.log('🔧 [SPELL UPGRADE] Checking spell slot:', spellSlot);
       if (!spellSlot || !spellSlot.lootTableId || !spellSlot.inventoryId) {
-        console.log('🔧 [SPELL UPGRADE] Spell slot is null or missing data');
         return null;
       }
       const lootItem = getLootItemById(spellSlot.lootTableId); // ✅ Use lootTableId instead of spellId
-      console.log('🔧 [SPELL UPGRADE] Loot item found:', lootItem);
       const result = lootItem ? { inventoryId: spellSlot.inventoryId, lootItem } : null;
-      console.log('🔧 [SPELL UPGRADE] getCurrentlyEquipped result:', result);
       return result;
     }
     const slot = consumableSlots[slotIndex];
@@ -293,17 +289,6 @@ export default function HotbarSelectionModal({ isOpen, onClose, slotType, slotIn
           const requirements = slotType === 'spell' ? getUpgradeRequirements(currentTier) : null;
           const tier1Duplicates = slotType === 'spell' ? countTier1Duplicates(currentlyEquipped.lootItem.lootId, currentlyEquipped.inventoryId) : 0;
           const canUpgrade = requirements && tier1Duplicates >= requirements.duplicates && currentTier < 5;
-
-          console.log('🔧 [SPELL UPGRADE] IIFE executing:', {
-            slotType,
-            currentlyEquipped,
-            equippedItem,
-            currentTier,
-            requirements,
-            tier1Duplicates,
-            canUpgrade,
-            itemsCount: items.length
-          });
 
           return (
             <div className="relative px-6 py-4 bg-gray-800/50 border-b border-gray-700">

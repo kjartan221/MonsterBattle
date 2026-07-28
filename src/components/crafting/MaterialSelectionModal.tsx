@@ -101,15 +101,6 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
         return total + (mat?.quantity || 0);
       }, 0);
 
-      console.log(`🔧 [MATERIAL CLICK] Clicked material:`, {
-        materialId,
-        lootTableId: material.lootTableId,
-        materialQuantity: material.quantity,
-        currentSelected,
-        currentTotalQuantity: currentQuantity,
-        required: requirement.quantity
-      });
-
       // Check if already selected
       if (currentSelected.includes(materialId)) {
         // Deselect
@@ -120,7 +111,6 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
         } else {
           newMap.set(material.lootTableId, newSelected);
         }
-        console.log(`🔧 [MATERIAL DESELECT] New selection:`, Array.from(newMap.entries()));
         return newMap;
       } else {
         // Select (only allow if we haven't met requirement yet)
@@ -132,7 +122,6 @@ export default function MaterialSelectionModal({ recipe, onClose, onCraft }: Mat
           const newSelected = [...currentSelected, materialId];
           const newMap = new Map(prevMap);
           newMap.set(material.lootTableId, newSelected);
-          console.log(`🔧 [MATERIAL SELECT] New selection:`, Array.from(newMap.entries()));
           return newMap;
         } else {
           // Already have enough materials

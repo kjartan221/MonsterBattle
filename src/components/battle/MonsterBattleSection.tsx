@@ -156,7 +156,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         equippedAccessory2
       );
       const damageAfterDefense = calculateMonsterDamage(damage, totalStats.defense);
-      console.log(`💥 Interactive Attack Impacted! Dealt ${damage} damage (${damageAfterDefense} after ${totalStats.defense} defense)`);
       takeDamage(damageAfterDefense);
       // Trigger visual feedback
       setPhaseAttack({
@@ -219,7 +218,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       if (skillShot.mode === 'simple') {
         // Simple mode: Small damage boost, no stun
-        console.log('🎯 [SkillShot] SIMPLE SUCCESS! +25% damage boost');
 
         const damageBoostDuration = 3000; // 3 seconds
         setDamageWindow(1.25); // 25% damage boost
@@ -228,7 +226,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         toast.success('✓ HIT! +25% damage for 3s!', { duration: 2000 });
       } else {
         // Chain mode: Big damage boost + stun
-        console.log('🎯 [SkillShot] CHAIN SUCCESS! Stunning monster + 2x damage');
 
         const stunDuration = 2000; // 2 seconds stun
         const damageWindowDuration = 5000; // 5 seconds of 2x damage
@@ -249,7 +246,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // SkillShot failure callback (chain mode only): Defense debuff penalty
   useEffect(() => {
     skillShot.onFailureRef.current = () => {
-      console.log('❌ [SkillShot] CHAIN FAILED! Applying -30 defense penalty');
 
       // Apply defense reduction debuff using existing debuff system
       const defenseDebuff: DebuffEffect = {
@@ -269,7 +265,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // SkillShot miss callback (simple mode only): No penalty
   useEffect(() => {
     skillShot.onMissRef.current = () => {
-      console.log('⊗ [SkillShot] SIMPLE MISSED (no penalty)');
       // No toast needed, just missed opportunity
     };
   }, []);
@@ -283,14 +278,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         // Calculate stun duration and add to total
         const stunDuration = stunEndTime - (now - 100); // Approximate start time
         setTotalStunTime(prev => prev + Math.max(0, stunDuration));
-        console.log(`🔓 [SkillShot] Stun expired (added ${stunDuration}ms to total: ${totalStunTime + stunDuration}ms)`);
 
         setIsStunned(false);
       }
 
       if (damageWindow > 1.0 && now >= damageWindowEndTime) {
         setDamageWindow(1.0);
-        console.log('⏱️ [SkillShot] Damage window expired');
         toast('⏱️ Damage window ended', { duration: 2000 });
       }
     }, 100);
@@ -301,7 +294,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Callback for handling special attacks (damage, summon, heal, interactive)
   // Note: Healing is handled internally by useBossPhases hook
   const handleSpecialAttack = useCallback((attack: SpecialAttack) => {
-    console.log(`[handleSpecialAttack] Called with attack:`, attack);
 
     // Trigger visual feedback for phase attacks (unless interactive)
     if (!attack.interactive) {
@@ -311,7 +303,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     // Check if this is an interactive attack
     if (attack.interactive && attack.objectHpPercent && attack.impactDelay && gameState.monster) {
-      console.log(`🎯 Interactive Attack! Spawning ${attack.type}`);
       const objectMaxHP = Math.ceil((attack.objectHpPercent / 100) * gameState.monster.clicksRequired);
       const attackName = attack.message?.split(' ')[1] || attack.type.charAt(0).toUpperCase() + attack.type.slice(1);
       // Use imageUrl from attack definition, fallback to type-based icon
@@ -337,19 +328,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         equippedAccessory2
       );
       const damageAfterDefense = calculateMonsterDamage(attack.damage, totalStats.defense);
-      console.log(`💥 Special Attack Hit! ${attack.type} dealt ${attack.damage} damage (${damageAfterDefense} after ${totalStats.defense} defense)`);
       takeDamage(damageAfterDefense);
     }
     if (attack.healing) {
-      console.log(`💚 Boss Healed! ${attack.type} restored ${attack.healing} HP (handled by useBossPhases)`);
       // Healing is handled internally by useBossPhases hook
       // Also reduce total damage for tracking
       const healAmount = Math.ceil(attack.healing);
       setTotalDamage(prev => Math.max(0, prev - healAmount));
     }
     if (attack.type === 'summon' && attack.summons && gameState.monster) {
-      console.log(`✨ Boss summoned ${attack.summons.count} ${attack.summons.creature.name}(s)!`);
-      console.log(`[handleSpecialAttack] Summon details:`, attack.summons);
       addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired, gameState.monster.tier);
     }
   }, [takeDamage, addSummons, spawnAttack, gameState.monster]);
@@ -359,7 +346,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (healingReportHandler) {
       healingReportHandler.current = (amount: number) => {
         setTotalHealing(prev => prev + amount);
-        console.log(`💚 [Healing Report] +${amount} HP, total: ${totalHealing + amount}`);
       };
     }
     return () => {
@@ -375,10 +361,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       buffReportHandler.current = (buffType: string, buffValue: number) => {
         if (buffType === 'shield') {
           setTotalShieldGained(prev => prev + buffValue);
-          console.log(`🛡️ [Buff Report] Shield +${buffValue} HP, total: ${totalShieldGained + buffValue}`);
         } else if (buffType === 'damage_reduction') {
           setTotalDamageReduction(prev => prev + buffValue);
-          console.log(`🛡️ [Buff Report] Damage Reduction +${buffValue}%, total: ${totalDamageReduction + buffValue}%`);
         }
       };
     }
@@ -394,11 +378,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (removeMonsterShieldHandler) {
       removeMonsterShieldHandler.current = (): boolean => {
         if (shieldHP > 0) {
-          console.log(`🧪 [Shield Removal] Removing ${shieldHP} shield HP`);
           setShieldHP(0);
           return true; // Shield was removed
         }
-        console.log(`🧪 [Shield Removal] No shield to remove`);
         return false; // No shield existed
       };
     }
@@ -419,12 +401,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     isSubmitting: gameState.gameState === 'BATTLE_COMPLETING',
     onPhaseAttack: handleSpecialAttack,
     onBattleComplete: () => {
-      console.log(`[MonsterBattleSection] onBattleComplete triggered`);
       // Will handle in useEffect below to access latest damage/click values
     },
     onInvulnerabilityStart: (duration) => {
       setInvulnerabilityTime(prev => prev + duration);
-      console.log(`💤 [Invulnerability] +${duration}ms, total: ${invulnerabilityTime + duration}ms`);
     }
   });
 
@@ -452,7 +432,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Handle boss defeat (when all phases completed)
   useEffect(() => {
     if (currentPhaseHP === 0 && phasesRemaining === 1 && maxPhaseHP > 0 && gameState.monster?.isBoss && gameState.canAttackMonster() && gameState.gameState === 'BATTLE_IN_PROGRESS') {
-      console.log(`[MonsterBattleSection] useEffect detected boss defeat, calling submitBattleCompletion with ${clickCount} clicks, ${totalDamage} damage`);
       submitBattleCompletion(clickCount, totalDamage);
     }
   }, [currentPhaseHP, phasesRemaining, maxPhaseHP, gameState.monster, gameState.canAttackMonster, clickCount, totalDamage, gameState.gameState]);
@@ -474,7 +453,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     for (const threshold of thresholds) {
       // If we were above threshold and now below, and haven't triggered this one yet
       if (lastHPPercent > threshold && currentPercent <= threshold && !triggeredThresholds.has(threshold)) {
-        console.log(`🎯 [Boss SkillShot] Crossed ${threshold}% HP threshold! Triggering chain skillshot.`);
 
         // Trigger chain mode skillshot
         const success = skillShot.triggerSkillShot('chain');
@@ -494,7 +472,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (gameState.monster) {
       setLastHPPercent(100);
       setTriggeredThresholds(new Set());
-      console.log('[Boss SkillShot] Reset threshold tracking for new monster');
     }
   }, [gameState.monster?._id]);
 
@@ -512,7 +489,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // 2. Battle is in progress (not already completing)
     // 3. Can attack (battle is active)
     if (isDefeated && gameState.gameState === 'BATTLE_IN_PROGRESS' && gameState.canAttackMonster()) {
-      console.log(`[MonsterBattleSection] useEffect detected regular monster defeat from DoT/auto-hits, calling submitBattleCompletion with ${clickCount} clicks, ${totalDamage} damage`);
       submitBattleCompletion(clickCount, totalDamage);
     }
   }, [totalDamage, gameState.monster, gameState.gameState, gameState.canAttackMonster, clickCount]);
@@ -544,13 +520,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Apply thorns damage to monster HP (doesn't count as click)
     damagePhase(amount);
     setThornsDamage(prev => prev + amount); // Track for anti-cheat
-    console.log(`🔱 [THORNS] Applied ${amount} thorns damage to monster`);
   }, [damagePhase]);
 
   const handleDefensiveLifesteal = useCallback((amount: number) => {
     // Track defensive lifesteal healing for anti-cheat
     setTotalHealing(prev => prev + amount);
-    console.log(`💚 [DEFENSIVE LIFESTEAL TRACKED] +${amount} HP added to totalHealing`);
   }, []);
 
   // Monster attack system with debuff application
@@ -589,7 +563,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     const shieldBuff = gameState.monster.buffs?.find(b => b.type === 'shield');
     if (shieldBuff) {
       setShieldHP(shieldBuff.value);
-      console.log(`[MonsterBattleSection] Shield initialized: ${shieldBuff.value} HP`);
     } else {
       setShieldHP(0);
     }
@@ -967,7 +940,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       damage = Math.floor(damage * damageWindow);
       const bonusDamage = damage - baseDamage;
       setSkillshotBonusDamage(prev => prev + bonusDamage);
-      console.log(`🎯 [SkillShot] Damage window active! ${baseDamage} → ${damage} (${damageWindow}x), bonus: +${bonusDamage}`);
     }
 
     if (isCrit) {
@@ -1099,13 +1071,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         tickInterval: 1000 // DoT ticks every second
       };
       setMonsterDebuffs(prev => [...prev, newDebuff]);
-      console.log('🔴 [SPELL] Applied debuff to monster:', {
-        type: spellData.debuffType,
-        damageAmount: spellData.debuffValue,
-        damageType: spellData.debuffDamageType,
-        duration: spellData.duration,
-        spellName: spellData.spellName
-      });
     }
 
     // Healing is handled by parent (BattlePage) via healHealth
@@ -1152,12 +1117,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
               const damage = debuff.damageAmount; // Store to satisfy TypeScript
               damagePhase(damage);
               setTotalDamage(prev => prev + damage);
-              console.log(`💥 [DoT Tick] ${debuff.type} dealt ${damage} flat damage (no crit)`, {
-                debuffId: debuff.id,
-                damageAmount: debuff.damageAmount,
-                damageType: debuff.damageType,
-                elapsed: (elapsed / 1000).toFixed(1) + 's'
-              });
             }
           }
 
@@ -1193,8 +1152,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Calculate interval in milliseconds (1 / rate = seconds between hits)
     const intervalMs = Math.floor(1000 / effectiveAutoClickRate);
 
-    console.log(`[Auto-Hit] Raw: ${rawAutoClickRate.toFixed(1)}/sec → Effective: ${effectiveAutoClickRate.toFixed(2)}/sec (${intervalMs}ms interval)`);
-
     const interval = setInterval(() => {
       // Use ref to prevent interval resets when function updates
       if (applyDamageRef.current) {
@@ -1203,7 +1160,6 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }, intervalMs);
 
     return () => {
-      console.log('[Auto-Hit] Clearing interval');
       clearInterval(interval);
     };
   }, [equipmentStats.autoClickRate, gameState.gameState, gameState.session]);

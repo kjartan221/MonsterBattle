@@ -20,15 +20,11 @@ export default function LootSelectionModal({ lootOptions, tier, isCorrupted = fa
   if (!lootOptions || lootOptions.length === 0) return null;
 
   const handleSelection = (loot: LootItem) => {
-    console.log('🎁 [LootModal] Item clicked:', loot.name);
     setSelectedLoot(loot);
-    console.log('🎁 [LootModal] Calling onLootSelect callback...');
     onLootSelect(loot);
   };
 
   const handleSkip = () => {
-    console.log('⏭️ [LootModal] Skip button clicked');
-    console.log('⏭️ [LootModal] Calling onSkip callback...');
     onSkip();
   };
 

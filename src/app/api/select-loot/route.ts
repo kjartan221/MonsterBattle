@@ -101,8 +101,6 @@ export async function POST(request: NextRequest) {
         { upsert: true }
       );
 
-      console.log(`⏭️ User ${userId} skipped loot selection for session ${sessionId}`);
-
       return NextResponse.json({
         success: true,
         selectedLootId: 'SKIPPED',
@@ -156,8 +154,6 @@ export async function POST(request: NextRequest) {
       { upsert: true }
     );
 
-    console.log(`✅ User ${userId} selected loot: ${lootId} from session ${sessionId}`);
-
     const isEmpowered = session.monster?.isCorrupted === true;
 
     // Generate unique gradient colors from user's public key (userId)
@@ -188,7 +184,6 @@ export async function POST(request: NextRequest) {
       : itemTier > 1
         ? ` (Tier ${itemTier})`
         : '';
-    console.log(`📦 Added ${isEmpowered ? '⚡ EMPOWERED' : ''} ${lootItem.name}${tierInfo} to ${userId}'s inventory (not minted yet)`);
 
     return NextResponse.json({
       success: true,

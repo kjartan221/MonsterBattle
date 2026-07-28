@@ -160,13 +160,6 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
       const checkData = await checkResponse.json();
       const existingToken = checkData.exists ? checkData.token : null;
 
-      console.log('[MATERIAL-MINT] Check token result:', {
-        lootTableId: item.lootId,
-        tier: item.tier || 1,
-        exists: checkData.exists,
-        existingToken,
-      });
-
       if (existingToken) {
         // Token exists - update quantity (use add-and-merge route for on-chain merging)
         toast.loading('Merging material tokens on-chain...', { id: mintingToast });
@@ -236,7 +229,6 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
 
             // Check if we need to switch to add-and-merge route
             if (error === 'SWITCH_TO_ADD_AND_MERGE') {
-              console.log('[MATERIAL-MINT] Token was created by another session, switching to add-and-merge...');
 
               // Re-check for existing token
               const recheckResponse = await fetch('/api/materials/check-token', {

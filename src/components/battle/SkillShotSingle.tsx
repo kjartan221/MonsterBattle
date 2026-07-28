@@ -29,7 +29,6 @@ export default function SkillShotSingle({
   // Reset state when isActive changes
   useEffect(() => {
     if (isActive) {
-      console.log('[SkillShotSingle] Initializing single circle');
       setStartTime(Date.now());
       setTimeLeft(duration);
       setIsClicked(false);
@@ -80,8 +79,6 @@ export default function SkillShotSingle({
   };
 
   if (!isActive) return null;
-
-  console.log('[SkillShotSingle] RENDERING - isActive:', isActive);
 
   const progress = timeLeft / duration;
   const outerSize = 100; // px

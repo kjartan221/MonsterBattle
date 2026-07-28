@@ -221,7 +221,6 @@ export default function BlacksmithPage() {
 
         // Always refresh equipment context after inscription (item might be equipped)
         await refreshEquipment();
-        console.log('✅ Equipment context refreshed after NFT update');
 
       } else {
         // Use regular API for non-NFT items
@@ -259,7 +258,6 @@ export default function BlacksmithPage() {
 
         // Always refresh equipment context after inscription (item might be equipped)
         await refreshEquipment();
-        console.log('✅ Equipment context refreshed after non-NFT update');
       }
 
       // Reset selections and refresh

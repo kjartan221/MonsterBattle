@@ -126,8 +126,6 @@ export function useUpdateEquipmentNFT() {
         'Payment for equipment update fees'
       );
 
-      console.log('WalletP2PKH payment created:', { txid: paymentTxId, satoshis: 100 });
-
       // ===================================================
       // CLIENT: Batch transfer equipment + scrolls to server
       // ===================================================
@@ -251,12 +249,6 @@ export function useUpdateEquipmentNFT() {
       const transferredEquipmentTokenId = `${transferTxId}.0`;
       const transferredScrollTokenIds = inscriptionScrolls.map((_, i) => `${transferTxId}.${i + 1}`);
 
-      console.log('[TRANSFER] Batch transfer signed:', {
-        txid: transferTxId,
-        equipmentTokenId: transferredEquipmentTokenId,
-        scrollTokenIds: transferredScrollTokenIds,
-      });
-
       // ===================================================
       // SERVER: Update equipment
       // ===================================================
@@ -310,8 +302,6 @@ export function useUpdateEquipmentNFT() {
       }
 
       const result = await apiResult.json();
-
-      console.log('Equipment update successful:', result);
 
       // Internalize updated equipment into wallet basket (non-fatal)
       if (typeof result.transferBeef === 'string' && result.received) {

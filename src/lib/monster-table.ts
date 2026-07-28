@@ -131,34 +131,28 @@ export function getRandomMonsterTemplateForBiome(biome: BiomeId, tier: Tier, bos
 
       if (roll < 20) {
         // 20% chance: Any monster (fallback to normal spawn logic)
-        console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: 20% roll - spawning any monster`);
       } else if (roll < 80) {
         // 60% chance: Epic mini-boss
         if (epicBosses.length > 0) {
           const selectedBoss = epicBosses[Math.floor(Math.random() * epicBosses.length)];
-          console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: 60% roll - spawning epic mini-boss: ${selectedBoss.name}`);
           return selectedBoss;
         }
         // Fallback to any boss if no epic bosses
         const selectedBoss = bossMonsters[Math.floor(Math.random() * bossMonsters.length)];
-        console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: 60% roll but no epic bosses - spawning: ${selectedBoss.name}`);
         return selectedBoss;
       } else {
         // 20% chance: Legendary boss
         if (legendaryBosses.length > 0) {
           const selectedBoss = legendaryBosses[Math.floor(Math.random() * legendaryBosses.length)];
-          console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: 20% roll - spawning legendary boss: ${selectedBoss.name}`);
           return selectedBoss;
         }
         // Fallback to any boss if no legendary bosses
         const selectedBoss = bossMonsters[Math.floor(Math.random() * bossMonsters.length)];
-        console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: 20% roll but no legendary bosses - spawning: ${selectedBoss.name}`);
         return selectedBoss;
       }
     }
 
     // Fallback to normal logic if no bosses available or 20% any-monster roll
-    console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: Using normal spawn logic (20% any-monster or no bosses available)`);
   }
 
   // Separate biome-specific monsters from cross-biome common monsters

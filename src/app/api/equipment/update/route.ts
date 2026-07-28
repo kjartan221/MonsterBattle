@@ -93,8 +93,6 @@ export async function POST(request: NextRequest) {
     const paymentTransaction = Transaction.fromBEEF(paymentBeef);
     const paymentTxId = paymentTransaction.id('hex');
 
-    console.log('📥 [PAYMENT] Received WalletP2PKH payment transaction:', { txid: paymentTxId, walletParams });
-
     const paymentOutput = paymentTransaction.outputs[0];
     if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
       return NextResponse.json({ error: 'Invalid payment: must be at least 100 satoshis' }, { status: 400 });
@@ -110,21 +108,8 @@ export async function POST(request: NextRequest) {
     });
     const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
 
-    console.log('Server updating equipment (batched):', {
-      equipmentName: equipmentData.name,
-      scrollCount: inscriptionScrollInventoryIds.length,
-      transferredEquipmentTokenId,
-      transferredScrollTokenIds,
-      userId,
-      paymentAmount: paymentOutput.satoshis,
-    });
-
     // Decode batch transfer BEEF (no overlay fetch)
     const batchTransferTransaction = Transaction.fromBEEF(decodeBeef(batchTransferBeef));
-
-    console.log('✅ [VALIDATE] Batch transfer transaction decoded:', {
-      outputs: batchTransferTransaction.outputs.length,
-    });
 
     // Single unlock template shared by all transferred ordinal inputs (they share N2)
     const unlockTemplate = ordinalP2PKH.unlock(
@@ -182,13 +167,6 @@ export async function POST(request: NextRequest) {
       unlockingScriptLength: walletP2pkhUnlockingLength,
     });
 
-    console.log('🔀 [UPDATE] Creating update transaction:', {
-      inputCount: inputs.length,
-      equipment: transferredEquipmentTokenId,
-      scrolls: transferredScrollTokenIds,
-      payment: paymentOutpoint,
-    });
-
     const mergedBeef = new Beef();
     mergedBeef.mergeBeef(batchTransferTransaction.toBEEF());
     mergedBeef.mergeBeef(paymentTransaction.toBEEF());
@@ -240,8 +218,6 @@ export async function POST(request: NextRequest) {
     const updateBroadcast = await broadcastTX(updateTx);
     const updateTxId = updateBroadcast.txid!;
     const updatedEquipmentTokenId = `${updateTxId}.0`;
-
-    console.log(`✅ [UPDATE] Updated equipment: ${updatedEquipmentTokenId}`);
 
     // Update database: preserve mint proof, add keyId/counterparty
     const originalNFTLoot = await nftLootCollection.findOne({ _id: originalEquipment.nftLootId });
@@ -307,7 +283,6 @@ export async function POST(request: NextRequest) {
 
       if (Object.keys(updateFields).length > 0) {
         await playerStatsCollection.updateOne({ userId }, { $set: updateFields });
-        console.log('✅ [EQUIPMENT] Auto-updated equipped item references:', updateFields);
       }
     }
 
@@ -317,11 +292,6 @@ export async function POST(request: NextRequest) {
     for (const scrollInventoryId of inscriptionScrollInventoryIds) {
       await userInventoryCollection.deleteOne({ _id: new ObjectId(scrollInventoryId), userId });
     }
-
-    console.log('✅ [DATABASE] Updated equipment documents:', {
-      deletedScrolls: inscriptionScrollInventoryIds.length,
-      newInventoryItemId: inventoryResult.insertedId.toString(),
-    });
 
     return NextResponse.json({
       success: true,

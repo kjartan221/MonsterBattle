@@ -13,15 +13,11 @@ export async function GET(request: NextRequest) {
     if (session instanceof NextResponse) return session;
     const userId = session.userId;
 
-    console.log('[EQUIPMENT GET] Request from userId:', userId);
-
     // Connect to MongoDB
     const { playerStatsCollection, userInventoryCollection } = await connectToMongo();
 
     // Fetch player stats to get equipped item IDs
     const playerStats = await playerStatsCollection.findOne({ userId });
-    console.log('[EQUIPMENT GET] Player stats found:', !!playerStats);
-    console.log('[EQUIPMENT GET] Equipped items:', playerStats?.equippedItems);
 
     if (!playerStats) {
       return NextResponse.json({ error: 'Player stats not found' }, { status: 404 });
@@ -33,10 +29,8 @@ export async function GET(request: NextRequest) {
 
     // Collect all equipped item IDs
     const equippedItemIds = Object.values(playerStats.equippedItems).filter(Boolean);
-    console.log('[EQUIPMENT GET] Equipped item IDs:', equippedItemIds.length);
 
     if (equippedItemIds.length === 0) {
-      console.log('[EQUIPMENT GET] No equipment, returning empty');
       return NextResponse.json({});
     }
 
@@ -45,7 +39,6 @@ export async function GET(request: NextRequest) {
       _id: { $in: equippedItemIds },
       userId
     }).toArray();
-    console.log('[EQUIPMENT GET] Found items:', items.length);
 
     // Build response object with slot mapping
     const equippedItems: {

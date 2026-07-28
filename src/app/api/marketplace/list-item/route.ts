@@ -272,13 +272,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(' [LIST-ITEM] Validated OrdLock script and outpoint:', {
-      payAddress,
-      price: parseInt(price, 10),
-      assetId,
-      ordLockOutpoint,
-    });
-
     // Create marketplace listing with OrdLock data
     const marketplaceItem = {
       sellerId: userId,
@@ -349,13 +342,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    console.log('[MARKETPLACE LIST] Item listed with OrdLock:', {
-      listingId: result.insertedId,
-      itemName: itemData.itemName,
-      price: price,
-      ordLockOutpoint,
-    });
 
     return NextResponse.json({
       success: true,

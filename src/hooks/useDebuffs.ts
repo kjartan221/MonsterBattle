@@ -51,7 +51,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
     const currentStacks = activeDebuffs.filter(d => d.type === effect.type).length;
 
     if (currentStacks >= MAX_STACKS) {
-      console.log(`⚠️ ${effect.type} already at max stacks (${MAX_STACKS}), cannot apply more`);
       return false;
     }
 
@@ -60,7 +59,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
     const roll = Math.random() * 100;
 
     if (roll > applyChance) {
-      console.log(`❌ Debuff ${effect.type} failed to apply (${roll.toFixed(1)}% > ${applyChance}%)`);
       return false;
     }
 
@@ -79,7 +77,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
     };
 
     setActiveDebuffs(prev => [...prev, newDebuff]);
-    console.log(`✅ Applied ${effect.type} debuff (stack ${currentStacks + 1}/${MAX_STACKS}): ${adjustedDamage.toFixed(2)}${effect.damageType === 'percentage' ? '%' : ''} damage (${(stackMultiplier * 100).toFixed(0)}% effectiveness)`);
 
     return true;
   }, [maxHP, activeDebuffs]);
@@ -92,10 +89,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
       const now = Date.now();
       const remaining = prev.filter(d => (now - d.startTime) < d.duration);
       const expired = prev.length - remaining.length;
-
-      if (expired > 0) {
-        console.log(`⏱️ Removed ${expired} expired debuff(s)`);
-      }
 
       return remaining;
     });
@@ -138,7 +131,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
       if (resistancePercent > 0) {
         const originalDamage = damage;
         damage = Math.floor(damage * (1 - resistancePercent / 100));
-        console.log(`🛡️ ${debuff.type} resistance: ${resistancePercent}% (${originalDamage} → ${damage} damage)`);
       }
     }
 
@@ -178,7 +170,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
 
           const damage = calculateDebuffDamage(debuff);
           await takeDamage(damage);
-          console.log(`💀 ${debuff.type.toUpperCase()} tick: ${damage} damage (${debuff.damageType})`);
         }, debuff.tickInterval);
 
         intervals.push(interval);
@@ -195,7 +186,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
    */
   const clearDebuffs = useCallback(() => {
     setActiveDebuffs([]);
-    console.log('🧹 Cleared all debuffs');
   }, []);
 
   /**
@@ -203,7 +193,6 @@ export function useDebuffs({ maxHP, takeDamage, isActive, activeBuffs = [] }: Us
    */
   const removeDebuff = useCallback((debuffId: string) => {
     setActiveDebuffs(prev => prev.filter(d => d.id !== debuffId));
-    console.log(`🗑️ Removed debuff ${debuffId}`);
   }, []);
 
   /**

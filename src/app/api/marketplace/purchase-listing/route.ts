@@ -87,13 +87,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('💰 [PURCHASE-LISTING] Starting purchase:', {
-      listingId,
-      itemName: listing.itemName,
-      price: listing.price,
-      ordLockOutpoint: listing.ordLockOutpoint,
-    });
-
     // ===== CREATE PURCHASE TRANSACTION =====
     // Wallet build + sign + broadcast; any failure here releases the claim back to 'active'.
     let purchaseResult: {
@@ -113,11 +106,6 @@ export async function POST(request: NextRequest) {
     const paymentTxId = paymentTransaction.id('hex');
     const paymentOutpoint = `${paymentTxId}.0`;
 
-    console.log('📥 [PURCHASE-LISTING] Payment transaction:', {
-      txid: paymentTxId,
-      paymentOutpoint,
-    });
-
     // Resolve the listing tx: DB backup first, overlay as fallback.
     const [ordLockTxId, ordLockVoutStr] = String(listing.ordLockOutpoint).split('.');
     const beefDoc = await marketplaceListingBeefsCollection.findOne({ listingId });
@@ -134,19 +122,12 @@ export async function POST(request: NextRequest) {
     }
     const ordLockScript = Script.fromHex(listing.ordLockScript);
 
-    console.log('📥 [PURCHASE-LISTING] OrdLock resolved:', {
-      ordLockOutpoint: listing.ordLockOutpoint,
-      source: beefDoc?.beef ? 'db' : 'overlay',
-    });
-
     // Create purchase unlock template
     const ordLock = new WalletOrdLock();
     const purchaseUnlockTemplate = ordLock.purchaseUnlock({
       sourceSatoshis: 1,
       lockingScript: ordLockScript,
     });
-
-    console.log('🔓 [PURCHASE-LISTING] Created purchase unlock template');
 
     // Derive recipient key for output 0 (token to buyer)
     const purchaseNonce = generateNonce();
@@ -162,21 +143,9 @@ export async function POST(request: NextRequest) {
       'transfer'
     );
 
-    console.log('🔒 [PURCHASE-LISTING] Created transfer locking script:', {
-      operation: 'transfer',
-      assetId: listing.assetId,
-      buyerKey,
-      scriptLength: transferLockingScript.toHex().length,
-    });
-
     // Create payment locking script (payment to seller)
     // This MUST match the payout in OrdLock (address and amount)
     const sellerPaymentScript = new P2PKH().lock(listing.payAddress);
-
-    console.log('💵 [PURCHASE-LISTING] Created seller payment script:', {
-      payAddress: listing.payAddress,
-      price: listing.price,
-    });
 
     // Create unlocking templates for payment input
     const walletp2pkh = new WalletP2PKH(serverWallet);
@@ -303,8 +272,6 @@ export async function POST(request: NextRequest) {
       throw new Error('Missing unlocking scripts after signing');
     }
 
-    console.log('🔓 [PURCHASE-LISTING] Transaction signed, unlocking scripts generated');
-
     // STEP 3: signAction - Finalize transaction
     const action = await serverWallet.signAction({
       reference,
@@ -328,11 +295,6 @@ export async function POST(request: NextRequest) {
     }
 
     const buyerTokenId = `${txid}.0`;
-
-    console.log('✅ [PURCHASE-LISTING] Purchase transaction broadcast:', {
-      txid,
-      buyerTokenId,
-    });
 
     purchaseResult = { action, txid, buyerTokenId, purchaseNonce, serverIdentityKey };
 
@@ -409,14 +371,6 @@ export async function POST(request: NextRequest) {
     } finally {
       await dbSession.endSession();
     }
-
-    console.log('[MARKETPLACE PURCHASE] Item purchased:', {
-      listingId,
-      itemName: listing.itemName,
-      price: listing.price,
-      buyerId: userId,
-      buyerTokenId,
-    });
 
     return NextResponse.json({
       success: true,

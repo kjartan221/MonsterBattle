@@ -72,21 +72,12 @@ export default function SellItemModal({ wallet, onClose, onSuccess }: SellItemMo
           ...(playerStats?.equippedConsumables || [])
         ].filter(id => id && id !== 'empty').map(id => String(id)));
 
-        console.log('[SELL-MODAL] Equipped IDs:', Array.from(equippedIds));
-
         const sellable = data.inventory
           .filter((item: any) => {
             const itemId = item.isMaterialToken ? item.materialTokenId : item.inventoryId;
 
-            console.log('[SELL-MODAL] Checking item:', {
-              itemName: item.name,
-              itemId: itemId,
-              isEquipped: equippedIds.has(itemId)
-            });
-
             // Filter out equipped items
             if (equippedIds.has(itemId)) {
-              console.log('[SELL-MODAL] Filtering out equipped item:', item.name);
               return false;
             }
 

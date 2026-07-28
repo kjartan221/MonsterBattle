@@ -177,10 +177,6 @@ export async function POST(request: NextRequest) {
       { $set: { enhanced: true } }
     );
 
-    console.log(`✨ [ENHANCE] User ${userId} enhanced ${lootTemplate.name} (${targetItemId})`);
-    console.log(`   - Consumed ${itemsToDelete.length} duplicates`);
-    console.log(`   - Paid ${goldCost} gold`);
-
     return NextResponse.json({
       success: true,
       itemName: lootTemplate.name,

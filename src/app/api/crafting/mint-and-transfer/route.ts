@@ -84,14 +84,6 @@ export async function POST(request: NextRequest) {
     });
     const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
 
-    console.log('Server crafting (derived-key):', {
-      recipeId,
-      materialCount: transferredMaterials.length,
-      outputName: outputItem.name,
-      userId,
-      paymentAmount: paymentOutput.satoshis,
-    });
-
     // 6. Parse batch transfer BEEF once — all material outputs live in this tx
     const batchTransferTransaction = Transaction.fromBEEF(decodeBeef(batchTransferBeef));
 
@@ -123,8 +115,6 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-
-    console.log('✅ [VALIDATE] All transferred materials validated');
 
     // 8. Calculate material change amounts
     const materialChanges: Array<{
@@ -180,8 +170,6 @@ export async function POST(request: NextRequest) {
     const craftedKey = await deriveSelfKey(serverWallet, mintNonce);
     const craftedItemLockingScript = ordinalP2PKH.lock(craftedKey, '', craftedItemMetadata, 'deploy+mint', 1);
 
-    console.log('🔨 [MINT-CRAFT] Minting crafted item to self-derived key:', outputItem.name);
-
     const craftedItemMintActionRes = await serverWallet.createAction({
       description: 'Minting crafted item with user WalletP2PKH payment',
       inputBEEF: paymentBeef,
@@ -223,8 +211,6 @@ export async function POST(request: NextRequest) {
     const craftedItemBroadcast = await broadcastTX(craftedItemTx);
     const craftedItemTxId = craftedItemBroadcast.txid!;
     const craftedItemOutpoint = `${craftedItemTxId}.0`;
-
-    console.log(`✅ [MINT-CRAFT] Minted crafted item: ${craftedItemOutpoint}`);
 
     // 10. Transfer tx: [materials + crafted item] → [crafted item to user + change tokens to user]
 
@@ -359,8 +345,6 @@ export async function POST(request: NextRequest) {
     const transferBroadcast = await broadcastTX(transferTx);
     const transferTxId = transferBroadcast.txid!;
 
-    console.log(`✅ [TRANSFER] Transferred crafted item + ${materialChanges.length} change tokens: ${transferTxId}`);
-
     // 11. Update database
 
     const userCraftedTokenId = `${transferTxId}.0`;
@@ -419,8 +403,6 @@ export async function POST(request: NextRequest) {
 
     await userInventoryCollection.insertOne(inventoryDoc);
 
-    console.log(`✅ [DATABASE] Created crafted item in inventory (statRoll: ${outputItem.crafted?.statRoll})`);
-
     // Handle material token updates/deletions
     const lootTableIdsWithChange = new Set(materialChanges.map(c => c.lootTableId));
 
@@ -464,8 +446,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    console.log('✅ [DATABASE] Updated all database documents');
 
     // Build received[] aligned to transfer tx output indices
     const received: Array<{ outputIndex: number; keyId: string; counterparty: string; tags: string[] }> = [

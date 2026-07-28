@@ -77,21 +77,10 @@ export async function createWalletPayment(
     counterparty: userIdentityKey,
   };
 
-  console.log('🔑 [WALLET-PAYMENT] Creating payment with ECDH key exchange:', {
-    protocolID: derivation.protocolID,
-    keyID: derivation.keyID,
-    clientLockCounterparty: serverIdentityKey?.substring(0, 20) + '...',
-    serverUnlockCounterparty: userIdentityKey?.substring(0, 20) + '...',
-  });
-
   // Create WalletP2PKH locking script with derivation
   const walletP2pkh = new WalletP2PKH(wallet);
   const paymentLockingScript = await walletP2pkh.lock({
     walletParams: lockParams,
-  });
-
-  console.log('🔒 [WALLET-PAYMENT] Created WalletP2PKH locking script:', {
-    scriptLength: paymentLockingScript.toHex().length / 2,
   });
 
   // Create payment action
@@ -111,13 +100,6 @@ export async function createWalletPayment(
   if (!paymentAction.txid) {
     throw new Error('Failed to create payment transaction');
   }
-
-  console.log('✅ [WALLET-PAYMENT] Payment transaction created:', {
-    txid: paymentAction.txid,
-    satoshis,
-    protocolID: derivation.protocolID,
-    keyID: derivation.keyID,
-  });
 
   return {
     paymentTx: Array.from(paymentAction.tx!),

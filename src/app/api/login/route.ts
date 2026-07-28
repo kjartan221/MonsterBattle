@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
       // Refetch user to get complete document with _id
       user = await usersCollection.findOne({ userId });
 
-      console.log('New user created:', userId);
     } else {
       // Update username if it changed
       if (user.username !== username) {
@@ -68,7 +67,6 @@ export async function POST(request: NextRequest) {
             }
           }
         );
-        console.log('User username updated:', userId);
       }
     }
 
@@ -81,7 +79,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create JWT token
-    console.log('[LOGIN] Creating JWT for userId:', user.userId);
     const token = await createJWT({
       userId: user.userId,
       username: username,

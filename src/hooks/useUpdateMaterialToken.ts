@@ -149,12 +149,6 @@ export function useUpdateMaterialToken() {
       // Identity key is the derivation counterparty the server locks toward
       const { publicKey: userIdentityKey } = await wallet.getPublicKey({ identityKey: true });
 
-      console.log('Updating material tokens:', {
-        updateCount: updates.length,
-        operations: updates.map(u => `${u.operation} ${u.quantity} ${u.lootTableId}`),
-        userIdentityKey,
-      });
-
       // Validate updates
       if (updates.length === 0) {
         throw new Error('No updates provided');
@@ -171,11 +165,9 @@ export function useUpdateMaterialToken() {
 
       // Process each update
       for (const update of updates) {
-        console.log(`Processing ${update.operation} for ${update.lootTableId}`);
 
         // For 'add' operations, use transfer-to-server pattern (derived-key)
         if (update.operation === 'add') {
-          console.log(`[ADD] Transferring ${update.lootTableId} to server for merge`);
 
           // Resolve the existing token's source tx (overlay → wallet-basket fallback)
           const previousTransaction = await fetchTokenSourceTx(wallet, update.currentTokenId);
@@ -263,8 +255,6 @@ export function useUpdateMaterialToken() {
           const transferBroadcast = await broadcastTX(transferTx);
           const transferredToServerTokenId = `${transferBroadcast.txid}.0`;
 
-          console.log(`[ADD] Transferred to server: ${transferredToServerTokenId}`);
-
           // Create WalletP2PKH payment for server mint + merge
           const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
             wallet,
@@ -272,8 +262,6 @@ export function useUpdateMaterialToken() {
             100,
             'Payment for material add and merge'
           );
-
-          console.log('WalletP2PKH payment created:', { txid: paymentTxId, satoshis: 100 });
 
           const mergeProof = await createAuthProof(wallet, 'merge-material');
           const mergeResponse = await fetch('/api/materials/add-and-merge', {
@@ -307,8 +295,6 @@ export function useUpdateMaterialToken() {
           }
 
           const mergeData = await mergeResponse.json();
-
-          console.log(`[ADD] Server merged: ${mergeData.mergedTokenId}`);
 
           // Internalize the merged token non-fatally (recoverable via reindexFromBasket)
           if (typeof mergeData.transferBeef === 'string' && mergeData.received) {
@@ -356,8 +342,6 @@ export function useUpdateMaterialToken() {
             throw new Error(`Invalid operation: ${update.operation}`);
         }
 
-        console.log(`${update.lootTableId}: ${update.currentQuantity} → ${newQuantity}`);
-
         // Prepare update metadata (quantity is in amt field, not metadata)
         const updateMetadata = {
           name: 'material_token',
@@ -369,8 +353,6 @@ export function useUpdateMaterialToken() {
           tier: update.tier || 1,
           acquiredFrom: update.acquiredFrom ? [update.acquiredFrom] : [],
         };
-
-        console.log(`Update metadata for ${update.lootTableId}:`, updateMetadata);
 
         // Get previous token transaction from overlay
         const previousTxid = update.currentTokenId.split('.')[0];
@@ -415,16 +397,10 @@ export function useUpdateMaterialToken() {
           if (!tokenBurnAction.tx) {
             throw new Error('Failed to create burn transaction');
           }
-          console.log('Token burn action:', tokenBurnAction);
 
           // Broadcast burn transaction
           const tx = Transaction.fromAtomicBEEF(tokenBurnAction.tx);
           const broadcastResponse = await broadcastTX(tx);
-
-          console.log(`Material token burned for ${update.lootTableId}:`, {
-            previousTokenId: update.currentTokenId,
-            txId: broadcastResponse.txid,
-          });
 
           results.push({
             lootTableId: update.lootTableId,
@@ -479,7 +455,6 @@ export function useUpdateMaterialToken() {
           if (!tokenUpdateAction.tx) {
             throw new Error('Failed to create update transaction');
           }
-          console.log('Token update action:', tokenUpdateAction);
 
           // Broadcast transaction
           const tx = Transaction.fromAtomicBEEF(tokenUpdateAction.tx);
@@ -488,13 +463,6 @@ export function useUpdateMaterialToken() {
           // Extract new token ID
           const txId = broadcastResponse.txid;
           const newTokenId = `${txId}.0`;
-
-          console.log(`Material token updated for ${update.lootTableId}:`, {
-            previousTokenId: update.currentTokenId,
-            newTokenId,
-            previousQuantity: update.currentQuantity,
-            newQuantity,
-          });
 
           results.push({
             lootTableId: update.lootTableId,
@@ -543,8 +511,6 @@ export function useUpdateMaterialToken() {
           throw new Error(errorData.error || 'Failed to save material token updates to database');
         }
       }
-
-      console.log(`Material tokens updated: ${results.length} updates`);
 
       return {
         results,

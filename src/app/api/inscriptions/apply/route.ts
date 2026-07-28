@@ -208,8 +208,6 @@ export async function POST(request: NextRequest) {
       _id: equipmentObjectId
     });
 
-    console.log(`✅ [INSCRIPTION] User ${userId} applied "${inscription.name}" ${slot} to equipment ${equipmentId} for ${goldCost} gold`);
-
     return NextResponse.json({
       success: true,
       message: `Successfully applied "${inscription.name}" ${slot} inscription (-${goldCost} gold)`,

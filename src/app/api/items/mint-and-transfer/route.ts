@@ -83,19 +83,6 @@ export async function POST(request: NextRequest) {
     const paymentTransaction = Transaction.fromBEEF(paymentBeef);
     const paymentTxId = paymentTransaction.id('hex');
 
-    console.log('📥 [PAYMENT] Received WalletP2PKH payment transaction:', {
-      txid: paymentTxId,
-      walletParams,
-    });
-
-    console.log('📥 [PAYMENT] Parsed payment transaction:', {
-      txid: paymentTxId,
-      inputs: paymentTransaction.inputs.length,
-      outputs: paymentTransaction.outputs.length,
-      output0Satoshis: paymentTransaction.outputs[0]?.satoshis,
-      output0Script: paymentTransaction.outputs[0]?.lockingScript.toHex(),
-    });
-
     // Find output locked to server with WalletP2PKH (should be output 0)
     const paymentOutput = paymentTransaction.outputs[0];
     if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 90) {
@@ -116,27 +103,12 @@ export async function POST(request: NextRequest) {
     });
     const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
 
-    console.log('🔓 [PAYMENT] Created WalletP2PKH unlock template:', {
-      unlockingScriptLength: walletP2pkhUnlockingLength,
-      paymentOutpoint,
-      protocolID: walletParams.protocolID,
-      keyID: walletParams.keyID,
-      counterparty: walletParams.counterparty,
-    });
-
     // Mint directly to the user's recipient-derived key (single tx).
     const ordinalP2PKH = new OrdinalsP2PKH();
     const nonce = generateNonce();
     const serverIdentityKey = await getServerIdentityPublicKey();
     const userKey = await deriveRecipientKey(serverWallet, userIdentityKey, nonce);
     const mintLockingScript = ordinalP2PKH.lock(userKey, '', itemData, 'deploy+mint');
-
-    console.log('🔨 [MINT-ITEM] Creating deploy+mint locked to user:', {
-      operation: 'deploy+mint',
-      userKey,
-      itemName: itemData.itemName || itemData.name,
-      scriptLength: mintLockingScript.toHex().length,
-    });
 
     // Step 1: Call createAction with unlockingScriptLength
     const mintActionRes = await serverWallet.createAction({
@@ -183,11 +155,6 @@ export async function POST(request: NextRequest) {
       throw new Error('Missing unlocking script after signing');
     }
 
-    console.log('🔓 [MINT-ITEM] Transaction signed, WalletP2PKH unlocking script generated:', {
-      scriptLength: mintUnlockingScript.toHex().length,
-      scriptHex: mintUnlockingScript.toHex(),
-    });
-
     // Step 3: Sign the action with actual unlocking scripts
     const mintAction = await serverWallet.signAction({
       reference: mintReference,
@@ -203,14 +170,6 @@ export async function POST(request: NextRequest) {
     // Broadcast mint transaction
     const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
 
-    console.log('📦 [MINT] Transaction structure before broadcast:', {
-      txid: mintTx.id('hex'),
-      inputs: mintTx.inputs.length,
-      outputs: mintTx.outputs.length,
-      outputSatoshis: mintTx.outputs.map(o => o.satoshis),
-      txHex: mintTx.toHex(),
-    });
-
     const mintBroadcast = await broadcastTX(mintTx);
     const mintTxId = mintBroadcast.txid;
 
@@ -219,8 +178,6 @@ export async function POST(request: NextRequest) {
     }
 
     const tokenId = `${mintTxId}.0`; // mint proof and current location are the same outpoint
-
-    console.log('✅ [MINT] Minted item directly to user:', { mintTxId, tokenId, nonce });
 
     const nftLootDoc = {
       lootTableId: inventoryItem.lootTableId,

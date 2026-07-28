@@ -101,11 +101,8 @@ export async function POST(request: NextRequest) {
           userId: userId,  // Security: ensure user owns these items
         });
 
-        console.log(`✅ [CONSUME] Removed ${deleteResult.deletedCount} UserInventory items after updating ${update.itemName}`);
       }
     }
-
-    console.log(`${updates.length} material tokens updated for user ${userId}`);
 
     return NextResponse.json({
       success: true,

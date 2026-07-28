@@ -57,12 +57,6 @@ export async function POST(request: NextRequest) {
       { $set: { payoutClaimed: true } }
     );
 
-    console.log('[MARKETPLACE CLAIM] Proceeds claimed:', {
-      listingId,
-      sellerId: userId,
-      itemName: listing.itemName,
-    });
-
     return NextResponse.json({ success: true });
 
   } catch (error) {

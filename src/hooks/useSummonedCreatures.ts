@@ -52,7 +52,6 @@ export function useSummonedCreatures({
     }
 
     setSummons(prev => [...prev, ...newSummons]);
-    console.log(`✨ Summoned ${count} ${definition.name}(s)! (Base: ${definition.attackDamage} DMG, Tier ${tier} Scaled: ${scaledAttackDamage} DMG)`);
   }, []);
 
   // Damage a specific summon
@@ -64,7 +63,6 @@ export function useSummonedCreatures({
         const newHP = Math.max(0, summon.currentHP - damage);
         if (newHP === 0 && summon.currentHP > 0) {
           defeated = true;
-          console.log(`💀 ${summon.name} defeated!`);
         }
         return { ...summon, currentHP: newHP };
       }

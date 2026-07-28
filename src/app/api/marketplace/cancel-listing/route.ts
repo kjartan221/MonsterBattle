@@ -59,12 +59,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🚫 [CANCEL-LISTING] Starting cancellation validation:', {
-      listingId,
-      itemName: listing.itemName,
-      ordLockOutpoint: listing.ordLockOutpoint,
-    });
-
     const [cancelTxId, returnVoutStr] = String(returnTokenId).split('.');
     const returnVout = parseInt(returnVoutStr, 10);
     if (!cancelTxId || Number.isNaN(returnVout)) {
@@ -156,12 +150,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    console.log('[MARKETPLACE CANCEL] Listing cancelled:', {
-      listingId,
-      itemName: listing.itemName,
-      returnTokenId,
-    });
 
     return NextResponse.json({
       success: true,

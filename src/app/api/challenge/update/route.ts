@@ -86,8 +86,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     }
 
-    console.log(`🎯 Challenge config updated for user ${userId}:`, config);
-
     return NextResponse.json({ success: true, config });
   } catch (error) {
     console.error('Error updating challenge config:', error);

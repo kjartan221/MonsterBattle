@@ -17,7 +17,6 @@ export const broadcastTX = async (tx: Transaction) => {
     try {
         const tb = new TopicBroadcaster(['tm_monsterbattle'], { resolver: overlay });
         const overlayResponse = await tx.broadcast(tb);
-        console.log("Overlay response: ", overlayResponse);
     } catch (error) {
         console.warn(`Overlay index failed for ${txid} (tx still broadcast by wallet):`, error);
     }

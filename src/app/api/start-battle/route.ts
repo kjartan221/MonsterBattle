@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
 
     if (requestedBiome && requestedTier) {
       // Validate requested biome/tier is unlocked
-      console.log(playerStats);
       const biomeTierKey = formatBiomeTierKey(requestedBiome, requestedTier);
       if (!playerStats.unlockedZones.includes(biomeTierKey)) {
         return NextResponse.json(
@@ -136,7 +135,6 @@ export async function POST(request: NextRequest) {
     const excludeBuffTypes: MonsterBuffType[] = [];
     if (challengeConfig.forceSpeed) {
       excludeBuffTypes.push('fast'); // Don't generate random fast buff if challenge forces it
-      console.log(`⚔️ [CHALLENGE] Speed buff forced by config - excluding 'fast' from random buff generation`);
     }
 
     // Generate random buffs based on tier (Tier 2+, no buffs for bosses except Tier 5)
@@ -175,14 +173,12 @@ export async function POST(request: NextRequest) {
     if (challengeConfig.hpMultiplier > 1.0) {
       const hpBefore = finalClicksRequired;
       finalClicksRequired = Math.round(finalClicksRequired * challengeConfig.hpMultiplier);
-      console.log(`⚔️ [CHALLENGE] HP multiplier applied: ${hpBefore} → ${finalClicksRequired} (${challengeConfig.hpMultiplier}x)`);
     }
 
     // Apply damage multiplier
     if (challengeConfig.damageMultiplier > 1.0) {
       const dmgBefore = finalAttackDamage;
       finalAttackDamage = Math.round(finalAttackDamage * challengeConfig.damageMultiplier);
-      console.log(`⚔️ [CHALLENGE] Damage multiplier applied: ${dmgBefore} → ${finalAttackDamage} (${challengeConfig.damageMultiplier}x)`);
     }
 
     // Apply boss spawn rate bonus (+10% HP/DMG for bosses when enabled)
@@ -191,7 +187,6 @@ export async function POST(request: NextRequest) {
       const dmgBefore = finalAttackDamage;
       finalClicksRequired = Math.round(finalClicksRequired * 1.1);
       finalAttackDamage = Math.round(finalAttackDamage * 1.1);
-      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: Boss HP/DMG +10%: ${hpBefore} HP → ${finalClicksRequired} HP, ${dmgBefore} DMG → ${finalAttackDamage} DMG`);
     }
 
     // Apply forced buffs from challenge config (with buff strength multiplier)
@@ -199,13 +194,11 @@ export async function POST(request: NextRequest) {
       const baseShieldHP = Math.floor(finalClicksRequired * 0.3); // 30% of monster HP
       const shieldHP = Math.floor(baseShieldHP * challengeConfig.buffStrength);
       buffs.push({ type: 'shield', value: shieldHP });
-      console.log(`⚔️ [CHALLENGE] Force Shield applied: ${shieldHP} HP (${challengeConfig.buffStrength}x strength)`);
     }
 
     if (challengeConfig.forceSpeed) {
       const baseTimer = 30; // 30 second base timer (will be modified by escapeTimerSpeed later)
       buffs.push({ type: 'fast', value: baseTimer });
-      console.log(`⚔️ [CHALLENGE] Force Speed applied: ${baseTimer}s base timer`);
     }
 
     // Apply buff strength multiplier to existing shield buffs
@@ -214,7 +207,6 @@ export async function POST(request: NextRequest) {
         if (buff.type === 'shield') {
           const oldValue = buff.value;
           buff.value = Math.floor(buff.value * challengeConfig.buffStrength);
-          console.log(`⚔️ [CHALLENGE] Shield buff strength: ${oldValue} → ${buff.value} HP (${challengeConfig.buffStrength}x)`);
         }
       });
     }
@@ -226,7 +218,6 @@ export async function POST(request: NextRequest) {
           const oldValue = buff.value;
           const calculatedTimer = Math.floor(buff.value / challengeConfig.escapeTimerSpeed);
           buff.value = Math.max(10, calculatedTimer); // Minimum 10 seconds
-          console.log(`⚔️ [CHALLENGE] Escape timer speed: ${oldValue}s → ${buff.value}s (${challengeConfig.escapeTimerSpeed}x, min 10s)`);
         }
       });
     }
@@ -238,7 +229,6 @@ export async function POST(request: NextRequest) {
         ...modifiedDotEffect,
         damageAmount: modifiedDotEffect.damageAmount * challengeConfig.dotIntensity
       };
-      console.log(`⚔️ [CHALLENGE] DoT intensity: ${monsterTemplate.dotEffect?.damageAmount}% → ${modifiedDotEffect.damageAmount}% (${challengeConfig.dotIntensity}x)`);
     }
 
     // Override corruption rate if challenge config forces it
@@ -254,7 +244,6 @@ export async function POST(request: NextRequest) {
         // Add enrage buff (+20% damage) for forced corruption
         hasEnrageBuff = true;
         finalAttackDamage = Math.round(finalAttackDamage * 1.2); // +20% enrage
-        console.log(`⚔️ [CHALLENGE] Forced corruption: HP +50%, DMG +25%, Enrage +20% (total DMG: ${finalAttackDamage})`);
       }
     }
 
@@ -270,14 +259,12 @@ export async function POST(request: NextRequest) {
         if (scaledAttack.damage !== undefined) {
           const baseDamage = scaledAttack.damage;
           scaledAttack.damage = applyTierSpecialAttackScaling(baseDamage, tier);
-          console.log(`⚔️ [TIER SCALING] Special attack "${attack.type}" damage: ${baseDamage} → ${scaledAttack.damage} (T${tier}, lenient scaling)`);
         }
 
         // Apply lenient tier scaling to healing (same as special attack damage scaling)
         if (scaledAttack.healing !== undefined) {
           const baseHealing = scaledAttack.healing;
           scaledAttack.healing = applyTierSpecialAttackScaling(baseHealing, tier);
-          console.log(`⚔️ [TIER SCALING] Special attack "${attack.type}" healing: ${baseHealing} → ${scaledAttack.healing} (T${tier}, lenient scaling)`);
         }
 
         // NOTE: Summon attack damage is NOT scaled here - it's scaled in useSummonedCreatures.ts on the frontend
@@ -290,9 +277,6 @@ export async function POST(request: NextRequest) {
         return scaledAttack;
       });
 
-      if (challengeConfig.bossAttackSpeed < 1.0) {
-        console.log(`⚔️ [CHALLENGE] Boss attack speed: Cooldowns multiplied by ${challengeConfig.bossAttackSpeed}x`);
-      }
     }
 
     // Apply tier scaling to boss phase special attacks
@@ -309,14 +293,12 @@ export async function POST(request: NextRequest) {
             if (scaledAttack.damage !== undefined) {
               const baseDamage = scaledAttack.damage;
               scaledAttack.damage = applyTierSpecialAttackScaling(baseDamage, tier);
-              console.log(`⚔️ [TIER SCALING] Phase ${phase.phaseNumber} "${attack.type}" damage: ${baseDamage} → ${scaledAttack.damage} (T${tier}, lenient scaling)`);
             }
 
             // Apply lenient tier scaling to healing
             if (scaledAttack.healing !== undefined) {
               const baseHealing = scaledAttack.healing;
               scaledAttack.healing = applyTierSpecialAttackScaling(baseHealing, tier);
-              console.log(`⚔️ [TIER SCALING] Phase ${phase.phaseNumber} "${attack.type}" healing: ${baseHealing} → ${scaledAttack.healing} (T${tier}, lenient scaling)`);
             }
 
             // NOTE: Summon attack damage is NOT scaled here - it's scaled in useSummonedCreatures.ts on the frontend
@@ -364,8 +346,6 @@ export async function POST(request: NextRequest) {
     };
 
     const sessionResult = await battleSessionsCollection.insertOne(newSession);
-
-    console.log(`New battle session created for user ${userId} in ${biome} T${tier}: ${sessionResult.insertedId.toString()}`);
 
     return NextResponse.json({
       session: {

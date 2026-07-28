@@ -176,17 +176,6 @@ export default function CraftingPage() {
       // Check if ALL selected materials are minted as NFTs
       const allMinted = selectedMaterials.every(m => m.isMinted && m.tokenId);
 
-      console.log('Crafting with materials:', {
-        selectedCount: selectedMaterials.length,
-        allMinted,
-        materials: selectedMaterials.map(m => ({
-          name: m.name,
-          isMinted: m.isMinted,
-          tokenId: m.tokenId,
-          quantity: m.quantity
-        }))
-      });
-
       // Require wallet authentication and all materials minted
       if (!userWallet || !isAuthenticated) {
         throw new Error('Please connect your wallet to craft items');

@@ -89,8 +89,6 @@ export function useCreateMaterialToken() {
       }
       const { publicKey: serverIdentityKey } = await serverPubKeyResponse.json();
 
-      console.log('Creating WalletP2PKH payment transaction (100 sats)...');
-
       // Create WalletP2PKH payment with derivation params
       const { paymentTx, paymentTxId, walletParams } = await createWalletPayment(
         wallet,
@@ -98,20 +96,6 @@ export function useCreateMaterialToken() {
         100,
         'Payment for material minting fees'
       );
-
-      console.log('WalletP2PKH payment transaction created:', {
-        txid: paymentTxId,
-        satoshis: 100,
-        walletParams,
-      });
-
-      console.log('Requesting server-side mint for materials:', {
-        materialCount: materials.length,
-        materials: materials.map(m => `${m.itemName} x${m.quantity}`),
-        userIdentityKey,
-        paymentTxId,
-        walletParams,
-      });
 
       // Call server API for mint-and-transfer
       const proof = await createAuthProof(wallet, 'mint-material');
@@ -152,8 +136,6 @@ export function useCreateMaterialToken() {
       }
 
       const response = await apiResult.json();
-
-      console.log('Server minted and transferred materials:', response.results);
 
       // Internalize the minted output into the wallet basket. Non-fatal: the token
       // is already minted server-side, so a failure here is recoverable via reindexFromBasket.

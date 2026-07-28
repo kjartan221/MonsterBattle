@@ -31,7 +31,6 @@ export async function getServerWallet(): Promise<WalletClient> {
   // Create server wallet
   serverWallet = await makeWallet(chain, storageURL, privateKey);
 
-  console.log('Server wallet initialized for minting');
   return serverWallet;
 }
 

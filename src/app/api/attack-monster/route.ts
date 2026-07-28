@@ -99,8 +99,6 @@ export async function POST(request: NextRequest) {
     // Calculate manual click rate (manual clicks per second)
     const clickRate = clickCount / timeInSeconds;
 
-    console.log(`User ${userId} - Manual click rate: ${clickRate.toFixed(2)} clicks/second (${clickCount} clicks in ${timeInSeconds.toFixed(2)}s)`);
-
     // HP VERIFICATION: Check if player should have survived
     // Get player stats to check max HP
     const playerStats = await playerStatsCollection.findOne({ userId });
@@ -206,7 +204,6 @@ export async function POST(request: NextRequest) {
     const totalTimeMs = timeInSeconds * 1000;
     const reportedStunTimeMs = stunTimeMs || 0;
     const activeAttackTimeMs = Math.max(0, totalTimeMs - invulnerabilityMs - reportedStunTimeMs);
-    console.log(`Active attack time: ${activeAttackTimeMs}ms (total: ${totalTimeMs}ms - invulnerability: ${invulnerabilityMs}ms - stun: ${reportedStunTimeMs}ms)`);
 
     // Step 4: Calculate number of attacks that would have occurred (during active time only)
     const numberOfAttacks = Math.floor(activeAttackTimeMs / attackInterval);
@@ -232,28 +229,12 @@ export async function POST(request: NextRequest) {
     const MAX_REDUCTION = 80;
     const actualReductionPercent = Math.round((equipmentStats.defense / (equipmentStats.defense + K)) * MAX_REDUCTION * 10) / 10;
 
-    console.log(`Damage calculation:`);
-    console.log(`  Time: ${timeInSeconds.toFixed(2)}s total, ${invulnerabilityMs}ms invulnerable, ${(activeAttackTimeMs / 1000).toFixed(2)}s active`);
-    console.log(`  Monster: ${damagePerHit} dmg/hit (${equipmentStats.defense} defense → ${actualReductionPercent}% reduction), ${attackInterval}ms interval, ${numberOfAttacks} attacks = ${monsterDamage} damage`);
-    console.log(`  Summons: ${reportedSummonDamage} damage (not reduced by armor)`);
-    console.log(`  Total base: ${totalBaseDamage} damage`);
-    if (reportedThornsDamage > 0) {
-      console.log(`  Thorns (reflection): ${reportedThornsDamage} damage dealt to monster`);
-    }
-    if (damageReduction > 0) {
-      console.log(`  → After ${damageReduction}% damage reduction: ${expectedDamage} damage`);
-    }
-    if (shieldHP > 0) {
-      console.log(`  → After ${shieldHP} shield absorption: ${damageAfterShield} damage`);
-    }
-
     // Use damage after all protections for HP calculation
     expectedDamage = damageAfterShield;
 
     // Use actual healing reported from frontend (includes consumables, spells, lifesteal)
     // Frontend tracks all healing as it happens, which is more accurate than estimating
     const totalHealing = reportedHealing;
-    console.log(`Actual healing reported from frontend: ${totalHealing} HP`);
 
     const usedItemsCounts: Record<string, number> = (usedItems && typeof usedItems === 'object' && !Array.isArray(usedItems)) ? usedItems : {};
 
@@ -307,12 +288,6 @@ export async function POST(request: NextRequest) {
     // This allows minor discrepancies in close fights due to heal state updates
     const hpTolerance = Math.floor(totalMaxHP * 0.20);
     const hpThreshold = -hpTolerance;
-
-    console.log(`HP Verification - Base Max HP: ${playerStats.maxHealth}, Equipment Bonus: +${equipmentStats.maxHpBonus}, Total Max HP: ${totalMaxHP}, Expected Damage: ${expectedDamage}, Healing: ${totalHealing}, Expected HP: ${expectedHP}`);
-    console.log(`  → 20% tolerance: ${hpTolerance} HP buffer (threshold: ${hpThreshold} HP)`);
-    if (shieldHP > 0 || damageReduction > 0) {
-      console.log(`  Buff protection: ${shieldHP} shield HP, ${damageReduction}% damage reduction`);
-    }
 
     // If player should have died (beyond tolerance), they're cheating
     if (expectedHP < hpThreshold) {
@@ -414,8 +389,6 @@ export async function POST(request: NextRequest) {
     // Max allowed total = max manual + expected auto (both with tolerance baked in)
     const maxAllowedTotal = maxManualClicks + expectedAutoClicks;
 
-    console.log(`Click Verification - Manual: ${clickCount}, Auto: ${expectedAutoClicks}, Total: ${totalClickPotential}, Max Allowed: ${maxAllowedTotal} (${timeInSeconds.toFixed(2)}s)`);
-
     if (totalClickPotential > maxAllowedTotal) {
       const manualClickRate = clickCount / timeInSeconds;
       console.warn(`⚠️ Cheat detected! User ${userId} exceeded max click potential: ${totalClickPotential} > ${maxAllowedTotal}`);
@@ -456,11 +429,6 @@ export async function POST(request: NextRequest) {
         { error: 'Insufficient damage to defeat monster' },
         { status: 400 }
       );
-    }
-
-    // For bosses, log the damage discrepancy for debugging
-    if (isBossMonster && totalDamage < monster.clicksRequired) {
-      console.log(`ℹ️ Boss defeated with ${totalDamage}/${monster.clicksRequired} damage (phases may affect this)`);
     }
 
     // Atomically claim completion so concurrent duplicate submissions can't both reward.
@@ -567,15 +535,6 @@ export async function POST(request: NextRequest) {
     const lootOptions = getRandomLoot(monster.name, totalLootCards, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
 
-    console.log(`✅ Monster defeated! User ${userId} defeated ${monster.name} with ${clickCount} clicks (${totalDamage} damage) in ${timeInSeconds.toFixed(2)}s`);
-    if (reportedThornsDamage > 0) {
-      console.log(`   🔱 Thorns damage: ${reportedThornsDamage}`);
-    }
-    if (reportedHealing > 0) {
-      console.log(`   💚 Total healing: ${reportedHealing} (includes defensive lifesteal + consumables + offensive lifesteal)`);
-    }
-    console.log(`🎁 Loot generated (${winStreak} streak, ${streakMultiplier}x): ${lootOptions.map(l => `${l.name} (${l.rarity})`).join(', ')}`);
-
     // Mark session as completed and save loot options (user hasn't selected yet)
     const now = new Date();
     await battleSessionsCollection.updateOne(
@@ -637,10 +596,8 @@ export async function POST(request: NextRequest) {
         // Set unlock reason for UI feedback
         if (killedEpicBoss) {
           unlockReason = 'epic_boss';
-          console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId} by defeating epic mini-boss ${monster.name}`);
         } else {
           unlockReason = '10_streak';
-          console.log(`🎉 Unlocked ${nextBiomeTierKey} for user ${userId} with 10 win streak`);
         }
       }
     }
@@ -675,8 +632,6 @@ export async function POST(request: NextRequest) {
       coins: Math.ceil(baseRewards.coins * totalCoinMultiplier)
     };
 
-    console.log(`💰 Rewarding player: +${rewards.xp} XP, +${rewards.coins} coins (${monster.rarity} monster, Tier ${currentTier}, streak ${winStreak})`);
-
     // Calculate new XP (used for level-up check)
     const newXP = playerStats.experience + rewards.xp;
 
@@ -684,16 +639,10 @@ export async function POST(request: NextRequest) {
     const levelUpResult = checkLevelUp(playerStats.level, newXP);
 
     if (levelUpResult.leveledUp) {
-      console.log(`🎊 LEVEL UP! ${levelUpResult.previousLevel} → ${levelUpResult.newLevel}`);
-      console.log(`   +${levelUpResult.statIncreases.maxHealth} max HP, +${levelUpResult.statIncreases.baseDamage} base damage`);
 
       const newMaxHealth = playerStats.maxHealth + levelUpResult.statIncreases.maxHealth;
       const totalMaxHP = newMaxHealth + equipmentStats.maxHpBonus;
 
-      console.log(`🎯 [LEVEL UP HEAL] Base Max HP: ${playerStats.maxHealth} + ${levelUpResult.statIncreases.maxHealth} = ${newMaxHealth}`);
-      console.log(`🎯 [LEVEL UP HEAL] Equipment Bonus: +${equipmentStats.maxHpBonus}`);
-      console.log(`🎯 [LEVEL UP HEAL] Total Max HP (with equipment): ${totalMaxHP}`);
-      console.log(`🎯 [LEVEL UP HEAL] Setting currentHealth to: ${totalMaxHP} (full heal with equipment)`);
     }
 
     const victoryUpdate = buildVictoryStatMutation({

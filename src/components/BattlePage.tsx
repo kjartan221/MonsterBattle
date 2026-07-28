@@ -311,17 +311,6 @@ export default function BattlePage() {
 
     // Pass spell data to MonsterBattleSection for damage application and visual effects
     if (spellDamageHandlerRef.current) {
-      // Debug logging for spell data before passing to MonsterBattleSection
-      if (result.debuffType && result.debuffValue) {
-        console.log('[BattlePage] Passing spell debuff to MonsterBattleSection:', {
-          spellName: result.spellName,
-          debuffType: result.debuffType,
-          debuffValue: result.debuffValue,
-          debuffDamageType: result.debuffDamageType,
-          duration: result.duration
-        });
-      }
-
       spellDamageHandlerRef.current({
         spellName: result.spellName || 'Spell',
         damage: result.damage,
