@@ -12,6 +12,7 @@ import { buildVictoryStatMutation } from '@/lib/battleOutcome';
 
 const MAX_CLICKS_PER_SECOND = 20;
 const MIN_BATTLE_DURATION_MS_FOR_VALIDATION = 1000;
+const DMG_CEILING_TOLERANCE = 5; // block totalDamage above maxPlausible×this; generous (maxNoBuff excludes crit/damage buffs)
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,17 +75,16 @@ export async function POST(request: NextRequest) {
     const monster = session.monster;
 
     // Ensure we have a battle start timestamp that excludes time spent on the start screen.
-    // If missing (older sessions), set it now so anti-cheat/HP verification doesn't falsely
-    // count long idle time.
+    // If missing (older sessions or consecutive "Next Monster" fights), fall back to the
+    // session's creation time so anti-cheat/HP verification doesn't falsely count long idle time.
     let actualBattleStartedAt: Date;
     if (session.actualBattleStartedAt) {
       actualBattleStartedAt = new Date(session.actualBattleStartedAt);
     } else {
-      actualBattleStartedAt = new Date();
-      await battleSessionsCollection.updateOne(
-        { _id: sessionObjectId },
-        { $set: { actualBattleStartedAt } }
-      );
+      // Battle timer wasn't recorded (e.g. consecutive "Next Monster" fights skip the Start Battle
+      // screen). Fall back to the session's creation time — NOT now, which made every such fight
+      // measure as ~0s and floor to the 1s minimum, skewing all time-based anti-cheat.
+      actualBattleStartedAt = session.startedAt ? new Date(session.startedAt) : new Date();
     }
 
     // Calculate time elapsed from server-side actualBattleStartedAt (or startedAt as fallback)
@@ -136,7 +136,9 @@ export async function POST(request: NextRequest) {
           lootItem: getLootItemById(equippedWeaponDoc.lootTableId)!,
           crafted: equippedWeaponDoc.crafted,
           statRoll: equippedWeaponDoc.statRoll,
-          isEmpowered: equippedWeaponDoc.isEmpowered
+          isEmpowered: equippedWeaponDoc.isEmpowered,
+          prefix: equippedWeaponDoc.prefix,
+          suffix: equippedWeaponDoc.suffix
         }
       : null;
 
@@ -149,7 +151,9 @@ export async function POST(request: NextRequest) {
           lootItem: getLootItemById(equippedArmorDoc.lootTableId)!,
           crafted: equippedArmorDoc.crafted,
           statRoll: equippedArmorDoc.statRoll,
-          isEmpowered: equippedArmorDoc.isEmpowered
+          isEmpowered: equippedArmorDoc.isEmpowered,
+          prefix: equippedArmorDoc.prefix,
+          suffix: equippedArmorDoc.suffix
         }
       : null;
 
@@ -162,7 +166,9 @@ export async function POST(request: NextRequest) {
           lootItem: getLootItemById(equippedAccessory1Doc.lootTableId)!,
           crafted: equippedAccessory1Doc.crafted,
           statRoll: equippedAccessory1Doc.statRoll,
-          isEmpowered: equippedAccessory1Doc.isEmpowered
+          isEmpowered: equippedAccessory1Doc.isEmpowered,
+          prefix: equippedAccessory1Doc.prefix,
+          suffix: equippedAccessory1Doc.suffix
         }
       : null;
 
@@ -175,7 +181,9 @@ export async function POST(request: NextRequest) {
           lootItem: getLootItemById(equippedAccessory2Doc.lootTableId)!,
           crafted: equippedAccessory2Doc.crafted,
           statRoll: equippedAccessory2Doc.statRoll,
-          isEmpowered: equippedAccessory2Doc.isEmpowered
+          isEmpowered: equippedAccessory2Doc.isEmpowered,
+          prefix: equippedAccessory2Doc.prefix,
+          suffix: equippedAccessory2Doc.suffix
         }
       : null;
 
@@ -197,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Step 3: Calculate active attack time (total time - invulnerability time - stun time)
     const totalTimeMs = timeInSeconds * 1000;
     const reportedStunTimeMs = stunTimeMs || 0;
-    const activeAttackTimeMs = totalTimeMs - invulnerabilityMs - reportedStunTimeMs;
+    const activeAttackTimeMs = Math.max(0, totalTimeMs - invulnerabilityMs - reportedStunTimeMs);
     console.log(`Active attack time: ${activeAttackTimeMs}ms (total: ${totalTimeMs}ms - invulnerability: ${invulnerabilityMs}ms - stun: ${reportedStunTimeMs}ms)`);
 
     // Step 4: Calculate number of attacks that would have occurred (during active time only)
@@ -252,6 +260,47 @@ export async function POST(request: NextRequest) {
     // Calculate expected HP after battle (including equipment max HP bonuses)
     const totalMaxHP = playerStats.maxHealth + equipmentStats.maxHpBonus;
     const expectedHP = totalMaxHP - expectedDamage + totalHealing;
+
+    // [HIGH-1 OBSERVE] Observe-only. Survival is enforced by the HP check below; this ratio isn't
+    // used for blocking since the server can't model DoT/boss-specials/corruption client-side.
+    const rawWindowAttacks = Math.floor(totalTimeMs / attackInterval);
+    const rawDamageNoMitigation = rawWindowAttacks * damagePerHit;
+    const rawDamageRatio = totalMaxHP > 0 ? rawDamageNoMitigation / totalMaxHP : 0;
+    console.log(
+      `[HIGH-1 OBSERVE] user=${userId} monster="${monster.name}" rarity=${monster.rarity} boss=${monster.isBoss === true} ` +
+      `biome=${session.biome} tier=${session.tier} time=${timeInSeconds.toFixed(2)}s ` +
+      `rawDamage=${rawDamageNoMitigation} maxHP=${totalMaxHP} ratio=${rawDamageRatio.toFixed(2)} | ` +
+      `claimed: healing=${totalHealing} invulnMs=${invulnerabilityMs} stunMs=${reportedStunTimeMs} ` +
+      `reductionPct=${damageReduction} shieldHP=${shieldHP} summonDmg=${reportedSummonDamage}`
+    );
+
+    // [HIGH-1 DMG-ENFORCE] Enforced upper bound on damage output: rate-capped clicks (manual + auto)
+    // × all-crit per-click max (no consumable/spell buffs), ×DMG_CEILING_TOLERANCE to allow for those
+    // buffs. Blocks impossible damage claims.
+    const dmgTotalCritChanceNoBuff = 5 + equipmentStats.critChance; // 5 = client baseCritChance
+    const dmgCritMultiplierNoBuff = 2.0 + Math.max(0, dmgTotalCritChanceNoBuff - 100) / 100;
+    const dmgMaxPerClickNoBuff = Math.floor((playerStats.baseDamage + equipmentStats.damageBonus) * dmgCritMultiplierNoBuff);
+    const dmgMaxManualClicks = Math.ceil(timeInSeconds * MAX_CLICKS_PER_SECOND * 1.2); // same tolerance as the click-rate check
+    const dmgExpectedAutoHits = Math.floor(timeInSeconds * (equipmentStats.autoClickRate || 0));
+    const dmgReportedSkillshot = typeof skillshotBonusDamage === 'number' ? skillshotBonusDamage : 0;
+    const dmgMaxPlausibleNoBuff = (dmgMaxManualClicks + dmgExpectedAutoHits) * dmgMaxPerClickNoBuff;
+    const dmgRatio = dmgMaxPlausibleNoBuff > 0 ? totalDamage / dmgMaxPlausibleNoBuff : 0;
+    console.log(
+      `[HIGH-1 DMG-ENFORCE] user=${userId} monster="${monster.name}" rarity=${monster.rarity} boss=${monster.isBoss === true} ` +
+      `time=${timeInSeconds.toFixed(2)}s totalDamage=${totalDamage} maxNoBuff=${dmgMaxPlausibleNoBuff} ratio=${dmgRatio.toFixed(2)} | ` +
+      `perClickNoBuffMax=${dmgMaxPerClickNoBuff} maxManualClicks=${dmgMaxManualClicks} autoHits=${dmgExpectedAutoHits} skillshotBonus=${dmgReportedSkillshot}`
+    );
+
+    if (dmgMaxPlausibleNoBuff > 0 && totalDamage > dmgMaxPlausibleNoBuff * DMG_CEILING_TOLERANCE) {
+      console.warn(`⚠️ Damage cheat: user ${userId} totalDamage=${totalDamage} exceeds ceiling ${dmgMaxPlausibleNoBuff}×${DMG_CEILING_TOLERANCE}`);
+      const newClicksRequired = monster.clicksRequired * 2;
+      return NextResponse.json({
+        cheatingDetected: true,
+        message: 'That was more damage than possible for this battle.',
+        newClicksRequired,
+        clickRate: clickRate.toFixed(2)
+      }, { status: 200 });
+    }
 
     // Apply 20% tolerance to account for state update timing issues
     // Player is considered dead only if expectedHP < -(totalMaxHP * 0.20)
@@ -451,84 +500,69 @@ export async function POST(request: NextRequest) {
     // Toggle bonuses
     if (challengeConfig.forceShield) {
       extraLootCards += 1;
-      console.log(`⚔️ [CHALLENGE] Force Shield bonus: +1 loot card`);
     }
     if (challengeConfig.forceSpeed) {
       extraLootCards += 1;
-      console.log(`⚔️ [CHALLENGE] Force Speed bonus: +1 loot card`);
     }
 
     // Max slider bonuses (+1 loot card for the 3 hardest settings)
     if (challengeConfig.damageMultiplier === 3.0) {
       extraLootCards += 1;
-      console.log(`⚔️ [CHALLENGE] Max Damage bonus: +1 loot card`);
     }
     if (challengeConfig.escapeTimerSpeed === 4.0) {
       extraLootCards += 1;
-      console.log(`⚔️ [CHALLENGE] Max Escape Timer bonus: +1 loot card`);
     }
     if (challengeConfig.buffStrength === 5.0) {
       extraLootCards += 1;
-      console.log(`⚔️ [CHALLENGE] Max Buff Strength bonus: +1 loot card`);
     }
 
     // Damage multiplier bonus (+25% per step)
     if (challengeConfig.damageMultiplier > 1.0) {
       const damageSteps = Math.log(challengeConfig.damageMultiplier) / Math.log(1.25);
       challengeXPMultiplier += damageSteps * 0.25;
-      console.log(`⚔️ [CHALLENGE] Damage multiplier ${challengeConfig.damageMultiplier}x: +${Math.round(damageSteps * 25)}% rewards`);
     }
 
     // HP multiplier bonus (+50% per step)
     if (challengeConfig.hpMultiplier > 1.0) {
       const hpSteps = Math.log(challengeConfig.hpMultiplier) / Math.log(1.5);
       challengeXPMultiplier += hpSteps * 0.50;
-      console.log(`⚔️ [CHALLENGE] HP multiplier ${challengeConfig.hpMultiplier}x: +${Math.round(hpSteps * 50)}% rewards`);
     }
 
     // DoT intensity bonus (+30% per step)
     if (challengeConfig.dotIntensity > 1.0) {
       const dotSteps = Math.log(challengeConfig.dotIntensity) / Math.log(1.5);
       challengeXPMultiplier += dotSteps * 0.30;
-      console.log(`⚔️ [CHALLENGE] DoT intensity ${challengeConfig.dotIntensity}x: +${Math.round(dotSteps * 30)}% rewards`);
     }
 
     // Corruption rate bonus (+60% at 100%)
     if (challengeConfig.corruptionRate > 0) {
       challengeXPMultiplier += challengeConfig.corruptionRate * 0.60;
-      console.log(`⚔️ [CHALLENGE] Corruption rate ${Math.round(challengeConfig.corruptionRate * 100)}%: +${Math.round(challengeConfig.corruptionRate * 60)}% rewards`);
     }
 
     // Escape timer speed bonus (+40% per step, minimum 10s enforced)
     if (challengeConfig.escapeTimerSpeed > 1.0) {
       const escapeSteps = Math.log(challengeConfig.escapeTimerSpeed) / Math.log(1.5);
       challengeXPMultiplier += escapeSteps * 0.40;
-      console.log(`⚔️ [CHALLENGE] Escape timer ${challengeConfig.escapeTimerSpeed}x: +${Math.round(escapeSteps * 40)}% rewards`);
     }
 
     // Buff strength bonus (+35% per step)
     if (challengeConfig.buffStrength > 1.0) {
       const buffSteps = Math.log(challengeConfig.buffStrength) / Math.log(1.5);
       challengeXPMultiplier += buffSteps * 0.35;
-      console.log(`⚔️ [CHALLENGE] Buff strength ${challengeConfig.buffStrength}x: +${Math.round(buffSteps * 35)}% rewards`);
     }
 
     // Boss attack speed bonus (+50% per step)
     if (challengeConfig.bossAttackSpeed < 1.0) {
       const bossSteps = Math.log(1.0 / challengeConfig.bossAttackSpeed) / Math.log(1.33);
       challengeXPMultiplier += bossSteps * 0.50;
-      console.log(`⚔️ [CHALLENGE] Boss attack ${challengeConfig.bossAttackSpeed}x: +${Math.round(bossSteps * 50)}% rewards`);
     }
 
     // Boss spawn rate penalty (-3 loot cards)
     if (challengeConfig.bossSpawnRate === 5.0) {
       extraLootCards -= 4;
-      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: -4 loot cards penalty`);
     }
 
     const totalLootCards = Math.max(1, 5 + extraLootCards); // Ensure at least 1 loot card
-    console.log(`⚔️ [CHALLENGE] Total loot cards: ${totalLootCards} (base 5 + ${extraLootCards} challenge bonus)`);
-    console.log(`⚔️ [CHALLENGE] Total XP/Coin multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
 
     const lootOptions = getRandomLoot(monster.name, totalLootCards, winStreak);
     const lootOptionIds = lootOptions.map(l => l.lootId);
@@ -628,7 +662,6 @@ export async function POST(request: NextRequest) {
     if (challengeConfig.bossSpawnRate === 5.0) {
       bossSpawnCoinPenalty = 0.5; // 50% reduction
       bossSpawnXPPenalty = 0.5; // 50% reduction
-      console.log(`👹 [CHALLENGE] Boss Spawn Rate 5x: -50% rewards`);
     }
 
     // XP multiplier (streak * tier * challenge)
@@ -636,16 +669,6 @@ export async function POST(request: NextRequest) {
 
     // Coin multiplier (streak * nerfed_tier * challenge * boss_penalty)
     const totalCoinMultiplier = rewardStreakMultiplier * tierCoinMultiplier * challengeXPMultiplier * bossSpawnCoinPenalty;
-
-    console.log(`🎯 [REWARD DEBUG] Base Rewards: ${baseRewards.xp} XP, ${baseRewards.coins} coins (${monster.rarity})`);
-    console.log(`🎯 [REWARD DEBUG] Streak Multiplier: ${rewardStreakMultiplier}x (streak ${winStreak})`);
-    console.log(`🎯 [REWARD DEBUG] Tier XP Multiplier: ${tierXPMultiplier}x (Tier ${currentTier})`);
-    console.log(`🎯 [REWARD DEBUG] Tier Coin Multiplier: ${tierCoinMultiplier}x (Tier ${currentTier}) [NERFED]`);
-    console.log(`🎯 [REWARD DEBUG] Challenge Multiplier: ${challengeXPMultiplier.toFixed(2)}x`);
-    console.log(`🎯 [REWARD DEBUG] Boss Spawn Coin Penalty: ${bossSpawnCoinPenalty}x`);
-    console.log(`🎯 [REWARD DEBUG] Boss Spawn XP Penalty: ${bossSpawnXPPenalty}x`);
-    console.log(`🎯 [REWARD DEBUG] Total XP Multiplier: ${totalXPMultiplier.toFixed(2)}x`);
-    console.log(`🎯 [REWARD DEBUG] Total Coin Multiplier: ${totalCoinMultiplier.toFixed(2)}x`);
 
     const rewards = {
       xp: Math.ceil(baseRewards.xp * totalXPMultiplier),
