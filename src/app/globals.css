@@ -74,3 +74,10 @@ body {
     box-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5), 0 0 80px rgba(0, 255, 255, 0.2);
   }
 }
+
+/* Skillshot timer ring shrink — GPU-composited so it interpolates smoothly
+   (replaces a 50ms setInterval that stepped the scale at ~20fps) */
+@keyframes skillshot-ring-shrink {
+  from { transform: translate(-50%, -50%) scale(1); }
+  to   { transform: translate(-50%, -50%) scale(0); }
+}

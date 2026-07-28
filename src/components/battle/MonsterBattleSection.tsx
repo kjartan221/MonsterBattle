@@ -600,14 +600,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Check for player death
   useEffect(() => {
-    if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster() && !hasHandledDeathRef.current) {
-      hasHandledDeathRef.current = true;
+    if (playerStats && playerStats.currentHealth <= 0 && gameState.canAttackMonster()) {
       handlePlayerDeath();
     }
   }, [playerStats?.currentHealth, gameState.gameState]);
 
   const handlePlayerDeath = async () => {
     if (!playerStats || !gameState.session) return;
+    // Authoritative + once-only: latch AFTER the guard so a transient null session
+    // can't permanently block death handling (ref stays false → retries next render).
+    if (hasHandledDeathRef.current) return;
+    hasHandledDeathRef.current = true;
 
     // Clear all active debuffs and interactive attacks
     clearDebuffs();

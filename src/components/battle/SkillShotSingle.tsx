@@ -17,8 +17,6 @@ export default function SkillShotSingle({
   onMiss,
   onComplete
 }: SkillShotSingleProps) {
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const [startTime, setStartTime] = useState(Date.now());
   const [isClicked, setIsClicked] = useState(false);
   const [result, setResult] = useState<'success' | 'miss' | null>(null);
   const [position, setPosition] = useState({
@@ -29,8 +27,6 @@ export default function SkillShotSingle({
   // Reset state when isActive changes
   useEffect(() => {
     if (isActive) {
-      setStartTime(Date.now());
-      setTimeLeft(duration);
       setIsClicked(false);
       setResult(null);
       setPosition({
@@ -40,30 +36,18 @@ export default function SkillShotSingle({
     }
   }, [isActive, duration]);
 
-  // Update time left every 50ms for smooth animation
+  // Miss when the timer runs out (the ring shrink itself is pure CSS — no per-frame state)
   useEffect(() => {
     if (!isActive || isClicked) return;
 
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, duration - elapsed);
-      setTimeLeft(remaining);
+    const timeout = setTimeout(() => {
+      setResult('miss');
+      onMiss();
+      setTimeout(() => onComplete(), 300);
+    }, duration);
 
-      if (remaining <= 0) {
-        clearInterval(interval);
-        // Time ran out - miss (no penalty)
-        setResult('miss');
-        onMiss();
-
-        // Clear after animation (fast)
-        setTimeout(() => {
-          onComplete();
-        }, 300);
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isActive, isClicked, startTime, duration, onMiss, onComplete]);
+    return () => clearTimeout(timeout);
+  }, [isActive, isClicked, duration, onMiss, onComplete]);
 
   const handleClick = () => {
     if (isClicked || !isActive) return;
@@ -80,12 +64,15 @@ export default function SkillShotSingle({
 
   if (!isActive) return null;
 
-  const progress = timeLeft / duration;
   const outerSize = 100; // px
   const innerSize = 60; // px
 
   return (
-    <div className="absolute inset-0 z-40 pointer-events-auto">
+    <div
+      className="absolute inset-0 z-40 pointer-events-auto select-none"
+      style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Subtle overlay (less intrusive than chain) */}
       <div className="absolute inset-0 bg-black/20" />
 
@@ -109,8 +96,9 @@ export default function SkillShotSingle({
             borderRadius: '50%',
             border: '4px solid rgb(251, 191, 36)', // Amber
             opacity: isClicked ? 0.3 : 1,
-            transform: `translate(-50%, -50%) scale(${isClicked ? 0.5 : progress})`,
+            transform: `translate(-50%, -50%) scale(${isClicked ? 0.5 : 1})`,
             transition: isClicked ? 'all 0.3s ease-out' : 'none',
+            animation: isClicked ? 'none' : `skillshot-ring-shrink ${duration}ms linear forwards`,
             boxShadow: '0 0 20px rgba(251, 191, 36, 0.6)'
           }}
         />

@@ -165,7 +165,11 @@ export default function SkillShotChain({
   if (!isActive) return null;
 
   return (
-    <div className="absolute inset-0 z-50 pointer-events-auto">
+    <div
+      className="absolute inset-0 z-50 pointer-events-auto select-none"
+      style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 

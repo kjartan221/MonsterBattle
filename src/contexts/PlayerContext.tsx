@@ -215,6 +215,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPlayerStats((prevStats) => {
       if (!prevStats) return prevStats;
 
+      // Death is authoritative: once HP hits 0 the player is dead and cannot be
+      // healed back (e.g. defensive lifesteal firing the same tick). Only a new
+      // battle (resetHealth) revives — otherwise the death handler never fires.
+      if (prevStats.currentHealth <= 0) return prevStats;
+
       // Calculate total max HP including equipment bonuses
       const totalMaxHP = prevStats.maxHealth + maxHpBonus;
 

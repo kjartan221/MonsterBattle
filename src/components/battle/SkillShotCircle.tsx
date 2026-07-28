@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
 interface SkillShotCircleProps {
   id: string;
   x: number; // Position as percentage (0-100)
@@ -23,28 +21,6 @@ export default function SkillShotCircle({
   onClick,
   duration
 }: SkillShotCircleProps) {
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const [startTime] = useState(Date.now());
-
-  // Update time left every 50ms for smooth animation
-  useEffect(() => {
-    if (isCompleted) return;
-
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, duration - elapsed);
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        clearInterval(interval);
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [startTime, duration, isCompleted]);
-
-  const progress = timeLeft / duration;
-
   const handleClick = () => {
     if (!isCompleted) {
       onClick(id);
@@ -87,8 +63,9 @@ export default function SkillShotCircle({
           borderRadius: '50%',
           border: `5px solid ${color}`, // Thicker border for better visibility
           opacity: isCompleted ? 0.3 : 0.8,
-          transform: `translate(-50%, -50%) scale(${isCompleted ? 0.5 : progress})`,
+          transform: `translate(-50%, -50%) scale(${isCompleted ? 0.5 : 1})`,
           transition: isCompleted ? 'all 0.3s ease-out' : 'none',
+          animation: isCompleted ? 'none' : `skillshot-ring-shrink ${duration}ms linear forwards`,
           boxShadow: isActive ? `0 0 20px ${color}` : 'none'
         }}
       />
