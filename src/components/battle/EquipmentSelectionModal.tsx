@@ -8,30 +8,9 @@ import { colorToRGBA } from '@/utils/publicKeyToColor';
 import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
-import { scaleItemStats } from '@/utils/itemTierScaling';
-import type { Tier } from '@/lib/biome-config';
 import { getInscribedItemName } from '@/utils/itemNameHelpers';
-import type { Inscription, InscriptionType } from '@/lib/types';
-
-/**
- * Maps inscription types to equipment stat keys
- */
-function getInscriptionStatKey(inscriptionType: InscriptionType): string | null {
-  const mapping: Record<InscriptionType, string> = {
-    damage: 'damageBonus',
-    critical: 'critChance',
-    protection: 'hpReduction', // defense
-    vitality: 'maxHpBonus',
-    haste: 'attackSpeed',
-    fortune: 'coinBonus',
-    healing: 'healBonus',
-    lifesteal: 'lifesteal',
-    defensiveLifesteal: 'defensiveLifesteal',
-    thorns: 'thorns',
-    autoclick: 'autoClickRate'
-  };
-  return mapping[inscriptionType] || null;
-}
+import type { Inscription } from '@/lib/types';
+import { getDisplayEquipmentStats } from '@/utils/equipmentCalculations';
 
 interface UserInventoryItem {
   _id: string;
@@ -252,7 +231,13 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
                   </div>
                   {currentlyEquipped.lootItem.equipmentStats && (
                     <div className="text-xs text-gray-500 mt-1">
-                      {Object.entries(currentlyEquipped.lootItem.equipmentStats).map(([key, value]) => (
+                      {Object.entries(getDisplayEquipmentStats(
+                        currentlyEquipped.lootItem.equipmentStats,
+                        currentlyEquipped.tier,
+                        currentlyEquipped.isEmpowered,
+                        currentlyEquipped.prefix,
+                        currentlyEquipped.suffix
+                      )).map(([key, value]) => (
                         <span key={key} className="mr-3">
                           {formatStatName(key)}: +{value}{getStatUnit(key)}
                         </span>
@@ -301,46 +286,10 @@ export default function EquipmentSelectionModal({ isOpen, onClose, slot }: Equip
 
                 const isCurrentlyEquipped = currentlyEquipped?.inventoryId === item._id;
 
-                // Calculate empowered stats if applicable
-                let displayStats = lootItem.equipmentStats;
-                if (item.isEmpowered && lootItem.equipmentStats) {
-                  // Apply tier scaling first
-                  const baseStats = lootItem.equipmentStats as Record<string, number>;
-                  const scaledStats = scaleItemStats(baseStats, item.tier as Tier);
-                  // Apply empowered bonus (20%) with round up
-                  displayStats = Object.entries(scaledStats).reduce((acc, [key, value]) => {
-                    acc[key] = Math.ceil(value * 1.2);
-                    return acc;
-                  }, {} as Record<string, number>);
-                } else if (lootItem.equipmentStats) {
-                  // Just apply tier scaling
-                  const baseStats = lootItem.equipmentStats as Record<string, number>;
-                  displayStats = scaleItemStats(baseStats, item.tier as Tier);
-                }
-
-                // Apply inscription bonuses (add after tier + empowered)
-                if (displayStats && (item.prefix || item.suffix)) {
-                  const statsRecord = displayStats as Record<string, number>;
-                  displayStats = { ...statsRecord }; // Clone to avoid mutation
-
-                  // Add prefix inscription bonus
-                  if (item.prefix) {
-                    const statKey = getInscriptionStatKey(item.prefix.type);
-                    if (statKey && displayStats) {
-                      const statsWithInscriptions = displayStats as Record<string, number>;
-                      statsWithInscriptions[statKey] = (statsWithInscriptions[statKey] || 0) + item.prefix.value;
-                    }
-                  }
-
-                  // Add suffix inscription bonus
-                  if (item.suffix) {
-                    const statKey = getInscriptionStatKey(item.suffix.type);
-                    if (statKey && displayStats) {
-                      const statsWithInscriptions = displayStats as Record<string, number>;
-                      statsWithInscriptions[statKey] = (statsWithInscriptions[statKey] || 0) + item.suffix.value;
-                    }
-                  }
-                }
+                // Tier-scaled + empowered + inscribed stats (shared with gameplay total calculation)
+                const displayStats = lootItem.equipmentStats
+                  ? getDisplayEquipmentStats(lootItem.equipmentStats, item.tier, item.isEmpowered, item.prefix, item.suffix)
+                  : undefined;
 
                 return (
                   <button

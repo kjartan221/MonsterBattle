@@ -7,6 +7,7 @@ import { tierToRoman } from '@/utils/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import { getInscribedItemName } from '@/utils/itemNameHelpers';
 import type { Inscription } from '@/lib/types';
+import { getDisplayEquipmentStats } from '@/utils/equipmentCalculations';
 import { useMintItemNFT } from '@/hooks/useMintItemNFT';
 import { useCreateMaterialToken } from '@/hooks/useCreateMaterialToken';
 import { useUpdateMaterialToken } from '@/hooks/useUpdateMaterialToken';
@@ -83,6 +84,11 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
     (item.type === 'consumable' && item.enhanced); // Only enhanced consumables
 
   const isBlockedConsumable = item.type === 'consumable' && !item.enhanced;
+
+  // Tier-scaled + empowered + inscribed stats (matches actual in-battle effect, not raw template values)
+  const displayStats = item.equipmentStats
+    ? getDisplayEquipmentStats(item.equipmentStats, item.tier ?? 1, item.isEmpowered, item.prefix, item.suffix)
+    : undefined;
 
   // Fetch refine stone count on mount (for crafted equipment)
   const isRefinable = item.crafted && item.statRoll !== undefined &&
@@ -757,93 +763,93 @@ export default function InventoryDetailsModal({ item, onClose, onMintSuccess, on
             <p className="text-white text-sm leading-relaxed">{item.description}</p>
           </div>
 
-          {/* Equipment Stats */}
-          {item.equipmentStats && (
+          {/* Equipment Stats (tier-scaled + empowered + inscribed) */}
+          {displayStats && (
             <div className="pb-3 border-b border-gray-700">
               <span className="text-gray-400 text-sm font-medium block mb-2">Equipment Stats</span>
               <div className="bg-gray-800/50 rounded-lg p-3 space-y-1">
-                {item.equipmentStats.damageBonus !== undefined && (
+                {displayStats.damageBonus !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Damage Bonus:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.damageBonus}</span>
+                    <span className="text-green-400 font-bold">+{displayStats.damageBonus}</span>
                   </div>
                 )}
-                {item.equipmentStats.critChance !== undefined && (
+                {displayStats.critChance !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Crit Chance:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.critChance}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.critChance}%</span>
                   </div>
                 )}
-                {item.equipmentStats.defense !== undefined && (
+                {displayStats.defense !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Defense:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.defense}</span>
+                    <span className="text-green-400 font-bold">+{displayStats.defense}</span>
                   </div>
                 )}
-                {item.equipmentStats.maxHpBonus !== undefined && (
+                {displayStats.maxHpBonus !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Max HP Bonus:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.maxHpBonus}</span>
+                    <span className="text-green-400 font-bold">+{displayStats.maxHpBonus}</span>
                   </div>
                 )}
-                {item.equipmentStats.attackSpeed !== undefined && (
+                {displayStats.attackSpeed !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Attack Speed:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.attackSpeed}</span>
+                    <span className="text-green-400 font-bold">+{displayStats.attackSpeed}</span>
                   </div>
                 )}
-                {item.equipmentStats.coinBonus !== undefined && (
+                {displayStats.coinBonus !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Coin Bonus:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.coinBonus}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.coinBonus}%</span>
                   </div>
                 )}
-                {item.equipmentStats.healBonus !== undefined && (
+                {displayStats.healBonus !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Heal Bonus:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.healBonus}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.healBonus}%</span>
                   </div>
                 )}
-                {item.equipmentStats.lifesteal !== undefined && (
+                {displayStats.lifesteal !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Lifesteal (Offense):</span>
-                    <span className="text-red-400 font-bold">+{item.equipmentStats.lifesteal}%</span>
+                    <span className="text-red-400 font-bold">+{displayStats.lifesteal}%</span>
                   </div>
                 )}
-                {item.equipmentStats.defensiveLifesteal !== undefined && (
+                {displayStats.defensiveLifesteal !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Tank Heal (Defense):</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.defensiveLifesteal}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.defensiveLifesteal}%</span>
                   </div>
                 )}
-                {item.equipmentStats.thorns !== undefined && (
+                {displayStats.thorns !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Thorns (Reflect):</span>
-                    <span className="text-orange-400 font-bold">+{item.equipmentStats.thorns}%</span>
+                    <span className="text-orange-400 font-bold">+{displayStats.thorns}%</span>
                   </div>
                 )}
-                {item.equipmentStats.autoClickRate !== undefined && (
+                {displayStats.autoClickRate !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Auto-Click Rate:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.autoClickRate}/sec</span>
+                    <span className="text-green-400 font-bold">+{displayStats.autoClickRate}/sec</span>
                   </div>
                 )}
-                {item.equipmentStats.fireResistance !== undefined && (
+                {displayStats.fireResistance !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Fire Resistance:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.fireResistance}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.fireResistance}%</span>
                   </div>
                 )}
-                {item.equipmentStats.poisonResistance !== undefined && (
+                {displayStats.poisonResistance !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Poison Resistance:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.poisonResistance}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.poisonResistance}%</span>
                   </div>
                 )}
-                {item.equipmentStats.bleedResistance !== undefined && (
+                {displayStats.bleedResistance !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Bleed Resistance:</span>
-                    <span className="text-green-400 font-bold">+{item.equipmentStats.bleedResistance}%</span>
+                    <span className="text-green-400 font-bold">+{displayStats.bleedResistance}%</span>
                   </div>
                 )}
               </div>

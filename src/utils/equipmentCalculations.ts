@@ -2,6 +2,8 @@ import type { EquippedItem } from '@/contexts/EquipmentContext';
 import { scaleItemStats } from '@/utils/itemTierScaling';
 import type { Tier } from '@/lib/biome-config';
 import type { Inscription } from '@/lib/types';
+import type { EquipmentStats } from '@/lib/loot-table';
+import { formatStatValue } from '@/utils/statFormat';
 
 export interface TotalEquipmentStats {
   damageBonus: number;
@@ -46,65 +48,128 @@ export function calculateTotalEquipmentStats(
   for (const item of equippedItems) {
     if (!item?.lootItem?.equipmentStats) continue;
 
-    const baseStats = item.lootItem.equipmentStats;
-    const itemTier = item.tier as Tier;
-
-    // Apply tier scaling to each stat individually
-    // scaleItemStats() creates a Record<string, number> which we convert to individual stats
-    const statsToScale = {
-      damageBonus: baseStats.damageBonus || 0,
-      critChance: baseStats.critChance || 0,
-      defense: baseStats.defense || 0,
-      maxHpBonus: baseStats.maxHpBonus || 0,
-      attackSpeed: baseStats.attackSpeed || 0,
-      coinBonus: baseStats.coinBonus || 0,
-      healBonus: baseStats.healBonus || 0,
-      lifesteal: baseStats.lifesteal || 0,
-      defensiveLifesteal: baseStats.defensiveLifesteal || 0,
-      thorns: baseStats.thorns || 0,
-      autoClickRate: baseStats.autoClickRate || 0
-    };
-
-    const scaledStats = scaleItemStats(statsToScale, itemTier);
-
-    // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
-    // Round UP for most stats to avoid floats, but keep lifesteal/defensiveLifesteal/thorns/autoClickRate precise
-    let currentStats = { ...scaledStats };
-    if (item.isEmpowered) {
-      currentStats = {
-        damageBonus: Math.ceil(scaledStats.damageBonus * 1.2),
-        critChance: Math.ceil(scaledStats.critChance * 1.2),
-        defense: Math.ceil(scaledStats.defense * 1.2),
-        maxHpBonus: Math.ceil(scaledStats.maxHpBonus * 1.2),
-        attackSpeed: Math.ceil(scaledStats.attackSpeed * 1.2),
-        coinBonus: Math.ceil(scaledStats.coinBonus * 1.2),
-        healBonus: Math.ceil(scaledStats.healBonus * 1.2),
-        lifesteal: scaledStats.lifesteal * 1.2, // Keep precise for % calculation
-        defensiveLifesteal: scaledStats.defensiveLifesteal * 1.2, // Keep precise for % calculation
-        thorns: scaledStats.thorns * 1.2, // Keep precise for % calculation
-        autoClickRate: scaledStats.autoClickRate * 1.2 // Keep precise for interval calculation
-      };
-    }
-
-    // Apply inscription bonuses (Phase 3.4: Equipment Customization)
-    // Inscriptions add flat bonuses AFTER tier scaling and empowered multipliers
-    const inscriptionBonuses = applyInscriptionBonuses(item.prefix, item.suffix);
+    // Delegate per-item math (tier scaling -> empowered -> inscriptions) to the shared helper
+    // so gameplay totals and per-item UI displays never drift apart.
+    const itemStats = calculateItemStats(
+      item.lootItem.equipmentStats,
+      item.tier,
+      item.isEmpowered,
+      item.prefix,
+      item.suffix
+    );
 
     // Sum all bonuses to total stats
-    stats.damageBonus += currentStats.damageBonus + inscriptionBonuses.damageBonus;
-    stats.critChance += currentStats.critChance + inscriptionBonuses.critChance;
-    stats.defense += currentStats.defense + inscriptionBonuses.defense;
-    stats.maxHpBonus += currentStats.maxHpBonus + inscriptionBonuses.maxHpBonus;
-    stats.attackSpeed += currentStats.attackSpeed + inscriptionBonuses.attackSpeed;
-    stats.coinBonus += currentStats.coinBonus + inscriptionBonuses.coinBonus;
-    stats.healBonus += currentStats.healBonus + inscriptionBonuses.healBonus;
-    stats.lifesteal += currentStats.lifesteal + inscriptionBonuses.lifesteal;
-    stats.defensiveLifesteal += currentStats.defensiveLifesteal + inscriptionBonuses.defensiveLifesteal;
-    stats.thorns += currentStats.thorns + inscriptionBonuses.thorns;
-    stats.autoClickRate += currentStats.autoClickRate + inscriptionBonuses.autoClickRate;
+    stats.damageBonus += itemStats.damageBonus || 0;
+    stats.critChance += itemStats.critChance || 0;
+    stats.defense += itemStats.defense || 0;
+    stats.maxHpBonus += itemStats.maxHpBonus || 0;
+    stats.attackSpeed += itemStats.attackSpeed || 0;
+    stats.coinBonus += itemStats.coinBonus || 0;
+    stats.healBonus += itemStats.healBonus || 0;
+    stats.lifesteal += itemStats.lifesteal || 0;
+    stats.defensiveLifesteal += itemStats.defensiveLifesteal || 0;
+    stats.thorns += itemStats.thorns || 0;
+    stats.autoClickRate += itemStats.autoClickRate || 0;
   }
 
   return stats;
+}
+
+/**
+ * Single-item PRECISE stats: tier scaling -> empowered (+20%) -> inscriptions.
+ * Gameplay source of truth - summed by calculateTotalEquipmentStats. Do NOT
+ * round here; rounding belongs only in getDisplayEquipmentStats (UI).
+ *
+ * Only includes a stat key if the base item has it, or an inscription grants a
+ * nonzero bonus for it - preserves the "hide inapplicable stat" UI behavior while
+ * still surfacing inscription-only bonuses.
+ */
+export function calculateItemStats(
+  baseStats: EquipmentStats,
+  tier: number,
+  isEmpowered?: boolean,
+  prefix?: Inscription,
+  suffix?: Inscription
+): EquipmentStats {
+  const itemTier = tier as Tier;
+
+  // Same per-item math as the loop above
+  const statsToScale = {
+    damageBonus: baseStats.damageBonus || 0,
+    critChance: baseStats.critChance || 0,
+    defense: baseStats.defense || 0,
+    maxHpBonus: baseStats.maxHpBonus || 0,
+    attackSpeed: baseStats.attackSpeed || 0,
+    coinBonus: baseStats.coinBonus || 0,
+    healBonus: baseStats.healBonus || 0,
+    lifesteal: baseStats.lifesteal || 0,
+    defensiveLifesteal: baseStats.defensiveLifesteal || 0,
+    thorns: baseStats.thorns || 0,
+    autoClickRate: baseStats.autoClickRate || 0
+  };
+
+  const scaledStats = scaleItemStats(statsToScale, itemTier);
+
+  // Apply empowered bonus (+20% to all stats) if item dropped from corrupted monster
+  // Round UP for most stats to avoid floats, but keep lifesteal/defensiveLifesteal/thorns/autoClickRate precise
+  let currentStats = { ...scaledStats };
+  if (isEmpowered) {
+    currentStats = {
+      damageBonus: Math.ceil(scaledStats.damageBonus * 1.2),
+      critChance: Math.ceil(scaledStats.critChance * 1.2),
+      defense: Math.ceil(scaledStats.defense * 1.2),
+      maxHpBonus: Math.ceil(scaledStats.maxHpBonus * 1.2),
+      attackSpeed: Math.ceil(scaledStats.attackSpeed * 1.2),
+      coinBonus: Math.ceil(scaledStats.coinBonus * 1.2),
+      healBonus: Math.ceil(scaledStats.healBonus * 1.2),
+      lifesteal: scaledStats.lifesteal * 1.2, // Keep precise for % calculation
+      defensiveLifesteal: scaledStats.defensiveLifesteal * 1.2, // Keep precise for % calculation
+      thorns: scaledStats.thorns * 1.2, // Keep precise for % calculation
+      autoClickRate: scaledStats.autoClickRate * 1.2 // Keep precise for interval calculation
+    };
+  }
+
+  // Apply inscription bonuses (Phase 3.4: Equipment Customization)
+  // Inscriptions add flat bonuses AFTER tier scaling and empowered multipliers
+  const inscriptionBonuses = applyInscriptionBonuses(prefix, suffix);
+
+  const result: EquipmentStats = {};
+  (Object.keys(statsToScale) as (keyof typeof statsToScale)[]).forEach((key) => {
+    const total = currentStats[key] + inscriptionBonuses[key];
+    if (baseStats[key] !== undefined || total !== 0) {
+      result[key] = total;
+    }
+  });
+
+  // Resistance stats aren't part of tier/empowered/inscription math (untouched today) - pass through as-is
+  if (baseStats.fireResistance !== undefined) result.fireResistance = baseStats.fireResistance;
+  if (baseStats.poisonResistance !== undefined) result.poisonResistance = baseStats.poisonResistance;
+  if (baseStats.bleedResistance !== undefined) result.bleedResistance = baseStats.bleedResistance;
+
+  return result;
+}
+
+/**
+ * Single-item DISPLAY stats: same as calculateItemStats but rounded to 2
+ * decimals for UI (via formatStatValue). UI-only - never call this for
+ * gameplay math. This is the ONE place display rounding happens.
+ */
+export function getDisplayEquipmentStats(
+  baseStats: EquipmentStats,
+  tier: number,
+  isEmpowered?: boolean,
+  prefix?: Inscription,
+  suffix?: Inscription
+): EquipmentStats {
+  const preciseStats = calculateItemStats(baseStats, tier, isEmpowered, prefix, suffix);
+
+  const rounded: EquipmentStats = {};
+  (Object.keys(preciseStats) as (keyof EquipmentStats)[]).forEach((key) => {
+    const value = preciseStats[key];
+    rounded[key] = typeof value === 'number' ? formatStatValue(value) : value;
+  });
+
+  return rounded;
 }
 
 /**
