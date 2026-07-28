@@ -13,7 +13,6 @@ export interface ChallengeConfig {
   corruptionRate: number;       // 0, 0.25, 0.5, 0.75, 1.0 (force corruption + 20% enrage)
   escapeTimerSpeed: number;     // 1.0, 1.5, 2.0, 3.0, 4.0 (divides 30s timer, minimum 10s)
   buffStrength: number;         // 1.0, 1.5, 2.0, 3.0, 5.0 (multiplies shield HP)
-  bossAttackSpeed: number;      // 1.0, 0.75, 0.5, 0.33, 0.25 (multiplies cooldown)
   bossSpawnRate: number;        // 1.0, 5.0 (5x boss spawns, -4 loot cards, +10% boss HP/DMG)
   skillshotCircles: number;     // 0, +1, +2, +3, +4 (extra circles added to skillshots)
   skillshotSpeed: number;       // 1.0, 0.9, 0.8, 0.7, 0.6 (multiplies circleDuration)
@@ -37,7 +36,6 @@ const DEFAULT_CONFIG: ChallengeConfig = {
   corruptionRate: 0,
   escapeTimerSpeed: 1.0,
   buffStrength: 1.0,
-  bossAttackSpeed: 1.0,
   bossSpawnRate: 1.0,
   skillshotCircles: 0,
   skillshotSpeed: 1.0

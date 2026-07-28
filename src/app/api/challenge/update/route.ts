@@ -30,8 +30,7 @@ export async function POST(request: NextRequest) {
       typeof config.dotIntensity !== 'number' ||
       typeof config.corruptionRate !== 'number' ||
       typeof config.escapeTimerSpeed !== 'number' ||
-      typeof config.buffStrength !== 'number' ||
-      typeof config.bossAttackSpeed !== 'number'
+      typeof config.buffStrength !== 'number'
     ) {
       return NextResponse.json({ error: 'Invalid config format' }, { status: 400 });
     }
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
     const validCorruptionRate = [0, 0.25, 0.5, 0.75, 1.0];
     const validEscapeTimerSpeed = [1.0, 1.5, 2.0, 3.0, 4.0];
     const validBuffStrength = [1.0, 1.5, 2.0, 3.0, 5.0];
-    const validBossAttackSpeed = [1.0, 0.75, 0.5, 0.33, 0.25];
 
     if (!validDamageMultipliers.includes(config.damageMultiplier)) {
       return NextResponse.json({ error: 'Invalid damage multiplier' }, { status: 400 });
@@ -67,10 +65,6 @@ export async function POST(request: NextRequest) {
 
     if (!validBuffStrength.includes(config.buffStrength)) {
       return NextResponse.json({ error: 'Invalid buff strength' }, { status: 400 });
-    }
-
-    if (!validBossAttackSpeed.includes(config.bossAttackSpeed)) {
-      return NextResponse.json({ error: 'Invalid boss attack speed' }, { status: 400 });
     }
 
     // Connect to MongoDB

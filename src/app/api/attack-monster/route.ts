@@ -458,7 +458,6 @@ export async function POST(request: NextRequest) {
       corruptionRate: 0,
       escapeTimerSpeed: 1.0,
       buffStrength: 1.0,
-      bossAttackSpeed: 1.0,
       bossSpawnRate: 1.0
     };
 
@@ -517,12 +516,6 @@ export async function POST(request: NextRequest) {
     if (challengeConfig.buffStrength > 1.0) {
       const buffSteps = Math.log(challengeConfig.buffStrength) / Math.log(1.5);
       challengeXPMultiplier += buffSteps * 0.35;
-    }
-
-    // Boss attack speed bonus (+50% per step)
-    if (challengeConfig.bossAttackSpeed < 1.0) {
-      const bossSteps = Math.log(1.0 / challengeConfig.bossAttackSpeed) / Math.log(1.33);
-      challengeXPMultiplier += bossSteps * 0.50;
     }
 
     // Boss spawn rate penalty (-3 loot cards)

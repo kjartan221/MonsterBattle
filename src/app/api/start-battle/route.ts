@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
       corruptionRate: 0,
       escapeTimerSpeed: 1.0,
       buffStrength: 1.0,
-      bossAttackSpeed: 1.0,
       bossSpawnRate: 1.0
     };
 
@@ -268,11 +267,6 @@ export async function POST(request: NextRequest) {
         }
 
         // NOTE: Summon attack damage is NOT scaled here - it's scaled in useSummonedCreatures.ts on the frontend
-
-        // Apply challenge mode boss attack speed to cooldown
-        if (challengeConfig.bossAttackSpeed < 1.0) {
-          scaledAttack.cooldown = Math.round(scaledAttack.cooldown * challengeConfig.bossAttackSpeed);
-        }
 
         return scaledAttack;
       });

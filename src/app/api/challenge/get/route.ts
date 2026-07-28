@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
       corruptionRate: 0,
       escapeTimerSpeed: 1.0,
       buffStrength: 1.0,
-      bossAttackSpeed: 1.0,
       bossSpawnRate: 1.0,
       skillshotCircles: 0,
       skillshotSpeed: 1.0

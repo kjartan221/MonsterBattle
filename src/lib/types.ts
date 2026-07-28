@@ -198,7 +198,6 @@ export interface PlayerStats {
     corruptionRate: number;     // Force corruption rate (0, 0.25, 0.5, 0.75, 1.0)
     escapeTimerSpeed: number;   // Escape timer speed multiplier (1.0, 1.5, 2.0, 3.0, 4.0) - 10s minimum
     buffStrength: number;       // Monster buff strength multiplier (1.0, 1.5, 2.0, 3.0, 5.0)
-    bossAttackSpeed: number;    // Boss attack cooldown multiplier (1.0, 0.75, 0.5, 0.33, 0.25)
     bossSpawnRate: number;      // Boss spawn rate multiplier (1.0 = normal, 5.0 = 5x bosses, -4 loot cards, +10% boss HP/DMG)
     skillshotCircles: number;   // Extra skillshot circles (0, +1, +2, +3, +4)
     skillshotSpeed: number;     // Skillshot speed multiplier (1.0, 0.9, 0.8, 0.7, 0.6) - affects circleDuration

@@ -63,7 +63,6 @@ export interface PlayerStats {
     corruptionRate: number;
     escapeTimerSpeed: number;
     buffStrength: number;
-    bossAttackSpeed: number;
     bossSpawnRate: number;
     skillshotCircles: number;
     skillshotSpeed: number;
