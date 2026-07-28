@@ -89,8 +89,9 @@ export function usePlayerSpell(): UsePlayerSpellResult {
       // Normalize inventoryId to string
       const inventoryIdStr = typeof equippedSpellId === 'string' ? equippedSpellId : equippedSpellId.toString();
 
-      // Fetch the inventory item to get lootTableId (only minted items can be equipped)
-      const inventoryResponse = await fetch('/api/inventory/get?mintedOnly=true');
+      // Unfiltered: spells don't require minting (unlike other equipment), so match
+      // the listing/equip endpoints. mintedOnly here nulled freshly-equipped spells.
+      const inventoryResponse = await fetch('/api/inventory/get');
       if (!inventoryResponse.ok) {
         throw new Error('Failed to load inventory');
       }
