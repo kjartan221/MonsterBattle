@@ -21,6 +21,7 @@
     "@bsv/wallet-toolbox-client": "^2.1.21",
     "cookie-parser": "^1.4.7",
     "express": "^4.22.2",
+    "express-async-errors": "^3.1.1",
     "jose": "^6.1.0",
     "mongodb": "^6.20.0",
     "next": "^16.2.10",
