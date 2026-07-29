@@ -9,6 +9,7 @@ module.exports = {
   // Map @/ alias to src/ directory
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@server/(.*)$': '<rootDir>/server/$1',
   },
   // Increase timeout for blockchain transaction tests
   testTimeout: 30000, // 30 seconds
