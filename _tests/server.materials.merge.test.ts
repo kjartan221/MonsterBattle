@@ -1,0 +1,224 @@
+// Bypass real auth (covered by the scaffold's requireAuthProof tests) — inject userId.
+jest.mock('@server/middleware/requireAuthProof', () => ({
+  requireAuthProof: () => (req: any, _res: any, next: any) => { req.userId = 'u1'; next(); },
+}));
+
+const enqueue = jest.fn((_label: string, fn: (w: any) => Promise<any>) => fn(stubWallet));
+jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn(async () => ({ enqueue })) }));
+
+const findOne = jest.fn();
+const updateOne = jest.fn(async () => ({ modifiedCount: 1 }));
+const deleteMany = jest.fn(async () => ({ deletedCount: 1 }));
+jest.mock('@/lib/mongodb', () => ({
+  connectToMongo: jest.fn(async () => ({
+    materialTokensCollection: { findOne, updateOne },
+    userInventoryCollection: { deleteMany },
+  })),
+}));
+
+// Pre-lock reads use the SAME singleton wallet the queue serializes over — mock
+// getServerWallet() to resolve to the exact stubWallet passed into enqueue.
+jest.mock('@/lib/serverWallet', () => ({
+  getServerWallet: jest.fn(async () => stubWallet),
+  getServerPublicKey: jest.fn(async () => 'LEGACY_PK'),
+  getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
+}));
+
+jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn() }));
+jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
+jest.mock('@/utils/tokenDerivation', () => ({
+  TOKEN_PROTOCOL: [2, 'monsterbattle token'],
+  generateNonce: jest.fn(() => 'NONCE'),
+  deriveRecipientKey: jest.fn(async () => 'USERKEY'),
+  deriveSelfKey: jest.fn(async () => 'MINTKEY'),
+}));
+jest.mock('@/utils/ordinalP2PKH', () => ({
+  OrdinalsP2PKH: class {
+    lock() { return { toHex: () => 'LOCKHEX' }; }
+    unlock() { return { estimateLength: async () => 100 }; }
+  },
+}));
+jest.mock('@bsv/wallet-helper', () => ({ WalletP2PKH: class { unlock() { return { estimateLength: async () => 100 }; } } }));
+jest.mock('@bsv/sdk', () => ({
+  Transaction: {
+    fromBEEF: jest.fn(),
+    fromAtomicBEEF: jest.fn(() => ({})),
+  },
+  P2PKH: class { lock() { return { toHex: () => 'PS' }; } },
+  Beef: class { mergeBeef() {} toBinary() { return []; } toBEEF() { return []; } },
+  Hash: { hash160: () => 'H' },
+}));
+
+import request from 'supertest';
+import { buildApp } from '@server/app';
+import { Transaction } from '@bsv/sdk';
+import { broadcastTX } from '@/utils/overlayFunctions';
+
+const stubWallet = {
+  createAction: jest.fn(),
+  signAction: jest.fn(),
+  getPublicKey: jest.fn(async () => ({ publicKey: 'PK' })),
+};
+
+const validBody = {
+  transferredTokenId: 'TXID1.0',
+  transferBeef: 'TRANSFER_B64',
+  userIdentityKey: 'USER_ID_KEY',
+  lootTableId: 'phoenix_feather',
+  itemName: 'Phoenix Feather',
+  description: 'A feather from the phoenix',
+  icon: '🪶',
+  rarity: 'legendary',
+  tier: 1,
+  addedQuantity: 3,
+  currentQuantity: 5,
+  paymentTx: 'PAYMENT_B64',
+  walletParams: { protocolID: [0, 'x'], keyID: '1', counterparty: 'cp' },
+  reason: 'test add',
+  acquiredFrom: 'sand_djinn',
+  inventoryItemIds: ['507f1f77bcf86cd799439011'],
+};
+
+/** payment tx + transfer tx — reached by every request past field validation + token lookup. */
+function seedPaymentAndTransferMocks(transferScriptHex: string) {
+  (Transaction.fromBEEF as jest.Mock)
+    .mockReturnValueOnce({ id: () => 'PAYTXID', outputs: [{ satoshis: 100 }] })
+    .mockReturnValueOnce({
+      outputs: [{ lockingScript: { toHex: () => transferScriptHex } }],
+      toBEEF: () => [1, 1],
+    });
+}
+
+/** The two dependent wallet actions inside the queue (mint, then merge). */
+function seedEnqueueMocks() {
+  (Transaction.fromBEEF as jest.Mock)
+    .mockReturnValueOnce({ inputs: [{ unlockingScript: { toHex: () => 'MINTUNLOCK' } }], sign: async () => {} })
+    .mockReturnValueOnce({
+      inputs: [
+        { unlockingScript: { toHex: () => 'U0' } },
+        { unlockingScript: { toHex: () => 'U1' } },
+      ],
+      sign: async () => {},
+    });
+  (Transaction.fromAtomicBEEF as jest.Mock)
+    .mockReturnValueOnce({ toBEEF: () => [2, 2] }) // mintTx
+    .mockReturnValueOnce({}); // mergeTx
+
+  (broadcastTX as jest.Mock)
+    .mockResolvedValueOnce({ txid: 'MINTTX' })
+    .mockResolvedValueOnce({ txid: 'MERGETX' });
+
+  stubWallet.createAction
+    .mockResolvedValueOnce({ signableTransaction: { reference: 'REF1', tx: [7, 7] } }) // mint
+    .mockResolvedValueOnce({ signableTransaction: { reference: 'REF2', tx: [8, 8] } }); // merge
+  stubWallet.signAction
+    .mockResolvedValueOnce({ tx: Uint8Array.from([9, 9]) }) // mint
+    .mockResolvedValueOnce({ tx: Uint8Array.from([11, 11]) }); // merge
+}
+
+describe('POST /api/materials/add-and-merge', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Transaction as any).fromBEEF = jest.fn();
+    (Transaction as any).fromAtomicBEEF = jest.fn(() => ({}));
+    findOne.mockReset();
+    updateOne.mockResolvedValue({ modifiedCount: 1 });
+    deleteMany.mockResolvedValue({ deletedCount: 1 });
+    enqueue.mockImplementation((_label: string, fn: (w: any) => Promise<any>) => fn(stubWallet));
+    stubWallet.getPublicKey.mockResolvedValue({ publicKey: 'PK' });
+  });
+
+  it('400 on missing required fields', async () => {
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send({
+      ...validBody,
+      transferredTokenId: undefined,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing required fields' });
+    expect(findOne).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('404 when material token not found', async () => {
+    findOne.mockResolvedValueOnce(null);
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send(validBody);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Material token not found or already consumed' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('409 when quantity mismatch', async () => {
+    findOne.mockResolvedValueOnce({ _id: 'EXISTING_OID', quantity: 999 });
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send(validBody);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'Quantity mismatch: expected 999, got 5' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 when transfer output is not locked to the server public key (rejects before enqueue)', async () => {
+    findOne.mockResolvedValueOnce({ _id: 'EXISTING_OID', quantity: 5 });
+    seedPaymentAndTransferMocks('SOME_OTHER_LOCK_SCRIPT');
+
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send(validBody);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Transfer output not locked to server public key' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('merges via the wallet queue as one dependent unit, writes DB after, returns the success shape', async () => {
+    findOne.mockResolvedValueOnce({ _id: 'EXISTING_OID', quantity: 5 });
+    seedPaymentAndTransferMocks('LOCKSCRIPT_CONTAINS_PS_MARKER');
+    seedEnqueueMocks();
+
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send(validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      mergedTokenId: 'MERGETX.0',
+      mergeTransactionId: 'MERGETX',
+      newQuantity: 8,
+      previousQuantity: 5,
+      addedQuantity: 3,
+      transferBeef: 'BEEF_B64',
+      received: { outputIndex: 0, keyId: 'NONCE', counterparty: 'SERVER_ID', tags: ['type:material'] },
+    });
+
+    // Both dependent wallet actions ran as ONE unit through the serialized queue.
+    expect(enqueue).toHaveBeenCalledWith('merge:material', expect.any(Function));
+    expect(stubWallet.createAction).toHaveBeenCalledTimes(2);
+    expect(stubWallet.signAction).toHaveBeenCalledTimes(2);
+
+    // DB writes happened AFTER the enqueue resolved.
+    expect(updateOne).toHaveBeenCalledTimes(1);
+    expect(updateOne).toHaveBeenCalledWith(
+      { _id: 'EXISTING_OID' },
+      expect.objectContaining({
+        $set: expect.objectContaining({ tokenId: 'MERGETX.0', quantity: 8, previousTokenId: 'TXID1.0' }),
+        $push: expect.objectContaining({
+          updateHistory: expect.objectContaining({
+            operation: 'add',
+            previousQuantity: 5,
+            newQuantity: 8,
+            mergedFrom: ['TXID1.0', 'MINTTX.0'],
+          }),
+        }),
+      }),
+    );
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
+  });
+
+  it('500s via the error handler when the wallet queue throws', async () => {
+    findOne.mockResolvedValueOnce({ _id: 'EXISTING_OID', quantity: 5 });
+    seedPaymentAndTransferMocks('LOCKSCRIPT_CONTAINS_PS_MARKER');
+    enqueue.mockRejectedValueOnce(new Error('merge boom'));
+
+    const res = await request(buildApp()).post('/api/materials/add-and-merge').send(validBody);
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Internal server error' });
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+});

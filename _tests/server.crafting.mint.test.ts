@@ -1,0 +1,318 @@
+// Bypass real auth (covered by the scaffold's requireAuthProof tests) — inject userId.
+jest.mock('@server/middleware/requireAuthProof', () => ({
+  requireAuthProof: () => (req: any, _res: any, next: any) => { req.userId = 'u1'; next(); },
+}));
+
+const enqueue = jest.fn((_label: string, fn: (w: any) => Promise<any>) => fn(stubWallet));
+jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn(async () => ({ enqueue })) }));
+
+const nftInsertOne = jest.fn(async () => ({ insertedId: 'NFT_OID' }));
+const inventoryInsertOne = jest.fn(async () => ({ insertedId: 'INV_OID' }));
+const materialDeleteOne = jest.fn(async () => ({ deletedCount: 1 }));
+const materialUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
+jest.mock('@/lib/mongodb', () => ({
+  connectToMongo: jest.fn(async () => ({
+    userInventoryCollection: { insertOne: inventoryInsertOne },
+    nftLootCollection: { insertOne: nftInsertOne },
+    materialTokensCollection: { deleteOne: materialDeleteOne, updateOne: materialUpdateOne },
+  })),
+}));
+
+// Pre-lock reads use the SAME singleton wallet the queue serializes over — mock
+// getServerWallet() to resolve to the exact stubWallet passed into enqueue.
+jest.mock('@/lib/serverWallet', () => ({
+  getServerWallet: jest.fn(async () => stubWallet),
+  getServerPublicKey: jest.fn(async () => 'LEGACY_PK'),
+  getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
+}));
+
+jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn() }));
+jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
+
+let nonceQueue: string[] = [];
+jest.mock('@/utils/tokenDerivation', () => ({
+  TOKEN_PROTOCOL: [2, 'monsterbattle token'],
+  generateNonce: jest.fn(() => nonceQueue.shift() ?? 'NONCE_FALLBACK'),
+  deriveRecipientKey: jest.fn(async () => 'USERKEY'),
+  deriveSelfKey: jest.fn(async () => 'MINTKEY'),
+}));
+jest.mock('@/utils/ordinalP2PKH', () => ({
+  OrdinalsP2PKH: class {
+    lock() { return { toHex: () => 'LOCKHEX' }; }
+    unlock() { return { estimateLength: async () => 100 }; }
+  },
+}));
+jest.mock('@bsv/wallet-helper', () => ({ WalletP2PKH: class { unlock() { return { estimateLength: async () => 100 }; } } }));
+jest.mock('@bsv/sdk', () => ({
+  Transaction: {
+    fromBEEF: jest.fn(),
+    fromAtomicBEEF: jest.fn(() => ({})),
+  },
+  P2PKH: class { lock() { return { toHex: () => 'PS' }; } },
+  Beef: class { mergeBeef() {} toBinary() { return []; } toBEEF() { return []; } },
+  Hash: { hash160: () => 'H' },
+}));
+
+import request from 'supertest';
+import { buildApp } from '@server/app';
+import { Transaction } from '@bsv/sdk';
+import { broadcastTX } from '@/utils/overlayFunctions';
+
+const stubWallet = {
+  createAction: jest.fn(),
+  signAction: jest.fn(),
+  getPublicKey: jest.fn(async () => ({ publicKey: 'PK' })),
+};
+
+const validBody = {
+  recipeId: 'iron_sword_recipe',
+  transferredMaterials: [
+    { lootTableId: 'wood', tokenId: 'BATCHTX.0', quantity: 5, quantityNeeded: 3, itemName: 'Wood', description: 'd', icon: '🪵', rarity: 'common', tier: 1 },
+    { lootTableId: 'stone', tokenId: 'BATCHTX.1', quantity: 2, quantityNeeded: 2, itemName: 'Stone', description: 'd', icon: '🪨', rarity: 'common', tier: 1 },
+  ],
+  outputItem: {
+    lootTableId: 'iron_sword',
+    name: 'Iron Sword',
+    description: 'A sturdy sword',
+    icon: '⚔️',
+    rarity: 'rare',
+    type: 'weapon',
+    tier: 1,
+    equipmentStats: { damageBonus: 10 },
+    crafted: { statRoll: 1.1 },
+    borderGradient: { color1: 'a', color2: 'b' },
+  },
+  userIdentityKey: 'USER_ID_KEY',
+  paymentTx: 'PAYMENT_B64',
+  batchTransferBeef: 'BATCH_B64',
+  transferNonce: 'N2',
+  walletParams: { protocolID: [0, 'x'], keyID: '1', counterparty: 'cp' },
+};
+
+/** payment tx + batch-transfer tx — reached by every request past field validation. */
+function seedPaymentAndBatchMocks(scriptHexes: string[]) {
+  (Transaction.fromBEEF as jest.Mock)
+    .mockReturnValueOnce({ id: () => 'PAYTXID', outputs: [{ satoshis: 100 }] })
+    .mockReturnValueOnce({
+      outputs: scriptHexes.map((hex) => ({ lockingScript: { toHex: () => hex } })),
+      toBEEF: () => [1, 1],
+    });
+}
+
+/** The two dependent wallet actions inside the queue (mint crafted item, then transfer). */
+function seedEnqueueMocks() {
+  (Transaction.fromBEEF as jest.Mock)
+    .mockReturnValueOnce({ inputs: [{ unlockingScript: { toHex: () => 'MINTUNLOCK' } }], sign: async () => {} }) // craftedItemTxToSign
+    .mockReturnValueOnce({
+      inputs: [
+        { unlockingScript: { toHex: () => 'U0' } },
+        { unlockingScript: { toHex: () => 'U1' } },
+        { unlockingScript: { toHex: () => 'U2' } },
+      ],
+      sign: async () => {},
+    }); // txToSign (2 materials + crafted item)
+
+  (Transaction.fromAtomicBEEF as jest.Mock)
+    .mockReturnValueOnce({ toBEEF: () => [2, 2] }) // craftedItemTx
+    .mockReturnValueOnce({}); // transferTx
+
+  (broadcastTX as jest.Mock)
+    .mockResolvedValueOnce({ txid: 'MINTTX' })
+    .mockResolvedValueOnce({ txid: 'TRANSFERTX' });
+
+  stubWallet.createAction
+    .mockResolvedValueOnce({ signableTransaction: { reference: 'REF1', tx: [7, 7] } }) // mint
+    .mockResolvedValueOnce({ signableTransaction: { reference: 'REF2', tx: [8, 8] } }); // transfer
+  stubWallet.signAction
+    .mockResolvedValueOnce({ tx: Uint8Array.from([9, 9]) }) // mint
+    .mockResolvedValueOnce({ tx: Uint8Array.from([11, 11]) }); // transfer
+
+  // mintNonce, itemNonce, changeNonce (only "wood" has change)
+  nonceQueue = ['N_MINT', 'N_ITEM', 'N_CHANGE'];
+}
+
+describe('POST /api/crafting/mint-and-transfer', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Transaction as any).fromBEEF = jest.fn();
+    (Transaction as any).fromAtomicBEEF = jest.fn(() => ({}));
+    nftInsertOne.mockResolvedValue({ insertedId: 'NFT_OID' });
+    inventoryInsertOne.mockResolvedValue({ insertedId: 'INV_OID' });
+    materialDeleteOne.mockResolvedValue({ deletedCount: 1 });
+    materialUpdateOne.mockResolvedValue({ modifiedCount: 1 });
+    enqueue.mockImplementation((_label: string, fn: (w: any) => Promise<any>) => fn(stubWallet));
+    stubWallet.getPublicKey.mockResolvedValue({ publicKey: 'PK' });
+    nonceQueue = [];
+  });
+
+  it('400 on missing transferredMaterials', async () => {
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      transferredMaterials: [],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing or invalid transferredMaterials' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 on missing outputItem/userIdentityKey', async () => {
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      outputItem: undefined,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing required fields' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 on missing paymentTx', async () => {
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      paymentTx: undefined,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing payment transaction' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 on missing batchTransferBeef', async () => {
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      batchTransferBeef: undefined,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing batch transfer BEEF' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 on missing walletParams', async () => {
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      walletParams: undefined,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Missing wallet derivation parameters' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('404 when a transferred material output is not found (rejects before enqueue)', async () => {
+    seedPaymentAndBatchMocks(['LOCK_PS_MARKER_0']); // only one output — "stone" at vout 1 is missing
+
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send(validBody);
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Transfer output not found: BATCHTX.1' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 when a transferred material is not locked to the server derived key (rejects before enqueue)', async () => {
+    seedPaymentAndBatchMocks(['LOCK_PS_MARKER_0', 'SOME_OTHER_LOCK_SCRIPT']);
+
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send(validBody);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Material stone not locked to server derived key' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('400 when a material quantity is insufficient (rejects before enqueue)', async () => {
+    seedPaymentAndBatchMocks(['LOCK_PS_MARKER_0', 'LOCK_PS_MARKER_1']);
+
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send({
+      ...validBody,
+      transferredMaterials: [
+        validBody.transferredMaterials[0],
+        { ...validBody.transferredMaterials[1], quantity: 1, quantityNeeded: 2 },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Insufficient stone: need 2, have 1' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('mints + transfers via the wallet queue as one dependent unit, writes DB after, returns the success shape', async () => {
+    seedPaymentAndBatchMocks(['LOCK_PS_MARKER_0', 'LOCK_PS_MARKER_1']);
+    seedEnqueueMocks();
+
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send(validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      nftId: 'NFT_OID',
+      tokenId: 'TRANSFERTX.0',
+      transferTransactionId: 'TRANSFERTX',
+      materialChangeTokens: [{ lootTableId: 'wood', tokenId: 'TRANSFERTX.1', quantity: 2 }],
+      transferBeef: 'BEEF_B64',
+      received: [
+        { outputIndex: 0, keyId: 'N_ITEM', counterparty: 'SERVER_ID', tags: ['type:item'] },
+        { outputIndex: 1, keyId: 'N_CHANGE', counterparty: 'SERVER_ID', tags: ['type:material'] },
+      ],
+    });
+
+    // Both dependent wallet actions (mint crafted item, then transfer) ran as ONE unit
+    // through the serialized queue.
+    expect(enqueue).toHaveBeenCalledWith('craft', expect.any(Function));
+    expect(stubWallet.createAction).toHaveBeenCalledTimes(2);
+    expect(stubWallet.signAction).toHaveBeenCalledTimes(2);
+
+    // DB writes happened AFTER the enqueue resolved.
+    expect(nftInsertOne).toHaveBeenCalledTimes(1);
+    expect(nftInsertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lootTableId: 'iron_sword',
+        mintOutpoint: 'MINTTX.0',
+        tokenId: 'TRANSFERTX.0',
+        keyId: 'N_ITEM',
+        counterparty: 'SERVER_ID',
+      }),
+    );
+    expect(inventoryInsertOne).toHaveBeenCalledTimes(1);
+    expect(inventoryInsertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'u1',
+        lootTableId: 'iron_sword',
+        crafted: true,
+        statRoll: 1.1,
+        rolledStats: { damageBonus: 11 },
+        tokenId: 'TRANSFERTX.0',
+      }),
+    );
+    // "stone" was fully consumed (quantity === quantityNeeded) → deleted.
+    expect(materialDeleteOne).toHaveBeenCalledTimes(1);
+    expect(materialDeleteOne).toHaveBeenCalledWith({ userId: 'u1', lootTableId: 'stone' });
+    // "wood" had leftover change → updated in place.
+    expect(materialUpdateOne).toHaveBeenCalledTimes(1);
+    expect(materialUpdateOne).toHaveBeenCalledWith(
+      { userId: 'u1', lootTableId: 'wood' },
+      expect.objectContaining({
+        $set: expect.objectContaining({ tokenId: 'TRANSFERTX.1', quantity: 2, keyId: 'N_CHANGE', counterparty: 'SERVER_ID' }),
+        $push: expect.objectContaining({
+          updateHistory: expect.objectContaining({
+            operation: 'subtract',
+            previousQuantity: 5,
+            newQuantity: 2,
+            transactionId: 'TRANSFERTX',
+            reason: 'Consumed in crafting recipe: iron_sword_recipe',
+          }),
+        }),
+      }),
+    );
+
+    expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(nftInsertOne.mock.invocationCallOrder[0]);
+    expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(inventoryInsertOne.mock.invocationCallOrder[0]);
+  });
+
+  it('500s via the error handler when the wallet queue throws', async () => {
+    seedPaymentAndBatchMocks(['LOCK_PS_MARKER_0', 'LOCK_PS_MARKER_1']);
+    enqueue.mockRejectedValueOnce(new Error('craft boom'));
+
+    const res = await request(buildApp()).post('/api/crafting/mint-and-transfer').send(validBody);
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Internal server error' });
+    expect(nftInsertOne).not.toHaveBeenCalled();
+    expect(inventoryInsertOne).not.toHaveBeenCalled();
+  });
+});

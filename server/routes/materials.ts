@@ -1,0 +1,618 @@
+// Single-tx mint: server builds/funds/signs one deploy+mint locked directly to
+// the user's recipient-derived key (so mintOutpoint === tokenId). ALL wallet
+// UTXO ops run through the serialized wallet queue (one mint at a time) to
+// prevent concurrent double-spends. Returns the BEEF + nonce for the client to
+// internalize into its wallet basket.
+
+import { Router, type Request, type Response } from 'express';
+import { ObjectId } from 'mongodb';
+import { Transaction, P2PKH, Beef, Hash } from '@bsv/sdk';
+import { WalletP2PKH } from '@bsv/wallet-helper';
+import { requireAuthProof } from '@server/middleware/requireAuthProof';
+import { getWalletQueue } from '@server/lib/walletQueue';
+import { connectToMongo } from '@/lib/mongodb';
+import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@/lib/serverWallet';
+import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { broadcastTX } from '@/utils/overlayFunctions';
+import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveSelfKey } from '@/utils/tokenDerivation';
+
+export const materialsRouter = Router();
+
+materialsRouter.post('/mint-and-transfer', requireAuthProof('mint-material'), async (req: Request, res: Response) => {
+  const userId = req.userId as string;
+
+  // Per-step timing to localize mint latency (cumulative ms from request start).
+  const t0 = Date.now();
+  const step = (label: string) => console.log(`[materials:mint] ${label} +${Date.now() - t0}ms`);
+
+  const { materials, userIdentityKey, paymentTx, walletParams } = req.body;
+
+  // Validate materials array
+  if (!materials || !Array.isArray(materials) || materials.length === 0) {
+    res.status(400).json({ error: 'Invalid materials data' });
+    return;
+  }
+
+  if (materials.length !== 1) {
+    res.status(400).json({ error: 'Only one material token can be minted per request' });
+    return;
+  }
+
+  if (!userIdentityKey) {
+    res.status(400).json({ error: 'Missing user identity key' });
+    return;
+  }
+
+  if (!paymentTx) {
+    res.status(400).json({ error: 'Missing payment transaction' });
+    return;
+  }
+
+  if (!walletParams || !walletParams.protocolID || !walletParams.keyID || !walletParams.counterparty) {
+    res.status(400).json({ error: 'Missing wallet derivation parameters' });
+    return;
+  }
+
+  // Connect to MongoDB
+  const { materialTokensCollection, userInventoryCollection } = await connectToMongo();
+
+  // Decode payment BEEF (no wallet needed)
+  const paymentBeef = decodeBeef(paymentTx);
+  const paymentTransaction = Transaction.fromBEEF(paymentBeef);
+  const paymentTxId = paymentTransaction.id('hex');
+  const paymentOutput = paymentTransaction.outputs[0];
+  if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
+    res.status(400).json({ error: 'Invalid payment: must be at least 100 satoshis' });
+    return;
+  }
+  const paymentOutpoint = `${paymentTxId}.0`;
+  step('validated + payment parsed');
+
+  // Check for existing tokens FIRST (before minting)
+  for (const material of materials) {
+    const existingToken = await materialTokensCollection.findOne({
+      userId,
+      lootTableId: material.lootTableId,
+      tier: material.tier || 1,
+      consumed: { $ne: true },
+    });
+
+    if (existingToken) {
+      res.status(409).json(
+        {
+          error: `Material token already exists`,
+          details: `You already have a ${material.itemName} token. The system will now use the add-and-merge route to properly merge quantities on-chain.`,
+          existingTokenId: existingToken.tokenId,
+          existingQuantity: existingToken.quantity,
+          lootTableId: material.lootTableId,
+          tier: material.tier || 1,
+          shouldUseAddAndMerge: true,
+        },
+      );
+      return;
+    }
+  }
+
+  const material = materials[0];
+
+  // Validate quantity
+  if (material.quantity <= 0 || !Number.isInteger(material.quantity)) {
+    res.status(400).json({ error: `Invalid quantity for ${material.itemName}: ${material.quantity} (must be positive integer)` });
+    return;
+  }
+
+  if (material.quantity > 1_000_000) {
+    res.status(400).json({ error: `Quantity too large for ${material.itemName}: ${material.quantity} (max 1,000,000)` });
+    return;
+  }
+
+  // ALL wallet UTXO-touching work runs inside the serialized queue.
+  const queue = await getWalletQueue();
+  const mint = await queue.enqueue('mint:material', async (serverWallet) => {
+    const walletp2pkh = new WalletP2PKH(serverWallet);
+    const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
+      protocolID: walletParams.protocolID,
+      keyID: walletParams.keyID,
+      counterparty: walletParams.counterparty,
+    });
+    const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
+
+    const ordinalP2PKH = new OrdinalsP2PKH();
+    const nonce = generateNonce();
+    const serverIdentityKey = await getServerIdentityPublicKey();
+    const userKey = await deriveRecipientKey(serverWallet, userIdentityKey, nonce);
+
+    const materialMetadata = {
+      name: 'material_token',
+      lootTableId: material.lootTableId,
+      itemName: material.itemName,
+      description: material.description,
+      icon: material.icon,
+      rarity: material.rarity,
+      tier: material.tier || 1,
+      acquiredFrom: material.acquiredFrom || [],
+    };
+
+    const mintLockingScript = ordinalP2PKH.lock(userKey, '', materialMetadata, 'deploy+mint', material.quantity);
+    step('derivation + locking script ready');
+
+    const mintActionRes = await serverWallet.createAction({
+      description: 'Server minting material token with user WalletP2PKH payment',
+      inputBEEF: paymentBeef,
+      inputs: [
+        {
+          inputDescription: 'User WalletP2PKH payment for fees',
+          outpoint: paymentOutpoint,
+          unlockingScriptLength: walletP2pkhUnlockingLength,
+        },
+      ],
+      outputs: [
+        {
+          outputDescription: 'New material token',
+          lockingScript: mintLockingScript.toHex(),
+          satoshis: 1,
+        },
+      ],
+      options: { randomizeOutputs: false, acceptDelayedBroadcast: false },
+    });
+    if (!mintActionRes.signableTransaction) {
+      throw new Error('Failed to create signable mint transaction');
+    }
+    step('createAction done');
+
+    const mintReference = mintActionRes.signableTransaction.reference;
+    const mintTxToSign = Transaction.fromBEEF(mintActionRes.signableTransaction.tx);
+    mintTxToSign.inputs[0].unlockingScriptTemplate = walletP2pkhUnlockTemplate;
+    mintTxToSign.inputs[0].sourceTransaction = paymentTransaction;
+    await mintTxToSign.sign();
+    step('local sign done');
+
+    const mintUnlockingScript = mintTxToSign.inputs[0].unlockingScript;
+    if (!mintUnlockingScript) {
+      throw new Error('Missing unlocking script after signing');
+    }
+
+    const mintAction = await serverWallet.signAction({
+      reference: mintReference,
+      spends: { '0': { unlockingScript: mintUnlockingScript.toHex() } },
+    });
+    if (!mintAction.tx) {
+      throw new Error('Failed to sign mint action');
+    }
+    step('signAction done (chain broadcast)');
+
+    const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
+    const mintBroadcast = await broadcastTX(mintTx);
+    const mintTxId = mintBroadcast.txid;
+    if (!mintTxId) {
+      throw new Error('Failed to get transaction ID from broadcast');
+    }
+    step('overlay broadcast done');
+
+    return {
+      mintActionTx: mintAction.tx,
+      tokenId: `${mintTxId}.0`, // mint proof and current location are the same outpoint
+      nonce,
+      serverIdentityKey,
+    };
+  });
+
+  // DB writes are best-effort. The mint is already broadcast on-chain (signAction)
+  // and the client will internalize the token into its basket, so a DB failure here
+  // is recoverable via POST /mint-and-transfer/record. Never fail the response for it.
+  let dbRecorded = false;
+  let materialTokenId: string | undefined;
+  try {
+    const materialTokenDoc = {
+      userId,
+      lootTableId: material.lootTableId,
+      itemName: material.itemName,
+      tier: material.tier || 1,
+      tokenId: mint.tokenId,
+      quantity: material.quantity,
+      metadata: {
+        name: 'material_token',
+        lootTableId: material.lootTableId,
+        itemName: material.itemName,
+        description: material.description,
+        icon: material.icon,
+        rarity: material.rarity,
+        tier: material.tier || 1,
+        acquiredFrom: material.acquiredFrom || [],
+      },
+      mintOutpoint: mint.tokenId,
+      keyId: mint.nonce,
+      counterparty: mint.serverIdentityKey,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const materialResult = await materialTokensCollection.insertOne(materialTokenDoc);
+    materialTokenId = materialResult.insertedId.toString();
+
+    // Consume UserInventory items
+    if (material.inventoryItemIds && material.inventoryItemIds.length > 0) {
+      const objectIds = material.inventoryItemIds.map((id: string) => new ObjectId(id));
+      await userInventoryCollection.deleteMany({
+        _id: { $in: objectIds },
+        userId,
+      });
+    }
+
+    dbRecorded = true;
+    step('db written');
+  } catch (dbErr) {
+    materialTokenId = undefined;
+    console.error('[materials:mint] DB write failed (token is on-chain + will be internalized; repairable):', dbErr);
+  }
+
+  res.json({
+    success: true,
+    dbRecorded,
+    results: [
+      {
+        lootTableId: material.lootTableId,
+        tokenId: mint.tokenId,
+        mintOutpoint: mint.tokenId,
+        quantity: material.quantity,
+        materialTokenId,
+        updated: false,
+      },
+    ],
+    transferBeef: encodeBeef(Array.from(mint.mintActionTx as Uint8Array)),
+    received: {
+      outputIndex: 0,
+      keyId: mint.nonce,
+      counterparty: mint.serverIdentityKey,
+      tags: ['type:material'],
+    },
+  });
+});
+
+// Server-side material add-and-merge (derived-key pattern).
+// Client transfers its token to the server (posted BEEF + nonce), then calls this route.
+// Server unlocks the transferred token, mints the added quantity, merges both into one
+// output locked to the user's recipient-derived key, and returns the BEEF + nonce.
+// The mint + merge are one dependent sequence and run as a single unit through the
+// serialized wallet queue to prevent concurrent UTXO double-spends.
+materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async (req: Request, res: Response) => {
+  const userId = req.userId as string;
+
+  const {
+    transferredTokenId,  // 'txid.vout' of the transferred (server-owned) output
+    transferBeef,        // base64 BEEF of client's transfer tx (NEW — replaces overlay fetch)
+    transferNonce,       // N2: nonce client used to lock to server; absent ⇒ legacy token
+    userIdentityKey,     // replaces userPublicKey; derivation counterparty
+    lootTableId,
+    itemName,
+    description,
+    icon,
+    rarity,
+    tier = 1,
+    addedQuantity,
+    currentQuantity,
+    paymentTx,           // base64 WalletP2PKH payment BEEF
+    walletParams,
+    reason,
+    acquiredFrom,
+    inventoryItemIds,    // unminted UserInventory items being merged in (to consume)
+  } = req.body;
+
+  // Validate required fields
+  if (!transferredTokenId || !lootTableId || !itemName || !userIdentityKey || !transferBeef) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+
+  if (!paymentTx) {
+    res.status(400).json({ error: 'Missing payment transaction' });
+    return;
+  }
+
+  if (!walletParams || !walletParams.protocolID || !walletParams.keyID || !walletParams.counterparty) {
+    res.status(400).json({ error: 'Missing wallet derivation parameters' });
+    return;
+  }
+
+  if (addedQuantity <= 0 || !Number.isInteger(addedQuantity)) {
+    res.status(400).json({ error: `Invalid addedQuantity: ${addedQuantity}` });
+    return;
+  }
+
+  if (currentQuantity <= 0 || !Number.isInteger(currentQuantity)) {
+    res.status(400).json({ error: `Invalid currentQuantity: ${currentQuantity}` });
+    return;
+  }
+
+  // Connect to MongoDB
+  const { materialTokensCollection, userInventoryCollection } = await connectToMongo();
+
+  // Verify user owns the material token
+  const existingToken = await materialTokensCollection.findOne({
+    userId,
+    lootTableId,
+    tier,
+    consumed: { $ne: true },
+  });
+
+  if (!existingToken) {
+    res.status(404).json({ error: 'Material token not found or already consumed' });
+    return;
+  }
+
+  if (existingToken.quantity !== currentQuantity) {
+    res.status(409).json({ error: `Quantity mismatch: expected ${existingToken.quantity}, got ${currentQuantity}` });
+    return;
+  }
+
+  // Pre-lock read: this only needs a wallet handle for getPublicKey (no UTXO ops), so it's
+  // safe outside the serialized queue. Same singleton wallet the queue itself uses.
+  const serverWallet = await getServerWallet();
+  const ordinalP2PKH = new OrdinalsP2PKH();
+
+  // Decode and parse payment transaction
+  const paymentBeef = decodeBeef(paymentTx);
+  const paymentTransaction = Transaction.fromBEEF(paymentBeef);
+  const paymentTxId = paymentTransaction.id('hex');
+
+  const paymentOutput = paymentTransaction.outputs[0];
+  if (!paymentOutput || !paymentOutput.satoshis || paymentOutput.satoshis < 100) {
+    res.status(400).json({ error: 'Invalid payment: must be at least 100 satoshis' });
+    return;
+  }
+
+  const paymentOutpoint = `${paymentTxId}.0`;
+
+  const walletp2pkh = new WalletP2PKH(serverWallet);
+  const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
+    protocolID: walletParams.protocolID,
+    keyID: walletParams.keyID,
+    counterparty: walletParams.counterparty,
+  });
+  const walletP2pkhUnlockingLength = await walletP2pkhUnlockTemplate.estimateLength();
+
+  // Validate the transferred token from the posted BEEF (no overlay).
+
+  const transferTransaction = Transaction.fromBEEF(decodeBeef(transferBeef));
+
+  const transferOutputIndex = parseInt(transferredTokenId.split('.')[1]);
+  const transferOutput = transferTransaction.outputs[transferOutputIndex];
+
+  if (!transferOutput) {
+    res.status(404).json({ error: 'Transfer output not found' });
+    return;
+  }
+
+  // Validate transfer output is locked to the server-derived key the client addressed
+  const transferScriptHex = transferOutput.lockingScript.toHex();
+  const expectedServerKey = transferNonce
+    ? (await serverWallet.getPublicKey({
+        protocolID: TOKEN_PROTOCOL,
+        keyID: transferNonce,
+        counterparty: userIdentityKey,
+        forSelf: true,
+      })).publicKey
+    : await getServerPublicKey(); // legacy fallback (fixed key)
+  // P2PKH.lock needs the pubkey HASH (or a base58 address), not a raw pubkey hex —
+  // OrdinalsP2PKH embeds hash160(pubkey), so hash before comparing.
+  const expectedScriptPattern = new P2PKH().lock(Hash.hash160(expectedServerKey, 'hex')).toHex();
+
+  if (!transferScriptHex.includes(expectedScriptPattern)) {
+    res.status(400).json({ error: 'Transfer output not locked to server public key' });
+    return;
+  }
+
+  const materialMetadata = {
+    name: 'material_token',
+    lootTableId,
+    itemName,
+    description,
+    icon,
+    rarity,
+    tier,
+    acquiredFrom: acquiredFrom ? [acquiredFrom] : [],
+  };
+
+  // Both dependent wallet actions (mint the added quantity, then merge it with the
+  // transferred token) run as ONE serialized unit through the wallet queue.
+  const merge = await (await getWalletQueue()).enqueue('merge:material', async (serverWallet) => {
+    // Mint the added quantity to a self-derived key.
+
+    const mintNonce = generateNonce();
+    const mintKey = await deriveSelfKey(serverWallet, mintNonce);
+    const mintLockingScript = ordinalP2PKH.lock(mintKey, '', materialMetadata, 'deploy+mint', addedQuantity);
+
+    const mintActionRes = await serverWallet.createAction({
+      description: "Minting additional materials for merge with user WalletP2PKH payment",
+      inputBEEF: paymentBeef,
+      inputs: [{
+        inputDescription: "User WalletP2PKH payment for fees",
+        outpoint: paymentOutpoint,
+        unlockingScriptLength: walletP2pkhUnlockingLength,
+      }],
+      outputs: [{
+        outputDescription: "New material token (self-derived key)",
+        lockingScript: mintLockingScript.toHex(),
+        satoshis: 1,
+      }],
+      options: { randomizeOutputs: false, acceptDelayedBroadcast: false },
+    });
+
+    if (!mintActionRes.signableTransaction) {
+      throw new Error('Failed to create signable mint transaction');
+    }
+
+    const mintReference = mintActionRes.signableTransaction.reference;
+    const mintTxToSign = Transaction.fromBEEF(mintActionRes.signableTransaction.tx);
+
+    mintTxToSign.inputs[0].unlockingScriptTemplate = walletP2pkhUnlockTemplate;
+    mintTxToSign.inputs[0].sourceTransaction = paymentTransaction;
+    await mintTxToSign.sign();
+
+    const mintUnlockingScript = mintTxToSign.inputs[0].unlockingScript;
+    if (!mintUnlockingScript) throw new Error('Missing unlocking script after signing');
+
+    const mintAction = await serverWallet.signAction({
+      reference: mintReference,
+      spends: { '0': { unlockingScript: mintUnlockingScript.toHex() } },
+    });
+
+    if (!mintAction.tx) throw new Error('Failed to sign mint action');
+
+    const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
+    const mintBroadcast = await broadcastTX(mintTx);
+    const mintTxId = mintBroadcast.txid!;
+    const mintOutpoint = `${mintTxId}.0`;
+
+    // Merge both tokens into one output locked to the user's recipient-derived key.
+
+    const serverIdentityKey = await getServerIdentityPublicKey();
+    const N3 = generateNonce();
+    const userKey = await deriveRecipientKey(serverWallet, userIdentityKey, N3);
+
+    const newQuantity = currentQuantity + addedQuantity;
+    const mergedAssetId = mintOutpoint.replace('.', '_');
+
+    const mergeLockingScript = ordinalP2PKH.lock(userKey, mergedAssetId, materialMetadata, 'transfer', newQuantity);
+
+    // Two separate unlock templates — each has its own derivation
+    const transferredUnlock = ordinalP2PKH.unlock(
+      serverWallet, 'all', false, undefined, undefined,
+      transferNonce
+        ? { protocolID: TOKEN_PROTOCOL, keyID: transferNonce, counterparty: userIdentityKey }
+        : undefined  // legacy: no derivation override (uses fixed key)
+    );
+    const mintedUnlock = ordinalP2PKH.unlock(
+      serverWallet, 'all', false, undefined, undefined,
+      { protocolID: TOKEN_PROTOCOL, keyID: mintNonce, counterparty: 'self' }
+    );
+
+    const transferredUnlockLength = await transferredUnlock.estimateLength();
+    const mintedUnlockLength = await mintedUnlock.estimateLength();
+
+    const mergedBeef = new Beef();
+    mergedBeef.mergeBeef(transferTransaction.toBEEF());
+    mergedBeef.mergeBeef(mintTx.toBEEF());
+    const inputBEEF = mergedBeef.toBinary();
+
+    const mergeActionRes = await serverWallet.createAction({
+      description: "Merging material tokens",
+      inputBEEF,
+      inputs: [
+        {
+          inputDescription: "Transferred token from user",
+          outpoint: transferredTokenId,
+          unlockingScriptLength: transferredUnlockLength,
+        },
+        {
+          inputDescription: "Newly minted token",
+          outpoint: mintOutpoint,
+          unlockingScriptLength: mintedUnlockLength,
+        },
+      ],
+      outputs: [{
+        outputDescription: "Merged token to user recipient-derived key",
+        lockingScript: mergeLockingScript.toHex(),
+        satoshis: 1,
+      }],
+      options: { randomizeOutputs: false, acceptDelayedBroadcast: false },
+    });
+
+    if (!mergeActionRes.signableTransaction) {
+      throw new Error('Failed to create signable merge transaction');
+    }
+
+    const reference = mergeActionRes.signableTransaction.reference;
+    const txToSign = Transaction.fromBEEF(mergeActionRes.signableTransaction.tx);
+
+    txToSign.inputs[0].unlockingScriptTemplate = transferredUnlock;
+    txToSign.inputs[0].sourceTransaction = transferTransaction;
+    txToSign.inputs[1].unlockingScriptTemplate = mintedUnlock;
+    txToSign.inputs[1].sourceTransaction = mintTx;
+
+    await txToSign.sign();
+
+    const unlockingScript0 = txToSign.inputs[0].unlockingScript;
+    const unlockingScript1 = txToSign.inputs[1].unlockingScript;
+
+    if (!unlockingScript0 || !unlockingScript1) {
+      throw new Error('Missing unlocking scripts after signing');
+    }
+
+    const mergeAction = await serverWallet.signAction({
+      reference,
+      spends: {
+        '0': { unlockingScript: unlockingScript0.toHex() },
+        '1': { unlockingScript: unlockingScript1.toHex() },
+      },
+    });
+
+    if (!mergeAction.tx) throw new Error('Failed to sign merge action');
+
+    const mergeTx = Transaction.fromAtomicBEEF(mergeAction.tx);
+    const mergeBroadcast = await broadcastTX(mergeTx);
+    const mergeTxId = mergeBroadcast.txid!;
+    const mergedTokenId = `${mergeTxId}.0`;
+
+    return {
+      mergeActionTx: mergeAction.tx,
+      mergedTokenId,
+      mergeTxId,
+      N3,
+      serverIdentityKey,
+      mintOutpoint,
+      transferredTokenId,
+    };
+  });
+
+  // Update the DB index and return the BEEF + nonce.
+
+  await materialTokensCollection.updateOne(
+    { _id: existingToken._id },
+    {
+      $set: {
+        tokenId: merge.mergedTokenId,
+        quantity: currentQuantity + addedQuantity,
+        metadata: materialMetadata,
+        previousTokenId: transferredTokenId,
+        lastTransactionId: merge.mergeTxId,
+        keyId: merge.N3,
+        counterparty: merge.serverIdentityKey,
+        updatedAt: new Date(),
+      },
+      $push: {
+        updateHistory: {
+          operation: 'add',
+          previousQuantity: currentQuantity,
+          newQuantity: currentQuantity + addedQuantity,
+          transactionId: merge.mergeTxId,
+          mergedFrom: [transferredTokenId, merge.mintOutpoint],
+          reason: reason || 'Material addition (server merge)',
+          timestamp: new Date(),
+        },
+      },
+    }
+  );
+
+  // Consume the unminted UserInventory items that fed the added quantity.
+  if (Array.isArray(inventoryItemIds) && inventoryItemIds.length > 0) {
+    const objectIds = inventoryItemIds.map((id: string) => new ObjectId(id));
+    await userInventoryCollection.deleteMany({ _id: { $in: objectIds }, userId });
+  }
+
+  res.json({
+    success: true,
+    mergedTokenId: merge.mergedTokenId,
+    mergeTransactionId: merge.mergeTxId,
+    newQuantity: currentQuantity + addedQuantity,
+    previousQuantity: currentQuantity,
+    addedQuantity,
+    transferBeef: encodeBeef(Array.from(merge.mergeActionTx as Uint8Array)),
+    received: {
+      outputIndex: 0,
+      keyId: merge.N3,
+      counterparty: merge.serverIdentityKey,
+      tags: ['type:material'],
+    },
+  });
+});
