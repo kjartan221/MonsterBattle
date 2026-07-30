@@ -11,6 +11,7 @@ import { ObjectId } from 'mongodb';
 import { Transaction, Beef } from '@bsv/sdk';
 import { WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
+import { requireSession } from '@server/middleware/requireSession';
 import { getWalletQueue } from '@server/lib/walletQueue';
 import { connectToMongo } from '@/lib/mongodb';
 import { getServerWallet, getServerIdentityPublicKey } from '@/lib/serverWallet';
@@ -18,6 +19,7 @@ import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
 import { broadcastTX } from '@/utils/overlayFunctions';
 import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
 import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
+import { getLootItemById } from '@/lib/loot-table';
 
 export const equipmentRouter = Router();
 
@@ -331,4 +333,208 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
       tags: ['type:equipment'],
     },
   });
+});
+
+// Fetches the currently equipped items for the authenticated user.
+equipmentRouter.get('/get', requireSession, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId as string;
+
+    // Connect to MongoDB
+    const { playerStatsCollection, userInventoryCollection } = await connectToMongo();
+
+    // Fetch player stats to get equipped item IDs
+    const playerStats = await playerStatsCollection.findOne({ userId });
+
+    if (!playerStats) {
+      res.status(404).json({ error: 'Player stats not found' });
+      return;
+    }
+
+    if (!playerStats.equippedItems) {
+      res.json({});
+      return;
+    }
+
+    // Collect all equipped item IDs
+    const equippedItemIds = Object.values(playerStats.equippedItems).filter(Boolean);
+
+    if (equippedItemIds.length === 0) {
+      res.json({});
+      return;
+    }
+
+    // Fetch all equipped items in a single query
+    const items = await userInventoryCollection.find({
+      _id: { $in: equippedItemIds },
+      userId
+    }).toArray();
+
+    // Build response object with slot mapping
+    const equippedItems: {
+      equippedWeapon?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedArmor?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedAccessory1?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+      equippedAccessory2?: { inventoryId: string; lootTableId: string; tier: number; isEmpowered?: boolean; crafted?: boolean; statRoll?: number; prefix?: any; suffix?: any };
+    } = {};
+
+    // Map items back to their slots
+    items.forEach(item => {
+      const itemData = {
+        inventoryId: item._id.toString(),
+        lootTableId: item.lootTableId,
+        tier: item.tier || 1,
+        isEmpowered: item.isEmpowered || false,
+        crafted: item.crafted,
+        statRoll: item.statRoll,
+        prefix: item.prefix, // Phase 3.4: Prefix inscription
+        suffix: item.suffix  // Phase 3.4: Suffix inscription
+      };
+
+      if (playerStats.equippedItems!.weapon?.equals(item._id)) {
+        equippedItems.equippedWeapon = itemData;
+      } else if (playerStats.equippedItems!.armor?.equals(item._id)) {
+        equippedItems.equippedArmor = itemData;
+      } else if (playerStats.equippedItems!.accessory1?.equals(item._id)) {
+        equippedItems.equippedAccessory1 = itemData;
+      } else if (playerStats.equippedItems!.accessory2?.equals(item._id)) {
+        equippedItems.equippedAccessory2 = itemData;
+      }
+    });
+
+    res.json(equippedItems);
+  } catch (error) {
+    console.error('Error fetching equipment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Validates if an item type can be equipped in a specific slot
+ */
+function validateItemForSlot(itemType: string, slot: string): boolean {
+  switch (slot) {
+    case 'weapon':
+      return itemType === 'weapon';
+    case 'armor':
+      return itemType === 'armor';
+    case 'accessory1':
+    case 'accessory2':
+      return itemType === 'artifact'; // Accessories are artifacts
+    default:
+      return false;
+  }
+}
+
+// Equips an item from user's inventory to a specific slot. Body: { inventoryId, slot, proof }.
+equipmentRouter.post('/equip', requireAuthProof('equip'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId as string;
+    const body = req.body;
+
+    const { inventoryId, slot } = body;
+
+    if (!inventoryId || !slot) {
+      res.status(400).json({ error: 'Missing inventoryId or slot' });
+      return;
+    }
+
+    // Validate slot
+    const validSlots = ['weapon', 'armor', 'accessory1', 'accessory2'];
+    if (!validSlots.includes(slot)) {
+      res.status(400).json({ error: 'Invalid slot' });
+      return;
+    }
+
+    // Connect to MongoDB
+    const { playerStatsCollection, userInventoryCollection } = await connectToMongo();
+
+    // Verify the item exists in user's inventory
+    let itemObjectId: ObjectId;
+    try {
+      itemObjectId = new ObjectId(inventoryId);
+    } catch {
+      res.status(400).json({ error: 'Invalid inventoryId format' });
+      return;
+    }
+
+    const inventoryItem = await userInventoryCollection.findOne({
+      _id: itemObjectId,
+      userId
+    });
+
+    if (!inventoryItem) {
+      res.status(404).json({ error: 'Item not found in inventory' });
+      return;
+    }
+
+    // Get the loot item data to validate it can be equipped in this slot
+    const lootItem = getLootItemById(inventoryItem.lootTableId);
+    if (!lootItem) {
+      res.status(400).json({ error: 'Invalid item' });
+      return;
+    }
+
+    // Validate the item can be equipped in the requested slot
+    const canEquip = validateItemForSlot(lootItem.type, slot);
+    if (!canEquip) {
+      res.status(400).json({ error: `Cannot equip ${lootItem.type} in ${slot} slot` });
+      return;
+    }
+
+    // Update player stats with the equipped item
+    await playerStatsCollection.updateOne(
+      { userId },
+      { $set: { [`equippedItems.${slot}`]: itemObjectId } }
+    );
+
+    res.json({
+      success: true,
+      slot,
+      inventoryId,
+      lootTableId: inventoryItem.lootTableId
+    });
+  } catch (error) {
+    console.error('Error equipping item:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Unequips an item from a specific slot. Body: { slot, proof }.
+equipmentRouter.post('/unequip', requireAuthProof('unequip'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId as string;
+    const body = req.body;
+
+    const { slot } = body;
+
+    if (!slot) {
+      res.status(400).json({ error: 'Missing slot' });
+      return;
+    }
+
+    // Validate slot
+    const validSlots = ['weapon', 'armor', 'accessory1', 'accessory2'];
+    if (!validSlots.includes(slot)) {
+      res.status(400).json({ error: 'Invalid slot' });
+      return;
+    }
+
+    // Connect to MongoDB
+    const { playerStatsCollection } = await connectToMongo();
+
+    // Unset the equipped item field
+    await playerStatsCollection.updateOne(
+      { userId },
+      { $unset: { [`equippedItems.${slot}`]: '' } }
+    );
+
+    res.json({
+      success: true,
+      slot
+    });
+  } catch (error) {
+    console.error('Error unequipping item:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
