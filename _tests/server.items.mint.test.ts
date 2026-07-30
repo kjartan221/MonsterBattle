@@ -38,8 +38,6 @@ const stubWallet = {
   signAction: jest.fn(async () => ({ tx: Uint8Array.from([9, 9]) })),
 };
 
-const fromBEEF = Transaction.fromBEEF as jest.Mock;
-
 const validBody = {
   inventoryItemId: '507f1f77bcf86cd799439011',
   itemData: { name: 'Sword', description: 'd', icon: 'i', rarity: 'rare' },
@@ -50,7 +48,9 @@ const validBody = {
 
 function seedTxMocks() {
   // 1st fromBEEF = payment tx; 2nd = signable mint tx
-  fromBEEF
+  // Access Transaction.fromBEEF directly instead of module-level fromBEEF variable,
+  // so that reassigning Transaction.fromBEEF in beforeEach will properly reset the queue
+  (Transaction.fromBEEF as jest.Mock)
     .mockReturnValueOnce({ id: () => 'PAYTXID', outputs: [{ satoshis: 100 }] })
     .mockReturnValueOnce({ inputs: [{ unlockingScript: { toHex: () => 'UNLOCKHEX' } }], sign: async () => {} });
 }
@@ -58,8 +58,14 @@ function seedTxMocks() {
 describe('POST /api/items/mint-and-transfer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset Transaction.fromBEEF to a fresh jest.fn() to clear any mockReturnValueOnce queue
+    // from previous tests (seedTxMocks now uses Transaction.fromBEEF directly, so this works)
+    (Transaction as any).fromBEEF = jest.fn();
+    // Re-apply default implementations
     insertOne.mockResolvedValue({ insertedId: 'NFT_OID' });
     updateOne.mockResolvedValue({ matchedCount: 1 });
+    // Restore enqueue's special implementation
+    enqueue.mockImplementation((_label: string, fn: (w: any) => Promise<any>) => fn(stubWallet));
   });
 
   it('400 on missing required fields', async () => {
@@ -92,6 +98,7 @@ describe('POST /api/items/mint-and-transfer', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       success: true,
+      dbRecorded: true,
       nftId: 'NFT_OID',
       tokenId: 'MINTTX.0',
       mintOutpoint: 'MINTTX.0',
@@ -117,5 +124,23 @@ describe('POST /api/items/mint-and-transfer', () => {
     const res = await request(buildApp()).post('/api/items/mint-and-transfer').send(validBody);
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'Internal server error' });
+  });
+
+  it('still returns 200 with the mint result + dbRecorded:false when the DB write fails', async () => {
+    findOne.mockResolvedValueOnce({ lootTableId: 'lt1', itemType: 'weapon' });
+    seedTxMocks();
+    insertOne.mockRejectedValueOnce(new Error('db down'));
+
+    const res = await request(buildApp()).post('/api/items/mint-and-transfer').send(validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.body.dbRecorded).toBe(false);
+    // The mint happened and the client can still internalize the token.
+    expect(res.body.tokenId).toBe('MINTTX.0');
+    expect(res.body.transferBeef).toBe('BEEF_B64');
+    expect(res.body.received).toEqual({ outputIndex: 0, keyId: 'NONCE', counterparty: 'SERVER_ID', tags: ['type:item'] });
+    expect(res.body.nftId).toBeUndefined();
+    expect(enqueue).toHaveBeenCalledWith('mint:item', expect.any(Function));
+    expect(stubWallet.createAction).toHaveBeenCalledTimes(1);
   });
 });

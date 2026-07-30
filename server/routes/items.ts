@@ -9,9 +9,10 @@ import { ObjectId } from 'mongodb';
 import { Transaction } from '@bsv/sdk';
 import { WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
+import { requireSession } from '@server/middleware/requireSession';
 import { getWalletQueue } from '@server/lib/walletQueue';
 import { connectToMongo } from '@/lib/mongodb';
-import { getServerIdentityPublicKey } from '@/lib/serverWallet';
+import { getServerIdentityPublicKey, getServerWallet } from '@/lib/serverWallet';
 import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
 import { broadcastTX } from '@/utils/overlayFunctions';
 import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
@@ -148,39 +149,50 @@ itemsRouter.post('/mint-and-transfer', requireAuthProof('mint-item'), async (req
     };
   });
 
-  // DB writes happen AFTER the wallet work resolves.
-  const nftLootDoc = {
-    lootTableId: inventoryItem.lootTableId,
-    name: itemData.name || itemData.itemName,
-    description: itemData.description,
-    icon: itemData.icon,
-    rarity: itemData.rarity,
-    type: inventoryItem.itemType,
-    attributes: itemData,
-    mintOutpoint: mint.tokenId,
-    tokenId: mint.tokenId,
-    createdAt: new Date(),
-  };
-  const nftResult = await nftLootCollection.insertOne(nftLootDoc);
-  const nftLootId = nftResult.insertedId.toString();
+  // DB writes are best-effort. The mint is already broadcast on-chain (signAction)
+  // and the client will internalize the token into its basket, so a DB failure here
+  // is recoverable via POST /mint-and-transfer/record. Never fail the response for it.
+  let dbRecorded = false;
+  let nftLootId: string | undefined;
+  try {
+    const nftLootDoc = {
+      lootTableId: inventoryItem.lootTableId,
+      name: itemData.name || itemData.itemName,
+      description: itemData.description,
+      icon: itemData.icon,
+      rarity: itemData.rarity,
+      type: inventoryItem.itemType,
+      attributes: itemData,
+      mintOutpoint: mint.tokenId,
+      tokenId: mint.tokenId,
+      createdAt: new Date(),
+    };
+    const nftResult = await nftLootCollection.insertOne(nftLootDoc);
+    nftLootId = nftResult.insertedId.toString();
 
-  await userInventoryCollection.updateOne(
-    { _id: new ObjectId(inventoryItemId) },
-    {
-      $set: {
-        nftLootId: nftResult.insertedId,
-        mintOutpoint: mint.tokenId,
-        tokenId: mint.tokenId,
-        keyId: mint.nonce,
-        counterparty: mint.serverIdentityKey,
-        updatedAt: new Date(),
+    await userInventoryCollection.updateOne(
+      { _id: new ObjectId(inventoryItemId) },
+      {
+        $set: {
+          nftLootId: nftResult.insertedId,
+          mintOutpoint: mint.tokenId,
+          tokenId: mint.tokenId,
+          keyId: mint.nonce,
+          counterparty: mint.serverIdentityKey,
+          updatedAt: new Date(),
+        },
       },
-    },
-  );
-  step('db written');
+    );
+    dbRecorded = true;
+    step('db written');
+  } catch (dbErr) {
+    nftLootId = undefined; // insert may have succeeded but the link failed — don't report a half-write
+    console.error('[items:mint] DB write failed (token is on-chain + will be internalized; repairable via /record):', dbErr);
+  }
 
   res.json({
     success: true,
+    dbRecorded,
     nftId: nftLootId,
     tokenId: mint.tokenId,
     mintOutpoint: mint.tokenId,
@@ -192,4 +204,93 @@ itemsRouter.post('/mint-and-transfer', requireAuthProof('mint-item'), async (req
       tags: ['type:item'],
     },
   });
+});
+
+// Repair the DB after a mint whose on-chain broadcast succeeded but whose DB write
+// failed. The wallet basket holds the token (source of truth); this route verifies
+// the claimed outpoint is a server mint locked to the session user, then re-writes
+// the DB. Guarded by requireSession — the provenance check is the real guard.
+itemsRouter.post('/mint-and-transfer/record', requireSession, async (req: Request, res: Response) => {
+  const userId = req.userId as string; // BSV identity key of the session user
+  const { inventoryItemId, transferBeef, outpoint, keyId, itemData } = req.body;
+
+  if (!inventoryItemId || !transferBeef || !outpoint || !keyId || !itemData) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+
+  const { userInventoryCollection, nftLootCollection } = await connectToMongo();
+  const inventoryItem = await userInventoryCollection.findOne({
+    _id: new ObjectId(inventoryItemId),
+    userId,
+  });
+  if (!inventoryItem) {
+    res.status(404).json({ error: 'Item not found or not owned by user' });
+    return;
+  }
+  if (inventoryItem.nftLootId) {
+    res.status(200).json({ success: true, alreadyRecorded: true, nftId: inventoryItem.nftLootId.toString() });
+    return;
+  }
+
+  // Prevent replaying one legit mint across multiple items (fee bypass):
+  // reject if this outpoint is already attributed to an inventory item.
+  const alreadyAttributed = await userInventoryCollection.findOne({ tokenId: outpoint });
+  if (alreadyAttributed) {
+    res.status(409).json({ error: 'This mint is already recorded to an item' });
+    return;
+  }
+
+  // Verify provenance: the tx output at `outpoint` must be the ordinal mint the SERVER
+  // would produce for THIS user (derived key) with THIS itemData. Only the server can
+  // create that lock (ECDH via the server wallet), so a match is unforgeable.
+  const [txid, voutStr] = String(outpoint).split('.');
+  const vout = Number(voutStr);
+  const tx = Transaction.fromAtomicBEEF(decodeBeef(transferBeef));
+  if (tx.id('hex') !== txid) {
+    res.status(400).json({ error: 'Outpoint does not match the provided transaction' });
+    return;
+  }
+  const onChainScript = tx.outputs[vout]?.lockingScript?.toHex();
+
+  const serverWallet = await getServerWallet();
+  const userKey = await deriveRecipientKey(serverWallet, userId, keyId);
+  const expectedScript = new OrdinalsP2PKH().lock(userKey, '', itemData, 'deploy+mint').toHex();
+
+  if (!onChainScript || onChainScript !== expectedScript) {
+    res.status(400).json({ error: 'Outpoint is not a server mint locked to this user' });
+    return;
+  }
+
+  // Provenance verified — write the same records the happy path writes.
+  const serverIdentityKey = await getServerIdentityPublicKey();
+  const nftLootDoc = {
+    lootTableId: inventoryItem.lootTableId,
+    name: itemData.name || itemData.itemName,
+    description: itemData.description,
+    icon: itemData.icon,
+    rarity: itemData.rarity,
+    type: inventoryItem.itemType,
+    attributes: itemData,
+    mintOutpoint: outpoint,
+    tokenId: outpoint,
+    createdAt: new Date(),
+  };
+  const nftResult = await nftLootCollection.insertOne(nftLootDoc);
+
+  await userInventoryCollection.updateOne(
+    { _id: new ObjectId(inventoryItemId) },
+    {
+      $set: {
+        nftLootId: nftResult.insertedId,
+        mintOutpoint: outpoint,
+        tokenId: outpoint,
+        keyId,
+        counterparty: serverIdentityKey,
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  res.json({ success: true, dbRecorded: true, nftId: nftResult.insertedId.toString(), tokenId: outpoint });
 });

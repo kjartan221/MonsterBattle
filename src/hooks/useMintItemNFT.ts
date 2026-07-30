@@ -186,6 +186,26 @@ export function useMintItemNFT() {
         }
       }
 
+      // If the server minted on-chain but its DB write failed (dbRecorded:false), the
+      // token is safely in the basket — repair the DB index via the verified record route.
+      if (result.dbRecorded === false && typeof result.tokenId === 'string' && result.received) {
+        try {
+          await fetch('/api/items/mint-and-transfer/record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              inventoryItemId: itemData.inventoryItemId,
+              transferBeef: result.transferBeef,
+              outpoint: result.tokenId,
+              keyId: result.received.keyId,
+              itemData: serverMintData,
+            }),
+          });
+        } catch (recordErr) {
+          console.warn('Mint recorded on-chain (in basket) but DB repair call failed; item will show unminted until re-synced:', recordErr);
+        }
+      }
+
       return {
         nftId: result.nftId,
         tokenId: result.tokenId,         // Current location
