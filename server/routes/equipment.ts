@@ -26,6 +26,10 @@ export const equipmentRouter = Router();
 equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req: Request, res: Response) => {
   const userId = req.userId as string;
 
+  // Per-step timing to localize update latency (cumulative ms from request start).
+  const t0 = Date.now();
+  const step = (label: string) => console.log(`[equipment:update] ${label} +${Date.now() - t0}ms`);
+
   const {
     originalEquipmentInventoryId,
     originalEquipmentTokenId,
@@ -110,6 +114,7 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
   }
 
   const paymentOutpoint = `${paymentTxId}.0`;
+  step('validated + payment parsed');
 
   const walletp2pkh = new WalletP2PKH(serverWallet);
   const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
@@ -202,6 +207,7 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
     if (!updateActionRes.signableTransaction) {
       throw new Error('Failed to create signable update transaction');
     }
+    step('createAction done');
 
     const reference = updateActionRes.signableTransaction.reference;
     const txToSign = Transaction.fromBEEF(updateActionRes.signableTransaction.tx);
@@ -217,6 +223,7 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
     txToSign.inputs[paymentInputIndex].sourceTransaction = paymentTransaction;
 
     await txToSign.sign();
+    step('local sign done');
 
     const spends: Record<string, any> = {};
     for (let i = 0; i < inputs.length; i++) {
@@ -228,10 +235,13 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
     const updateAction = await serverWallet.signAction({ reference, spends });
 
     if (!updateAction.tx) throw new Error('Failed to sign update action');
+    step('signAction done — token ready, overlay push fired off-path');
 
+    // Derive the txid locally from the signed tx — this IS what broadcastTX would
+    // report (it also just computes tx.id('hex')), so no need to await the overlay
+    // push here. The overlay push now happens off-path, after the response is sent.
     const updateTx = Transaction.fromAtomicBEEF(updateAction.tx);
-    const updateBroadcast = await broadcastTX(updateTx);
-    const updateTxId = updateBroadcast.txid!;
+    const updateTxId = updateTx.id('hex');
     const updatedEquipmentTokenId = `${updateTxId}.0`;
 
     return {
@@ -317,6 +327,7 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
   for (const scrollInventoryId of inscriptionScrollInventoryIds) {
     await userInventoryCollection.deleteOne({ _id: new ObjectId(scrollInventoryId), userId });
   }
+  step('db written');
 
   res.json({
     success: true,
@@ -333,6 +344,15 @@ equipmentRouter.post('/update', requireAuthProof('update-equipment'), async (req
       tags: ['type:equipment'],
     },
   });
+
+  // Fire-and-forget overlay push, off the response path and outside the wallet
+  // queue lock. The token is already on-chain (signAction); this only speeds up
+  // overlay-based lookups.
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(result.updateActionTx)))
+    .catch((e) => {
+      console.error('[equipment:update] overlay broadcast failed (non-blocking):', e);
+    });
 });
 
 // Fetches the currently equipped items for the authenticated user.

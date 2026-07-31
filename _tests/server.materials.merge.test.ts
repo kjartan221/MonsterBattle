@@ -24,7 +24,10 @@ jest.mock('@/lib/serverWallet', () => ({
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
 }));
 
-jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn() }));
+// broadcastTX is now fire-and-forget off-path (txids are derived locally, not from
+// its return value) — default to a resolving promise so `.catch()` on the call site
+// never throws synchronously on an undefined return.
+jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'OVERLAY_TXID' })) }));
 jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
 jest.mock('@/utils/tokenDerivation', () => ({
   TOKEN_PROTOCOL: [2, 'monsterbattle token'],
@@ -100,13 +103,15 @@ function seedEnqueueMocks() {
       ],
       sign: async () => {},
     });
+  // Both txids are now derived locally via .id('hex') on the fromAtomicBEEF result —
+  // same values broadcastTX would have reported (it's just tx.id('hex')). The two
+  // mockReturnValueOnce calls cover the calls made INSIDE enqueue (mint then merge);
+  // the mockReturnValue fallback covers the off-path re-decodes fired after the
+  // response (route calls fromAtomicBEEF again per tx to build the overlay push).
   (Transaction.fromAtomicBEEF as jest.Mock)
-    .mockReturnValueOnce({ toBEEF: () => [2, 2] }) // mintTx
-    .mockReturnValueOnce({}); // mergeTx
-
-  (broadcastTX as jest.Mock)
-    .mockResolvedValueOnce({ txid: 'MINTTX' })
-    .mockResolvedValueOnce({ txid: 'MERGETX' });
+    .mockReturnValueOnce({ id: () => 'MINTTX', toBEEF: () => [2, 2] }) // mintTx (inside enqueue)
+    .mockReturnValueOnce({ id: () => 'MERGETX' }) // mergeTx (inside enqueue)
+    .mockReturnValue({ id: () => 'MERGETX' }); // off-path broadcasts after response
 
   stubWallet.createAction
     .mockResolvedValueOnce({ signableTransaction: { reference: 'REF1', tx: [7, 7] } }) // mint
@@ -208,6 +213,11 @@ describe('POST /api/materials/add-and-merge', () => {
     );
     expect(deleteMany).toHaveBeenCalledTimes(1);
     expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
+
+    // Overlay pushes for BOTH txs (intermediate mint + final merge) are fire-and-forget
+    // AFTER the response — flush pending microtasks so they've run.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(broadcastTX).toHaveBeenCalledTimes(2);
   });
 
   it('500s via the error handler when the wallet queue throws', async () => {

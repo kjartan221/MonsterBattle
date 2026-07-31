@@ -133,13 +133,15 @@ itemsRouter.post('/mint-and-transfer', requireAuthProof('mint-item'), async (req
     }
     step('signAction done (chain broadcast)');
 
+    // Derive the txid locally from the signed tx — this IS what broadcastTX would
+    // report (it also just computes tx.id('hex')), so no need to await the overlay
+    // push here. The overlay push now happens off-path, after the response is sent.
     const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
-    const mintBroadcast = await broadcastTX(mintTx);
-    const mintTxId = mintBroadcast.txid;
+    const mintTxId = mintTx.id('hex');
     if (!mintTxId) {
-      throw new Error('Failed to get transaction ID from broadcast');
+      throw new Error('Failed to derive transaction ID from signed tx');
     }
-    step('overlay broadcast done');
+    step('signAction done — token ready, overlay push fired off-path');
 
     return {
       mintActionTx: mintAction.tx,
@@ -204,6 +206,15 @@ itemsRouter.post('/mint-and-transfer', requireAuthProof('mint-item'), async (req
       tags: ['type:item'],
     },
   });
+
+  // Fire-and-forget overlay push, off the response path and outside the wallet
+  // queue lock. The token is already on-chain (signAction); this only speeds up
+  // overlay-based lookups (basket + /record reconcile cover any gap).
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(mint.mintActionTx)))
+    .catch((e) => {
+      console.error('[items:mint] overlay broadcast failed (non-blocking):', e);
+    });
 });
 
 // Repair the DB after a mint whose on-chain broadcast succeeded but whose DB write

@@ -35,7 +35,10 @@ jest.mock('@/lib/serverWallet', () => ({
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
 }));
 
-jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn() }));
+// broadcastTX is now fire-and-forget off-path (txid is derived locally, not from
+// its return value) — default to a resolving promise so `.catch()` on the call site
+// never throws synchronously on an undefined return.
+jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'OVERLAY_TXID' })) }));
 jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
 
 let nonceQueue: string[] = [];
@@ -115,9 +118,11 @@ function seedEnqueueMocks() {
     sign: async () => {},
   });
 
-  (Transaction.fromAtomicBEEF as jest.Mock).mockReturnValueOnce({});
-
-  (broadcastTX as jest.Mock).mockResolvedValueOnce({ txid: 'UPDATETX' });
+  // The txid is now derived locally via .id('hex') on the fromAtomicBEEF result —
+  // same value broadcastTX would have reported (it's just tx.id('hex')). The
+  // mockReturnValue (not Once) covers both the call inside enqueue AND the
+  // off-path re-decode fired after the response.
+  (Transaction.fromAtomicBEEF as jest.Mock).mockReturnValue({ id: () => 'UPDATETX' });
 
   stubWallet.createAction.mockResolvedValueOnce({ signableTransaction: { reference: 'REF1', tx: [7, 7] } });
   stubWallet.signAction.mockResolvedValueOnce({ tx: Uint8Array.from([9, 9]) });
@@ -266,6 +271,11 @@ describe('POST /api/equipment/update', () => {
 
     expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(nftInsertOne.mock.invocationCallOrder[0]);
     expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(inventoryInsertOne.mock.invocationCallOrder[0]);
+
+    // Overlay push is fire-and-forget AFTER the response — flush pending microtasks
+    // so the off-path broadcast (fired synchronously right after res.json) has run.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(broadcastTX).toHaveBeenCalledTimes(1);
   });
 
   it('500s via the error handler when the wallet queue throws', async () => {

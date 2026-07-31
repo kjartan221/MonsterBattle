@@ -183,13 +183,15 @@ materialsRouter.post('/mint-and-transfer', requireAuthProof('mint-material'), as
     }
     step('signAction done (chain broadcast)');
 
+    // Derive the txid locally from the signed tx — this IS what broadcastTX would
+    // report (it also just computes tx.id('hex')), so no need to await the overlay
+    // push here. The overlay push now happens off-path, after the response is sent.
     const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
-    const mintBroadcast = await broadcastTX(mintTx);
-    const mintTxId = mintBroadcast.txid;
+    const mintTxId = mintTx.id('hex');
     if (!mintTxId) {
-      throw new Error('Failed to get transaction ID from broadcast');
+      throw new Error('Failed to derive transaction ID from signed tx');
     }
-    step('overlay broadcast done');
+    step('signAction done — token ready, overlay push fired off-path');
 
     return {
       mintActionTx: mintAction.tx,
@@ -268,6 +270,15 @@ materialsRouter.post('/mint-and-transfer', requireAuthProof('mint-material'), as
       tags: ['type:material'],
     },
   });
+
+  // Fire-and-forget overlay push, off the response path and outside the wallet
+  // queue lock. The token is already on-chain (signAction); this only speeds up
+  // overlay-based lookups.
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(mint.mintActionTx)))
+    .catch((e) => {
+      console.error('[materials:mint] overlay broadcast failed (non-blocking):', e);
+    });
 });
 
 // Server-side material add-and-merge (derived-key pattern).
@@ -278,6 +289,10 @@ materialsRouter.post('/mint-and-transfer', requireAuthProof('mint-material'), as
 // serialized wallet queue to prevent concurrent UTXO double-spends.
 materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async (req: Request, res: Response) => {
   const userId = req.userId as string;
+
+  // Per-step timing to localize merge latency (cumulative ms from request start).
+  const t0 = Date.now();
+  const step = (label: string) => console.log(`[materials:merge] ${label} +${Date.now() - t0}ms`);
 
   const {
     transferredTokenId,  // 'txid.vout' of the transferred (server-owned) output
@@ -363,6 +378,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
   }
 
   const paymentOutpoint = `${paymentTxId}.0`;
+  step('validated + payment parsed');
 
   const walletp2pkh = new WalletP2PKH(serverWallet);
   const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
@@ -442,6 +458,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     if (!mintActionRes.signableTransaction) {
       throw new Error('Failed to create signable mint transaction');
     }
+    step('createAction done (mint)');
 
     const mintReference = mintActionRes.signableTransaction.reference;
     const mintTxToSign = Transaction.fromBEEF(mintActionRes.signableTransaction.tx);
@@ -449,6 +466,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     mintTxToSign.inputs[0].unlockingScriptTemplate = walletP2pkhUnlockTemplate;
     mintTxToSign.inputs[0].sourceTransaction = paymentTransaction;
     await mintTxToSign.sign();
+    step('local sign done (mint)');
 
     const mintUnlockingScript = mintTxToSign.inputs[0].unlockingScript;
     if (!mintUnlockingScript) throw new Error('Missing unlocking script after signing');
@@ -459,10 +477,13 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     });
 
     if (!mintAction.tx) throw new Error('Failed to sign mint action');
+    step('signAction done (mint) — token ready, overlay push fired off-path');
 
+    // Derive the txid locally from the signed tx — this IS what broadcastTX would
+    // report (it also just computes tx.id('hex')). The overlay push for this
+    // intermediate tx now happens off-path, after the response is sent.
     const mintTx = Transaction.fromAtomicBEEF(mintAction.tx);
-    const mintBroadcast = await broadcastTX(mintTx);
-    const mintTxId = mintBroadcast.txid!;
+    const mintTxId = mintTx.id('hex');
     const mintOutpoint = `${mintTxId}.0`;
 
     // Merge both tokens into one output locked to the user's recipient-derived key.
@@ -522,6 +543,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     if (!mergeActionRes.signableTransaction) {
       throw new Error('Failed to create signable merge transaction');
     }
+    step('createAction done (merge)');
 
     const reference = mergeActionRes.signableTransaction.reference;
     const txToSign = Transaction.fromBEEF(mergeActionRes.signableTransaction.tx);
@@ -532,6 +554,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     txToSign.inputs[1].sourceTransaction = mintTx;
 
     await txToSign.sign();
+    step('local sign done (merge)');
 
     const unlockingScript0 = txToSign.inputs[0].unlockingScript;
     const unlockingScript1 = txToSign.inputs[1].unlockingScript;
@@ -549,13 +572,15 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     });
 
     if (!mergeAction.tx) throw new Error('Failed to sign merge action');
+    step('signAction done (merge) — token ready, overlay pushes fired off-path');
 
+    // Derive locally — same value broadcastTX would report.
     const mergeTx = Transaction.fromAtomicBEEF(mergeAction.tx);
-    const mergeBroadcast = await broadcastTX(mergeTx);
-    const mergeTxId = mergeBroadcast.txid!;
+    const mergeTxId = mergeTx.id('hex');
     const mergedTokenId = `${mergeTxId}.0`;
 
     return {
+      mintActionTx: mintAction.tx, // intermediate mint tx — pushed off-path too (Change 1, two-action route)
       mergeActionTx: mergeAction.tx,
       mergedTokenId,
       mergeTxId,
@@ -600,6 +625,7 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
     const objectIds = inventoryItemIds.map((id: string) => new ObjectId(id));
     await userInventoryCollection.deleteMany({ _id: { $in: objectIds }, userId });
   }
+  step('db written');
 
   res.json({
     success: true,
@@ -616,6 +642,20 @@ materialsRouter.post('/add-and-merge', requireAuthProof('merge-material'), async
       tags: ['type:material'],
     },
   });
+
+  // Fire-and-forget overlay pushes for BOTH txs (intermediate mint + final merge),
+  // off the response path and outside the wallet queue lock. Both are already
+  // on-chain (signAction); this only speeds up overlay-based lookups.
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(merge.mintActionTx)))
+    .catch((e) => {
+      console.error('[materials:merge] overlay broadcast (mint) failed (non-blocking):', e);
+    });
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(merge.mergeActionTx)))
+    .catch((e) => {
+      console.error('[materials:merge] overlay broadcast (merge) failed (non-blocking):', e);
+    });
 });
 
 // Check whether a (non-consumed) material token already exists for this user/lootTableId/tier.

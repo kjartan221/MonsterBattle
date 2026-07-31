@@ -25,13 +25,16 @@ jest.mock('@bsv/wallet-helper', () => ({ WalletP2PKH: class { unlock() { return 
 jest.mock('@bsv/sdk', () => ({
   Transaction: {
     fromBEEF: jest.fn(),
-    fromAtomicBEEF: jest.fn(() => ({})),
+    // The route derives the txid locally via .id('hex') — same value broadcastTX
+    // would have reported, since broadcastTX itself is just tx.id('hex').
+    fromAtomicBEEF: jest.fn(() => ({ id: () => 'MINTTX' })),
   },
 }));
 
 import request from 'supertest';
 import { buildApp } from '@server/app';
 import { Transaction } from '@bsv/sdk';
+import { broadcastTX } from '@/utils/overlayFunctions';
 
 const stubWallet = {
   createAction: jest.fn(async () => ({ signableTransaction: { reference: 'REF', tx: [7, 7] } })),
@@ -181,6 +184,11 @@ describe('POST /api/materials/mint-and-transfer', () => {
     expect(insertOne).toHaveBeenCalledTimes(1);
     expect(deleteMany).toHaveBeenCalledTimes(1);
     expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(insertOne.mock.invocationCallOrder[0]);
+
+    // Overlay push is fire-and-forget AFTER the response — flush pending microtasks
+    // so the off-path broadcast (fired synchronously right after res.json) has run.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(broadcastTX).toHaveBeenCalledTimes(1);
   });
 
   it('500s via the error handler when the wallet mint throws', async () => {

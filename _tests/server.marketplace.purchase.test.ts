@@ -61,7 +61,9 @@ jest.mock('@bsv/wallet-helper', () => ({
 jest.mock('@bsv/sdk', () => ({
   Transaction: {
     fromBEEF: jest.fn(),
-    fromAtomicBEEF: jest.fn(() => ({})),
+    // The route derives the txid locally via .id('hex') — same value broadcastTX
+    // would have reported, since broadcastTX itself is just tx.id('hex').
+    fromAtomicBEEF: jest.fn(() => ({ id: () => 'PTX' })),
   },
   Script: { fromHex: jest.fn(() => 'ORDLOCK_SCRIPT_OBJ') },
   P2PKH: class {
@@ -130,7 +132,7 @@ describe('POST /api/marketplace/purchase-listing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (Transaction as any).fromBEEF = jest.fn();
-    (Transaction as any).fromAtomicBEEF = jest.fn(() => ({}));
+    (Transaction as any).fromAtomicBEEF = jest.fn(() => ({ id: () => 'PTX' }));
     findOneAndUpdate.mockReset();
     itemsUpdateOne.mockResolvedValue({ modifiedCount: 1 });
     beefsFindOne.mockResolvedValue({ beef: 'B' });
@@ -255,6 +257,10 @@ describe('POST /api/marketplace/purchase-listing', () => {
     expect(enqueue).toHaveBeenCalledWith('purchase', expect.any(Function));
     expect(stubWallet.createAction).toHaveBeenCalledTimes(2);
     expect(stubWallet.signAction).toHaveBeenCalledTimes(1);
+
+    // Overlay push is fire-and-forget AFTER the response — flush pending microtasks
+    // so the off-path broadcast (fired synchronously right after res.json) has run.
+    await new Promise((resolve) => setImmediate(resolve));
     expect(broadcastTX).toHaveBeenCalledTimes(1);
 
     // Finalize ran inside the withTransaction session.

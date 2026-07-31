@@ -27,6 +27,10 @@ export const craftingRouter = Router();
 craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req: Request, res: Response) => {
   const userId = req.userId as string;
 
+  // Per-step timing to localize craft latency (cumulative ms from request start).
+  const t0 = Date.now();
+  const step = (label: string) => console.log(`[crafting:mint] ${label} +${Date.now() - t0}ms`);
+
   const {
     recipeId,
     transferredMaterials, // Array of {lootTableId, tokenId, quantity, quantityNeeded, itemName, description, icon, rarity, tier}
@@ -84,6 +88,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
   }
 
   const paymentOutpoint = `${paymentTxId}.0`;
+  step('validated + payment parsed');
 
   const walletp2pkh = new WalletP2PKH(serverWallet);
   const walletP2pkhUnlockTemplate = walletp2pkh.unlock({
@@ -203,6 +208,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     if (!craftedItemMintActionRes.signableTransaction) {
       throw new Error('Failed to create signable crafted item mint transaction');
     }
+    step('createAction done (mint)');
 
     const craftedItemMintReference = craftedItemMintActionRes.signableTransaction.reference;
     const craftedItemTxToSign = Transaction.fromBEEF(craftedItemMintActionRes.signableTransaction.tx);
@@ -210,6 +216,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     craftedItemTxToSign.inputs[0].unlockingScriptTemplate = walletP2pkhUnlockTemplate;
     craftedItemTxToSign.inputs[0].sourceTransaction = paymentTransaction;
     await craftedItemTxToSign.sign();
+    step('local sign done (mint)');
 
     const craftedItemUnlockingScript = craftedItemTxToSign.inputs[0].unlockingScript;
     if (!craftedItemUnlockingScript) throw new Error('Missing unlocking script after signing crafted item');
@@ -220,10 +227,13 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     });
 
     if (!craftedItemMintAction.tx) throw new Error('Failed to sign crafted item mint action');
+    step('signAction done (mint) — token ready, overlay push fired off-path');
 
+    // Derive the txid locally from the signed tx — this IS what broadcastTX would
+    // report (it also just computes tx.id('hex')). The overlay push for this
+    // intermediate tx now happens off-path, after the response is sent.
     const craftedItemTx = Transaction.fromAtomicBEEF(craftedItemMintAction.tx);
-    const craftedItemBroadcast = await broadcastTX(craftedItemTx);
-    const craftedItemTxId = craftedItemBroadcast.txid!;
+    const craftedItemTxId = craftedItemTx.id('hex');
     const craftedItemOutpoint = `${craftedItemTxId}.0`;
 
     // Transfer tx: [materials + crafted item] → [crafted item to user + change tokens to user]
@@ -320,6 +330,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     if (!transferActionRes.signableTransaction) {
       throw new Error('Failed to create signable transfer transaction');
     }
+    step('createAction done (transfer)');
 
     const reference = transferActionRes.signableTransaction.reference;
     const txToSign = Transaction.fromBEEF(transferActionRes.signableTransaction.tx);
@@ -343,6 +354,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     txToSign.inputs[craftedInputIndex].sourceTransaction = craftedItemTx;
 
     await txToSign.sign();
+    step('local sign done (transfer)');
 
     const spends: Record<string, any> = {};
     for (let i = 0; i < txToSign.inputs.length; i++) {
@@ -354,12 +366,14 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     const transferAction = await serverWallet.signAction({ reference, spends });
 
     if (!transferAction.tx) throw new Error('Failed to sign transfer action');
+    step('signAction done (transfer) — token ready, overlay pushes fired off-path');
 
+    // Derive locally — same value broadcastTX would report.
     const transferTx = Transaction.fromAtomicBEEF(transferAction.tx);
-    const transferBroadcast = await broadcastTX(transferTx);
-    const transferTxId = transferBroadcast.txid!;
+    const transferTxId = transferTx.id('hex');
 
     return {
+      craftedItemMintActionTx: craftedItemMintAction.tx, // intermediate mint tx — pushed off-path too (Change 1, two-action route)
       transferActionTx: transferAction.tx,
       transferTxId,
       craftedItemOutpoint,
@@ -475,6 +489,7 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
       },
     );
   }
+  step('db written');
 
   // Build received[] aligned to transfer tx output indices
   const received: Array<{ outputIndex: number; keyId: string; counterparty: string; tags: string[] }> = [
@@ -498,6 +513,20 @@ craftingRouter.post('/mint-and-transfer', requireAuthProof('craft'), async (req:
     transferBeef: encodeBeef(Array.from(result.transferActionTx as Uint8Array)),
     received,
   });
+
+  // Fire-and-forget overlay pushes for BOTH txs (intermediate crafted-item mint +
+  // final transfer), off the response path and outside the wallet queue lock. Both
+  // are already on-chain (signAction); this only speeds up overlay-based lookups.
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(result.craftedItemMintActionTx)))
+    .catch((e) => {
+      console.error('[crafting:mint] overlay broadcast (mint) failed (non-blocking):', e);
+    });
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(result.transferActionTx)))
+    .catch((e) => {
+      console.error('[crafting:mint] overlay broadcast (transfer) failed (non-blocking):', e);
+    });
 });
 
 // Rerolls stat quality on crafted equipment using a Refine Stone.

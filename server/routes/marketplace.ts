@@ -26,6 +26,10 @@ export const marketplaceRouter = Router();
 marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async (req: Request, res: Response) => {
   const userId = req.userId as string;
 
+  // Per-step timing to localize purchase latency (cumulative ms from request start).
+  const t0 = Date.now();
+  const step = (label: string) => console.log(`[marketplace:purchase] ${label} +${Date.now() - t0}ms`);
+
   const { listingId, buyerIdentityKey, paymentTx, walletParams } = req.body;
 
   if (!listingId || !buyerIdentityKey || !paymentTx || !walletParams) {
@@ -99,6 +103,7 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
     res.status(400).json({ error: 'Invalid payment transaction' });
     return;
   }
+  step('validated + payment parsed');
 
   // ===== CREATE PURCHASE TRANSACTION =====
   // Wallet build + sign + broadcast; any failure here releases the claim back to 'active'.
@@ -240,6 +245,7 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
       if (!actionRes.signableTransaction) {
         throw new Error('Failed to create signable transaction');
       }
+      step('createAction done');
 
       // STEP 2: Sign - Generate unlocking scripts
       const reference = actionRes.signableTransaction.reference;
@@ -253,6 +259,7 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
 
       // Sign the transaction (this generates the OrdLock purchase unlocking script)
       await txToSign.sign();
+      step('local sign done');
 
       // Extract unlocking scripts
       const ordLockUnlockingScript = txToSign.inputs[0].unlockingScript;
@@ -274,14 +281,16 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
       if (!action.tx) {
         throw new Error('Failed to sign action');
       }
+      step('signAction done — token ready, overlay push fired off-path');
 
-      // Broadcast transaction
+      // Derive the txid locally from the signed tx — this IS what broadcastTX would
+      // report (it also just computes tx.id('hex')), so no need to await the overlay
+      // push here. The overlay push now happens off-path, after the response is sent.
       const tx = Transaction.fromAtomicBEEF(action.tx);
-      const broadcast = await broadcastTX(tx);
-      const txid = broadcast.txid;
+      const txid = tx.id('hex');
 
       if (!txid) {
-        throw new Error('Failed to get transaction ID from broadcast');
+        throw new Error('Failed to derive transaction ID from signed tx');
       }
 
       const buyerTokenId = `${txid}.0`;
@@ -362,6 +371,7 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
   } finally {
     await dbSession.endSession();
   }
+  step('db written');
 
   res.json({
     success: true,
@@ -375,6 +385,15 @@ marketplaceRouter.post('/purchase-listing', requireAuthProof('purchase'), async 
       tags: [listing.materialTokenId ? 'type:material' : 'type:item'],
     },
   });
+
+  // Fire-and-forget overlay push, off the response path and outside the wallet
+  // queue lock. The token is already on-chain (signAction); this only speeds up
+  // overlay-based lookups.
+  void Promise.resolve()
+    .then(() => broadcastTX(Transaction.fromAtomicBEEF(action.tx!)))
+    .catch((e) => {
+      console.error('[marketplace:purchase] overlay broadcast failed (non-blocking):', e);
+    });
 });
 
 // Fetch the requester's sold listings that have a claimable payout outpoint (sold-items inbox).
