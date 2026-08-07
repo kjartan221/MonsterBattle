@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import type { MonsterFrontend } from '@/lib/types';
+import type { MonsterFrontend } from '@shared/types';
 
 // ============================================================
 // CONFIGURABLE CONSTANTS (Easy to change for future iterations)

@@ -2,7 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { requireSession } from '@server/middleware/requireSession';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithGuard() {
   const app = express();

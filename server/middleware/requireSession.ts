@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { verifyJWT } from '@/utils/jwt';
+import { verifyJWT } from '@server/lib/jwt';
 
 /** Read the `verified` login-session JWT cookie; return its userId, or null if missing/invalid. */
 export async function getUserIdFromCookie(req: Request): Promise<string | null> {

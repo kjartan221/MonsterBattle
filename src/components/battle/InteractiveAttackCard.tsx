@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { InteractiveAttack } from '@/lib/types';
+import type { InteractiveAttack } from '@shared/types';
 
 interface InteractiveAttackCardProps {
   attack: InteractiveAttack;

@@ -4,19 +4,19 @@
 // The login-cookie test also replays the minted Set-Cookie against a real
 // requireSession-guarded probe route to prove end-to-end cookie compatibility.
 
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest.fn().mockResolvedValue({}),
   getServerPublicKey: jest.fn().mockResolvedValue('mock-derived-pubkey'),
   getServerIdentityPublicKey: jest.fn().mockResolvedValue('mock-identity-pubkey'),
 }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 const usersFindOne = jest.fn();
 const usersUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const usersInsertOne = jest.fn(async () => ({ insertedId: 'USER_OID' }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     usersCollection: {
       findOne: usersFindOne,
@@ -31,7 +31,7 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { authRouter } from '@server/routes/auth';
 import { requireSession } from '@server/middleware/requireSession';
-import { authServer } from '@/lib/authProof';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

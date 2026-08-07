@@ -1,5 +1,5 @@
-import { MonsterBuff, MonsterBuffType } from '@/lib/types';
-import { Tier } from '@/lib/biome-config';
+import { MonsterBuff, MonsterBuffType } from '@shared/types';
+import { Tier } from '@shared/biome-config';
 
 /**
  * Generate random buffs for a monster based on tier

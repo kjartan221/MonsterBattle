@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { WalletClient } from '@bsv/sdk';
 import { createWalletPayment } from '@/utils/createWalletPayment';
-import { internalizeToBasket } from '@/utils/internalizeToBasket';
-import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
+import { internalizeToBasket } from '@shared/internalizeToBasket';
+import { encodeBeef, decodeBeef } from '@shared/beefEncoding';
 import { createAuthProof } from '@/utils/authProofClient';
 
 /**

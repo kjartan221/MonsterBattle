@@ -4,7 +4,7 @@
  * Helper functions for working with item tiers
  */
 
-import { Tier } from '@/lib/biome-config';
+import { Tier } from '@shared/biome-config';
 
 /**
  * Convert tier number to Roman numerals

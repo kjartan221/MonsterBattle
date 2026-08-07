@@ -4,18 +4,18 @@
 
 import { Router, type Request, type Response } from 'express';
 import { ObjectId } from 'mongodb';
-import { connectToMongo } from '@/lib/mongodb';
-import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@/lib/monster-table';
-import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable, applyTierSpecialAttackScaling, getNextUnlock } from '@/lib/biome-config';
-import { generateMonsterBuffs } from '@/utils/monsterBuffs';
-import { getCorruptionRateForStreak, getMonsterRewards, checkLevelUp, getStreakRewardMultiplier, getTierRewardMultiplier, getTierCoinMultiplier } from '@/utils/playerProgression';
-import { getStreakForZone, resetStreakForZone } from '@/utils/streakHelpers';
-import { MonsterBuffType } from '@/lib/types';
-import { getRandomLoot, getLootItemById } from '@/lib/loot-table';
-import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
+import { connectToMongo } from '@server/lib/mongodb';
+import { getRandomMonsterTemplateForBiome, getRandomClicksRequired, getScaledAttackDamage } from '@shared/monster-table';
+import { BiomeId, Tier, formatBiomeTierKey, isBiomeTierAvailable, applyTierSpecialAttackScaling, getNextUnlock } from '@shared/biome-config';
+import { generateMonsterBuffs } from '@shared/monsterBuffs';
+import { getCorruptionRateForStreak, getMonsterRewards, checkLevelUp, getStreakRewardMultiplier, getTierRewardMultiplier, getTierCoinMultiplier } from '@shared/playerProgression';
+import { getStreakForZone, resetStreakForZone } from '@shared/streakHelpers';
+import { MonsterBuffType } from '@shared/types';
+import { getRandomLoot, getLootItemById } from '@shared/loot-table';
+import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@shared/equipmentCalculations';
 import type { EquippedItem } from '@/contexts/EquipmentContext';
-import { buildVictoryStatMutation, buildDefeatStatMutation } from '@/lib/battleOutcome';
-import { publicKeyToGradient } from '@/utils/publicKeyToColor';
+import { buildVictoryStatMutation, buildDefeatStatMutation } from '@shared/battleOutcome';
+import { publicKeyToGradient } from '@shared/publicKeyToColor';
 import { requireSession } from '@server/middleware/requireSession';
 
 const MAX_CLICKS_PER_SECOND = 20;

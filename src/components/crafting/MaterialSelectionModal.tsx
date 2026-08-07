@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CraftingRecipe, MaterialRequirement } from '@/lib/recipe-table';
-import { getLootItemById } from '@/lib/loot-table';
+import { CraftingRecipe, MaterialRequirement } from '@shared/recipe-table';
+import { getLootItemById } from '@shared/loot-table';
 import { TierBadge, EmpoweredBadge } from '@/components/badges';
 import toast from 'react-hot-toast';
 

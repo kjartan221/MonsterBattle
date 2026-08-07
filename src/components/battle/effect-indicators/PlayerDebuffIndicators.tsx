@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ActiveDebuff, DebuffType } from '@/lib/types';
+import type { ActiveDebuff, DebuffType } from '@shared/types';
 
 interface DebuffIndicatorsProps {
   debuffs: ActiveDebuff[];

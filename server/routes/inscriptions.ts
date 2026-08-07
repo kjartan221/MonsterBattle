@@ -2,11 +2,11 @@
 // Ported verbatim from src/app/api/inscriptions/apply/route.ts.
 
 import { Router, type Request, type Response } from 'express';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo } from '@server/lib/mongodb';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 import { ObjectId } from 'mongodb';
-import { getLootItemById } from '@/lib/loot-table';
-import { Inscription } from '@/lib/types';
+import { getLootItemById } from '@shared/loot-table';
+import { Inscription } from '@shared/types';
 
 export const inscriptionsRouter = Router();
 

@@ -1,6 +1,6 @@
 // _tests/reindexFromBasket.test.ts
-import { reindexFromBasket } from '../src/utils/reindexFromBasket';
-import { TOKEN_BASKET } from '../src/utils/internalizeToBasket';
+import { reindexFromBasket } from '../shared/reindexFromBasket';
+import { TOKEN_BASKET } from '../shared/internalizeToBasket';
 
 describe('reindexFromBasket', () => {
   it('maps listOutputs results into index records using customInstructions', async () => {

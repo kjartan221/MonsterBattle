@@ -11,7 +11,7 @@ const userInventoryUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const playerStatsFindOne = jest.fn();
 const playerStatsUpdateOne = jest.fn(async () => ({ matchedCount: 1 }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: {
       findOne: userInventoryFindOne,
@@ -31,7 +31,7 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { ObjectId } from 'mongodb';
 import { spellsRouter } from '@server/routes/spells';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithSpellsRouter() {
   const app = express();

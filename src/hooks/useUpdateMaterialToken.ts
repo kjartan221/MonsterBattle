@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { WalletClient, Transaction } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
 import { createWalletPayment } from '@/utils/createWalletPayment';
 import { getTransactionByTxID, broadcastTX } from './useOverlayFunctions';
-import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
-import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
-import { internalizeToBasket } from '@/utils/internalizeToBasket';
-import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
+import { fetchTokenSourceTx } from '@shared/fetchTokenSourceTx';
+import { encodeBeef, decodeBeef } from '@shared/beefEncoding';
+import { internalizeToBasket } from '@shared/internalizeToBasket';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@shared/tokenDerivation';
 import { createAuthProof } from '@/utils/authProofClient';
 
 /**

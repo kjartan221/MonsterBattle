@@ -1,6 +1,6 @@
 'use client';
 
-import { BIOMES, BiomeId, Tier, formatBiomeTierKey } from '@/lib/biome-config';
+import { BIOMES, BiomeId, Tier, formatBiomeTierKey } from '@shared/biome-config';
 import { useBiome } from '@/contexts/BiomeContext';
 import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { LootItem } from '@/lib/loot-table';
-import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import type { LootItem } from '@shared/loot-table';
+import { tierToRoman, getTierBadgeClassName } from '@shared/tierUtils';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
 

@@ -5,11 +5,11 @@ import { WalletClient, Transaction, Script } from '@bsv/sdk';
 import { createWalletPayment } from '@/utils/createWalletPayment';
 import toast from 'react-hot-toast';
 import { WalletOrdLock } from '@bsv/wallet-helper';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
-import { generateNonce, deriveOwnKey, TOKEN_PROTOCOL } from '@/utils/tokenDerivation';
-import { encodeBeef, decodeBeef } from '@/utils/beefEncoding';
-import { internalizeToBasket } from '@/utils/internalizeToBasket';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
+import { broadcastTX, getTransactionByTxID } from '@shared/overlayFunctions';
+import { generateNonce, deriveOwnKey, TOKEN_PROTOCOL } from '@shared/tokenDerivation';
+import { encodeBeef, decodeBeef } from '@shared/beefEncoding';
+import { internalizeToBasket } from '@shared/internalizeToBasket';
 import { createAuthProof } from '@/utils/authProofClient';
 
 interface MarketplaceItemDetailsModalProps {

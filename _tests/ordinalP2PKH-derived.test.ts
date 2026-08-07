@@ -1,11 +1,11 @@
 import { Transaction, PrivateKey, MerklePath, Script } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '../src/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '../shared/ordinalP2PKH';
 import { makeWallet } from './helpers/mockWallet';
 import {
   TOKEN_PROTOCOL,
   generateNonce,
   deriveRecipientKey,
-} from '../src/utils/tokenDerivation';
+} from '../shared/tokenDerivation';
 
 const storageURL = 'https://store-us-1.bsvb.tech';
 

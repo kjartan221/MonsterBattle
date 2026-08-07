@@ -18,7 +18,7 @@ const materialTokensFind = jest.fn(() => ({ toArray: materialTokensToArray }));
 const marketplaceItemsToArray = jest.fn(async () => [] as any[]);
 const marketplaceItemsFind = jest.fn(() => ({ toArray: marketplaceItemsToArray }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: { find: userInventoryFind },
     nftLootCollection: { find: nftLootFind },
@@ -31,7 +31,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { inventoryRouter } from '@server/routes/inventory';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithInventoryRouter() {
   const app = express();

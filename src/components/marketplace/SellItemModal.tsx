@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { WalletClient, PublicKey, Transaction } from '@bsv/sdk';
 import { WalletOrdLock } from '@bsv/wallet-helper';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
 import { usePlayer } from '@/contexts/PlayerContext';
 import toast from 'react-hot-toast';
-import { broadcastTX } from '@/utils/overlayFunctions';
-import { fetchTokenSourceTx } from '@/utils/fetchTokenSourceTx';
-import { TOKEN_PROTOCOL, generateNonce, deriveOwnKey } from '@/utils/tokenDerivation';
-import { encodeBeef } from '@/utils/beefEncoding';
+import { broadcastTX } from '@shared/overlayFunctions';
+import { fetchTokenSourceTx } from '@shared/fetchTokenSourceTx';
+import { TOKEN_PROTOCOL, generateNonce, deriveOwnKey } from '@shared/tokenDerivation';
+import { encodeBeef } from '@shared/beefEncoding';
 import { createAuthProof } from '@/utils/authProofClient';
 
 interface SellItemModalProps {

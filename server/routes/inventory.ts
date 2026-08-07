@@ -3,8 +3,8 @@
 // and on-chain mint info. Ported verbatim from src/app/api/inventory/get/route.ts.
 
 import { Router, type Request, type Response } from 'express';
-import { connectToMongo } from '@/lib/mongodb';
-import { getLootItemById } from '@/lib/loot-table';
+import { connectToMongo } from '@server/lib/mongodb';
+import { getLootItemById } from '@shared/loot-table';
 import { requireSession } from '@server/middleware/requireSession';
 
 export const inventoryRouter = Router();

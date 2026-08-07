@@ -8,26 +8,26 @@
 // connectToMongo, @bsv/sdk, and @bsv/wallet-helper are mocked so the list-item BEEF/OrdLock
 // validation can be driven deterministically without touching real crypto.
 
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest.fn().mockResolvedValue({}),
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
 }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn(async () => ({ enqueue: jest.fn() })) }));
-jest.mock('@/utils/ordinalP2PKH', () => ({ OrdinalsP2PKH: class {} }));
-jest.mock('@/utils/overlayFunctions', () => ({
+jest.mock('@shared/ordinalP2PKH', () => ({ OrdinalsP2PKH: class {} }));
+jest.mock('@shared/overlayFunctions', () => ({
   broadcastTX: jest.fn(),
   getTransactionByTxID: jest.fn(),
 }));
-jest.mock('@/utils/tokenDerivation', () => ({
+jest.mock('@shared/tokenDerivation', () => ({
   generateNonce: jest.fn(() => 'NONCE'),
   deriveRecipientKey: jest.fn(),
 }));
 
 const decodeBeef = jest.fn(() => [1, 2, 3]);
-jest.mock('@/utils/beefEncoding', () => ({ decodeBeef, encodeBeef: jest.fn(() => 'B64') }));
+jest.mock('@shared/beefEncoding', () => ({ decodeBeef, encodeBeef: jest.fn(() => 'B64') }));
 
 const ordLockLock = jest.fn();
 jest.mock('@bsv/wallet-helper', () => ({
@@ -66,7 +66,7 @@ const userInventoryUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const materialTokensFindOne = jest.fn();
 const materialTokensUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     marketplaceItemsCollection: {
       find: itemsFind,
@@ -92,8 +92,8 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { ObjectId } from 'mongodb';
 import { marketplaceRouter } from '@server/routes/marketplace';
-import { createJWT } from '@/utils/jwt';
-import { authServer } from '@/lib/authProof';
+import { createJWT } from '@server/lib/jwt';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

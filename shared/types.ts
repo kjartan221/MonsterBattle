@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
-import { BiomeId, Tier } from './biome-config';
-import { EquipmentStats } from './loot-table';
+import type { ObjectId } from 'mongodb';
+import { BiomeId, Tier } from '@shared/biome-config';
+import { EquipmentStats, LootItem } from '@shared/loot-table';
 
 // ========== MongoDB Documents (Backend) ==========
 
@@ -68,6 +68,21 @@ export type InscriptionType =
   | 'autoclick';  // +autoClickRate (legendary only, boss drops)
 
 // Inscription data structure (stored in loot-table.ts for inscription scrolls)
+export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
+
+export interface EquippedItem {
+  inventoryId: string; // UserInventory._id
+  lootTableId: string;
+  tier: number; // Which tier this item is (1-5)
+  slot: EquipmentSlot;
+  lootItem: LootItem; // Full item data from loot-table
+  crafted?: boolean; // Whether the item was crafted
+  statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
+  isEmpowered?: boolean; // Dropped from corrupted monster (+20% to all stats)
+  prefix?: Inscription; // Phase 3.4: Prefix inscription
+  suffix?: Inscription; // Phase 3.4: Suffix inscription
+}
+
 export interface InscriptionData {
   inscriptionType: InscriptionType;
   statValue: number; // 3, 5, 8, 12 (normal), or special values for lifesteal/autoclick

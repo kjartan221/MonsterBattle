@@ -1,9 +1,8 @@
-import type { EquippedItem } from '@/contexts/EquipmentContext';
-import { scaleItemStats } from '@/utils/itemTierScaling';
-import type { Tier } from '@/lib/biome-config';
-import type { Inscription } from '@/lib/types';
-import type { EquipmentStats } from '@/lib/loot-table';
-import { formatStatValue } from '@/utils/statFormat';
+import { scaleItemStats } from '@shared/itemTierScaling';
+import type { Tier } from '@shared/biome-config';
+import type { EquippedItem, Inscription } from '@shared/types';
+import type { EquipmentStats } from '@shared/loot-table';
+import { formatStatValue } from '@shared/statFormat';
 
 export interface TotalEquipmentStats {
   damageBonus: number;

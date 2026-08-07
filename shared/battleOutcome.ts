@@ -1,6 +1,6 @@
-import type { BiomeId, Tier } from '@/lib/biome-config';
-import type { PlayerStats } from '@/lib/types';
-import { incrementStreakForZone, resetStreakForZone, getStreakForZone, initializeStreaks } from '@/utils/streakHelpers';
+import type { BiomeId, Tier } from '@shared/biome-config';
+import type { PlayerStats } from '@shared/types';
+import { incrementStreakForZone, resetStreakForZone, getStreakForZone, initializeStreaks } from '@shared/streakHelpers';
 
 export const DEATH_PENALTY_RATE = 0.10;
 

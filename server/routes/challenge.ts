@@ -5,7 +5,7 @@
 // src/contexts/ChallengeContext.tsx).
 
 import { Router, type Request, type Response } from 'express';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo } from '@server/lib/mongodb';
 import { requireSession } from '@server/middleware/requireSession';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 

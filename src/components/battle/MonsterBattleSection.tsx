@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
-import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
-import type { LootItem } from '@/lib/loot-table';
-import { getLootItemsByIds } from '@/lib/loot-table';
-import { BiomeId, Tier, getBiomeTierDisplayName } from '@/lib/biome-config';
+import type { MonsterFrontend, BattleSessionFrontend } from '@shared/types';
+import type { LootItem } from '@shared/loot-table';
+import { getLootItemsByIds } from '@shared/loot-table';
+import { BiomeId, Tier, getBiomeTierDisplayName } from '@shared/biome-config';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
@@ -17,9 +17,9 @@ import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
 import { useSkillShot } from '@/hooks/useSkillShot';
-import type { DebuffEffect, SpecialAttack } from '@/lib/types';
-import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate, calculateMonsterDamage } from '@/utils/equipmentCalculations';
-import { getSkillshotConfig } from '@/utils/skillshotUtils';
+import type { DebuffEffect, SpecialAttack } from '@shared/types';
+import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate, calculateMonsterDamage } from '@shared/equipmentCalculations';
+import { getSkillshotConfig } from '@shared/skillshotUtils';
 import LootSelectionModal from '@/components/battle/LootSelectionModal';
 import CheatDetectionModal from '@/components/battle/CheatDetectionModal';
 import BattleStartScreen from '@/components/battle/BattleStartScreen';
@@ -56,7 +56,7 @@ interface MonsterBattleSectionProps {
   clearDebuffs: () => void;
   spellDamageHandler?: React.MutableRefObject<((spellData: SpellCastData) => void) | null>; // Phase 2.6: Ref to spell damage handler
   activeBuffs?: import('@/types/buffs').Buff[]; // Phase 2.6: Active player buffs for crit multiplier calculation
-  activeDebuffs?: import('@/lib/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
+  activeDebuffs?: import('@shared/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
   damageShield: (amount: number) => number; // Phase 2.6: Shield damage absorption function
   healingReportHandler?: React.MutableRefObject<((amount: number) => void) | null>; // Report healing for cheat detection
   buffReportHandler?: React.MutableRefObject<((buffType: string, buffValue: number) => void) | null>; // Report buffs for cheat detection

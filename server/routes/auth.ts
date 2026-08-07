@@ -3,11 +3,11 @@
 // Ported verbatim from src/app/api/{login,logout,check-session,server-public-key,server-identity-key}/route.ts.
 
 import { Router, type Request, type Response } from 'express';
-import { connectToMongo } from '@/lib/mongodb';
-import { createJWT, verifyJWT } from '@/utils/jwt';
-import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@/lib/serverWallet';
-import { authServer } from '@/lib/authProof';
-import { consumeNonce } from '@/lib/authNonceStore';
+import { connectToMongo } from '@server/lib/mongodb';
+import { createJWT, verifyJWT } from '@server/lib/jwt';
+import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@server/lib/serverWallet';
+import { authServer } from '@shared/authProof';
+import { consumeNonce } from '@server/lib/authNonceStore';
 
 export const authRouter = Router();
 

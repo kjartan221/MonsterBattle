@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import type { MonsterFrontend } from '@/lib/types';
+import type { MonsterFrontend } from '@shared/types';
 
 interface UseMonsterHPProps {
   monster: MonsterFrontend | null;

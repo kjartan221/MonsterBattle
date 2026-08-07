@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { CraftingRecipe, getAllRecipes } from '@/lib/recipe-table';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
+import { CraftingRecipe, getAllRecipes } from '@shared/recipe-table';
+import { getLootItemById, LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
 import CraftingItemDetailsModal from './CraftingItemDetailsModal';
 import CraftedItemModal from './CraftedItemModal';
 import MaterialSelectionModal from './MaterialSelectionModal';
-import { getStatRollQuality } from '@/utils/statRollUtils';
-import { publicKeyToGradient } from '@/utils/publicKeyToColor';
+import { getStatRollQuality } from '@shared/statRollUtils';
+import { publicKeyToGradient } from '@shared/publicKeyToColor';
 import { useCraftItemNFT } from '@/hooks/useCraftItemNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
 import NavigationButtons from '@/components/navigation/NavigationButtons';

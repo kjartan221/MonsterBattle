@@ -4,8 +4,8 @@
 
 import { Router, type Request, type Response } from 'express';
 import { ObjectId } from 'mongodb';
-import { connectToMongo, getClient } from '@/lib/mongodb';
-import { getLootItemById } from '@/lib/loot-table';
+import { connectToMongo, getClient } from '@server/lib/mongodb';
+import { getLootItemById } from '@shared/loot-table';
 import { requireSession } from '@server/middleware/requireSession';
 
 export const consumablesRouter = Router();

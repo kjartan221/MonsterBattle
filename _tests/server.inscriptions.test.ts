@@ -5,9 +5,9 @@
 // are mocked, mirroring _tests/server.challenge.test.ts.
 // connectToMongo and getLootItemById are mocked per test.
 
-jest.mock('@/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@server/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 const playerStatsFindOne = jest.fn();
 const playerStatsUpdateOne = jest.fn(async () => ({ matchedCount: 1 }));
@@ -15,7 +15,7 @@ const userInventoryFindOne = jest.fn();
 const userInventoryUpdateOne = jest.fn(async () => ({ matchedCount: 1 }));
 const userInventoryDeleteOne = jest.fn(async () => ({ deletedCount: 1 }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     playerStatsCollection: { findOne: playerStatsFindOne, updateOne: playerStatsUpdateOne },
     userInventoryCollection: {
@@ -27,15 +27,15 @@ jest.mock('@/lib/mongodb', () => ({
 }));
 
 const getLootItemById = jest.fn();
-jest.mock('@/lib/loot-table', () => ({ getLootItemById }));
+jest.mock('@shared/loot-table', () => ({ getLootItemById }));
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { ObjectId } from 'mongodb';
 import { inscriptionsRouter } from '@server/routes/inscriptions';
-import { createJWT } from '@/utils/jwt';
-import { authServer } from '@/lib/authProof';
+import { createJWT } from '@server/lib/jwt';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

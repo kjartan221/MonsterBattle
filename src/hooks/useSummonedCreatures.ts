@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { SummonedCreature, SummonDefinition, MonsterFrontend } from '@/lib/types';
-import { TIER_DAMAGE_MULTIPLIERS, type Tier } from '@/lib/biome-config';
+import type { SummonedCreature, SummonDefinition, MonsterFrontend } from '@shared/types';
+import { TIER_DAMAGE_MULTIPLIERS, type Tier } from '@shared/biome-config';
 
 interface UseSummonedCreaturesProps {
   monster: MonsterFrontend | null;

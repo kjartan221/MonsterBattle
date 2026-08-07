@@ -1,25 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
-import type { Inscription } from '@/lib/types';
+import { getLootItemById } from '@shared/loot-table';
+import type { EquipmentSlot, EquippedItem } from '@shared/types';
 import { useAuthContext } from './WalletContext';
 import { createAuthProof } from '@/utils/authProofClient';
 
-export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
-
-export interface EquippedItem {
-  inventoryId: string; // UserInventory._id
-  lootTableId: string;
-  tier: number; // Which tier this item is (1-5)
-  slot: EquipmentSlot;
-  lootItem: LootItem; // Full item data from loot-table
-  crafted?: boolean; // Whether the item was crafted
-  statRoll?: number; // Stat roll multiplier (0.8 to 1.2) for crafted items
-  isEmpowered?: boolean; // Dropped from corrupted monster (+20% to all stats)
-  prefix?: Inscription; // Phase 3.4: Prefix inscription
-  suffix?: Inscription; // Phase 3.4: Suffix inscription
-}
+export type { EquipmentSlot, EquippedItem };
 
 interface EquipmentContextType {
   equippedWeapon: EquippedItem | null;

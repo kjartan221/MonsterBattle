@@ -10,7 +10,7 @@ const nftInsertOne = jest.fn(async () => ({ insertedId: 'NFT_OID' }));
 const inventoryInsertOne = jest.fn(async () => ({ insertedId: 'INV_OID' }));
 const materialDeleteOne = jest.fn(async () => ({ deletedCount: 1 }));
 const materialUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: { insertOne: inventoryInsertOne },
     nftLootCollection: { insertOne: nftInsertOne },
@@ -20,7 +20,7 @@ jest.mock('@/lib/mongodb', () => ({
 
 // Pre-lock reads use the SAME singleton wallet the queue serializes over — mock
 // getServerWallet() to resolve to the exact stubWallet passed into enqueue.
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest.fn(async () => stubWallet),
   getServerPublicKey: jest.fn(async () => 'LEGACY_PK'),
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
@@ -29,17 +29,17 @@ jest.mock('@/lib/serverWallet', () => ({
 // broadcastTX is now fire-and-forget off-path (txids are derived locally, not from
 // its return value) — default to a resolving promise so `.catch()` on the call site
 // never throws synchronously on an undefined return.
-jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'OVERLAY_TXID' })) }));
-jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
+jest.mock('@shared/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'OVERLAY_TXID' })) }));
+jest.mock('@shared/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
 
 let nonceQueue: string[] = [];
-jest.mock('@/utils/tokenDerivation', () => ({
+jest.mock('@shared/tokenDerivation', () => ({
   TOKEN_PROTOCOL: [2, 'monsterbattle token'],
   generateNonce: jest.fn(() => nonceQueue.shift() ?? 'NONCE_FALLBACK'),
   deriveRecipientKey: jest.fn(async () => 'USERKEY'),
   deriveSelfKey: jest.fn(async () => 'MINTKEY'),
 }));
-jest.mock('@/utils/ordinalP2PKH', () => ({
+jest.mock('@shared/ordinalP2PKH', () => ({
   OrdinalsP2PKH: class {
     lock() { return { toHex: () => 'LOCKHEX' }; }
     unlock() { return { estimateLength: async () => 100 }; }
@@ -59,7 +59,7 @@ jest.mock('@bsv/sdk', () => ({
 import request from 'supertest';
 import { buildApp } from '@server/app';
 import { Transaction } from '@bsv/sdk';
-import { broadcastTX } from '@/utils/overlayFunctions';
+import { broadcastTX } from '@shared/overlayFunctions';
 
 const stubWallet = {
   createAction: jest.fn(),

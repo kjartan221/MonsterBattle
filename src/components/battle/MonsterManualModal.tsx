@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { MONSTER_TEMPLATES, getMonstersForBiome } from '@/lib/monster-table';
-import { getMonsterSpecificDrops, LootItem } from '@/lib/loot-table';
-import { BIOMES, BiomeId } from '@/lib/biome-config';
+import { MONSTER_TEMPLATES, getMonstersForBiome } from '@shared/monster-table';
+import { getMonsterSpecificDrops, LootItem } from '@shared/loot-table';
+import { BIOMES, BiomeId } from '@shared/biome-config';
 
 interface MonsterManualModalProps {
   onClose: () => void;

@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import toast from 'react-hot-toast';
-import type { BiomeId, Tier } from '@/lib/biome-config';
-import { getStreakForZone, migrateLegacyStreak } from '@/utils/streakHelpers';
+import type { BiomeId, Tier } from '@shared/biome-config';
+import { getStreakForZone, migrateLegacyStreak } from '@shared/streakHelpers';
 import { useAuthContext } from './WalletContext';
 
 export interface PlayerStats {

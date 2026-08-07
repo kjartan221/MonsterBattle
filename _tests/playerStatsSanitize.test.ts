@@ -1,4 +1,4 @@
-import { sanitizePlayerStatsUpdate } from '@/lib/playerStatsSanitize';
+import { sanitizePlayerStatsUpdate } from '@server/lib/playerStatsSanitize';
 
 describe('sanitizePlayerStatsUpdate', () => {
   it('accepts only currentHealth, coerced to a clamped non-negative integer', () => {

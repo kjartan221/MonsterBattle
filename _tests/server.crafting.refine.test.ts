@@ -7,9 +7,9 @@
 // connectToMongo + getClient are mocked with the transactional harness from
 // _tests/server.marketplace.purchase.test.ts (withTransaction runs its callback inline).
 
-jest.mock('@/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@server/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 const targetFindOne = jest.fn();
 const refineStoneFindOne = jest.fn();
@@ -28,14 +28,14 @@ const startSession = jest.fn(() => ({
 }));
 const getClient = jest.fn(async () => ({ startSession }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: { findOne: userInventoryFindOne, deleteOne, updateOne },
   })),
   getClient,
 }));
 
-jest.mock('@/lib/loot-table', () => ({
+jest.mock('@shared/loot-table', () => ({
   getLootItemById: jest.fn((lootTableId: string) => {
     if (lootTableId === 'iron_sword') {
       return { lootId: 'iron_sword', name: 'Iron Sword', equipmentStats: { damageBonus: 10, critChance: 5 } };
@@ -49,8 +49,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { ObjectId } from 'mongodb';
 import { craftingRouter } from '@server/routes/crafting';
-import { createJWT } from '@/utils/jwt';
-import { authServer } from '@/lib/authProof';
+import { createJWT } from '@server/lib/jwt';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

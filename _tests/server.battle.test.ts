@@ -14,7 +14,7 @@ const playerStatsUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const userInventoryFindOne = jest.fn();
 const userInventoryInsertOne = jest.fn(async () => ({ insertedId: 'INV_OID' }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     battleSessionsCollection: {
       findOne: battleSessionsFindOne,
@@ -32,7 +32,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { battleRouter } from '@server/routes/battle';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithBattleRouter() {
   const app = express();

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
+import { getLootItemById, LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
-import { colorToRGBA } from '@/utils/publicKeyToColor';
-import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import { colorToRGBA } from '@shared/publicKeyToColor';
+import { tierToRoman, getTierBadgeClassName } from '@shared/tierUtils';
 
 interface UserInventoryItem {
   _id: string;

@@ -8,7 +8,7 @@ const playerStatsFindOne = jest.fn();
 const playerStatsUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const playerStatsInsertOne = jest.fn(async () => ({ insertedId: 'STATS_OID' }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     playerStatsCollection: {
       findOne: playerStatsFindOne,
@@ -22,7 +22,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { playerRouter } from '@server/routes/player';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithPlayerRouter() {
   const app = express();

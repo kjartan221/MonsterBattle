@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import type { LootItem } from '@/lib/loot-table';
-import type { MonsterFrontend, BattleSessionFrontend } from '@/lib/types';
+import type { LootItem } from '@shared/loot-table';
+import type { MonsterFrontend, BattleSessionFrontend } from '@shared/types';
 
 /**
  * Game State Management

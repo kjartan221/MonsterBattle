@@ -9,31 +9,31 @@ jest.mock('@server/middleware/requireAuthProof', () => ({
   requireAuthProof: () => (_req: any, _res: any, next: any) => next(),
 }));
 jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn() }));
-jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn(), getTransactionByTxID: jest.fn() }));
+jest.mock('@shared/overlayFunctions', () => ({ broadcastTX: jest.fn(), getTransactionByTxID: jest.fn() }));
 jest.mock('@bsv/wallet-helper', () => ({ WalletP2PKH: class {} }));
 
 const findOne = jest.fn();
 const insertOne = jest.fn(async () => ({ insertedId: 'NFT_OID' }));
 const updateOne = jest.fn(async () => ({ matchedCount: 1 }));
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: { findOne, updateOne },
     nftLootCollection: { insertOne },
   })),
 }));
 
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest.fn(async () => ({})),
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
 }));
-jest.mock('@/utils/tokenDerivation', () => ({
+jest.mock('@shared/tokenDerivation', () => ({
   generateNonce: jest.fn(() => 'NONCE'),
   deriveRecipientKey: jest.fn(async () => 'USERKEY'),
 }));
-jest.mock('@/utils/ordinalP2PKH', () => ({
+jest.mock('@shared/ordinalP2PKH', () => ({
   OrdinalsP2PKH: class { lock() { return { toHex: () => 'EXPECTED_SCRIPT' }; } },
 }));
-jest.mock('@/utils/beefEncoding', () => ({
+jest.mock('@shared/beefEncoding', () => ({
   decodeBeef: jest.fn(() => [1, 2, 3]),
   encodeBeef: jest.fn(() => 'BEEF_B64'),
 }));

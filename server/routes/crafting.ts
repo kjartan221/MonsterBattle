@@ -14,13 +14,13 @@ import { Transaction, P2PKH, Beef, Hash } from '@bsv/sdk';
 import { WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 import { getWalletQueue } from '@server/lib/walletQueue';
-import { connectToMongo, getClient } from '@/lib/mongodb';
-import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@/lib/serverWallet';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX } from '@/utils/overlayFunctions';
-import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
-import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveSelfKey } from '@/utils/tokenDerivation';
-import { getLootItemById } from '@/lib/loot-table';
+import { connectToMongo, getClient } from '@server/lib/mongodb';
+import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@server/lib/serverWallet';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
+import { broadcastTX } from '@shared/overlayFunctions';
+import { decodeBeef, encodeBeef } from '@shared/beefEncoding';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveSelfKey } from '@shared/tokenDerivation';
+import { getLootItemById } from '@shared/loot-table';
 
 export const craftingRouter = Router();
 

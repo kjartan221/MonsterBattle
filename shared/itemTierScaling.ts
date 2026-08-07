@@ -5,7 +5,7 @@
  * This prevents "number inflation" and forces strategic item combinations.
  */
 
-import type { Tier } from '@/lib/biome-config';
+import type { Tier } from '@shared/biome-config';
 
 /**
  * Item tier multipliers (moderate scaling for hybrid approach)

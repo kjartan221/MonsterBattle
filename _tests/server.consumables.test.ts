@@ -23,7 +23,7 @@ const startSession = jest.fn(() => ({
 }));
 const getClient = jest.fn(async () => ({ startSession }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     userInventoryCollection: {
       find: userInventoryFind,
@@ -42,7 +42,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { consumablesRouter } from '@server/routes/consumables';
-import { createJWT } from '@/utils/jwt';
+import { createJWT } from '@server/lib/jwt';
 
 function appWithConsumablesRouter() {
   const app = express();

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/WalletContext';
 import toast from 'react-hot-toast';
-import { authClient } from '@/lib/authProof';
+import { authClient } from '@shared/authProof';
 
 export default function LoginPage() {
   const router = useRouter();

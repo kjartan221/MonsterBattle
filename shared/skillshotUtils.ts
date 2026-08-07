@@ -9,7 +9,7 @@
  * - Spawn rate stays consistent (handled by cooldowns)
  */
 
-import type { Tier } from '@/lib/biome-config';
+import type { Tier } from '@shared/biome-config';
 
 export type MonsterRarity = 'common' | 'rare' | 'epic' | 'legendary';
 

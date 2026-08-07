@@ -1,8 +1,8 @@
-jest.mock('@/lib/mongodb', () => ({ connectToMongo: jest.fn() }));
+jest.mock('@server/lib/mongodb', () => ({ connectToMongo: jest.fn() }));
 jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn() }));
 
 import { boot } from '@server/boot';
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo } from '@server/lib/mongodb';
 import { getWalletQueue } from '@server/lib/walletQueue';
 
 const mockMongo = connectToMongo as jest.Mock;

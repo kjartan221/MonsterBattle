@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
+import { getLootItemById, LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
-import { colorToRGBA } from '@/utils/publicKeyToColor';
-import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import { colorToRGBA } from '@shared/publicKeyToColor';
+import { tierToRoman, getTierBadgeClassName } from '@shared/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
-import { getInscribedItemName } from '@/utils/itemNameHelpers';
-import type { Inscription } from '@/lib/types';
-import { getDisplayEquipmentStats } from '@/utils/equipmentCalculations';
+import { getInscribedItemName } from '@shared/itemNameHelpers';
+import type { Inscription } from '@shared/types';
+import { getDisplayEquipmentStats } from '@shared/equipmentCalculations';
 
 interface UserInventoryItem {
   _id: string;

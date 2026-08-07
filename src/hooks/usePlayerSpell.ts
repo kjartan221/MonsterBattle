@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
+import { getLootItemById, LootItem } from '@shared/loot-table';
 
 interface SpellSlot {
   spellId: string | null;           // Spell ID (e.g., 'minor_heal', 'fireball')

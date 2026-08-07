@@ -1,5 +1,5 @@
 import { MongoClient, ServerApiVersion, Db, Collection, Document } from 'mongodb';
-import type { User, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken, MarketplaceItem, MarketplaceListingBeef, BattleHistory } from './types';
+import type { User, NFTLoot, UserInventory, BattleSession, PlayerStats, MaterialToken, MarketplaceItem, MarketplaceListingBeef, BattleHistory } from '@shared/types';
 
 // Extract database name from URI
 function getDatabaseNameFromUri(connectionUri: string): string {

@@ -21,7 +21,7 @@ const startSession = jest.fn(() => ({
 }));
 const getClient = jest.fn(async () => ({ startSession }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     marketplaceItemsCollection: { findOneAndUpdate, updateOne: itemsUpdateOne },
     marketplaceListingBeefsCollection: { findOne: beefsFindOne, deleteOne: beefsDeleteOne },
@@ -32,20 +32,20 @@ jest.mock('@/lib/mongodb', () => ({
   getClient,
 }));
 
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID'),
 }));
 
-jest.mock('@/utils/overlayFunctions', () => ({
+jest.mock('@shared/overlayFunctions', () => ({
   broadcastTX: jest.fn(async () => ({ txid: 'PTX' })),
   getTransactionByTxID: jest.fn(),
 }));
-jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
-jest.mock('@/utils/tokenDerivation', () => ({
+jest.mock('@shared/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
+jest.mock('@shared/tokenDerivation', () => ({
   generateNonce: jest.fn(() => 'NONCE'),
   deriveRecipientKey: jest.fn(async () => 'BUYERKEY'),
 }));
-jest.mock('@/utils/ordinalP2PKH', () => ({
+jest.mock('@shared/ordinalP2PKH', () => ({
   OrdinalsP2PKH: class {
     lock() { return { toHex: () => 'TRANSFERLOCK' }; }
   },
@@ -78,8 +78,8 @@ jest.mock('@bsv/sdk', () => ({
 import request from 'supertest';
 import { buildApp } from '@server/app';
 import { Transaction } from '@bsv/sdk';
-import { broadcastTX } from '@/utils/overlayFunctions';
-import { decodeBeef } from '@/utils/beefEncoding';
+import { broadcastTX } from '@shared/overlayFunctions';
+import { decodeBeef } from '@shared/beefEncoding';
 
 const stubWallet = {
   createAction: jest.fn(),

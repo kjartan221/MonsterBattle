@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LootItem } from '@/lib/loot-table';
+import { LootItem } from '@shared/loot-table';
 import InventoryDetailsModal from './InventoryDetailsModal';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
 import toast from 'react-hot-toast';
-import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import { tierToRoman, getTierBadgeClassName } from '@shared/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 import EmpoweredBadge from '@/components/badges/EmpoweredBadge';
-import { getInscribedItemName } from '@/utils/itemNameHelpers';
-import type { Inscription } from '@/lib/types';
+import { getInscribedItemName } from '@shared/itemNameHelpers';
+import type { Inscription } from '@shared/types';
 
 interface InventoryItem extends LootItem {
   tier: number; // Which tier this item dropped from (1-5)

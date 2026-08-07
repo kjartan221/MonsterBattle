@@ -9,18 +9,18 @@ jest.mock('@server/lib/walletQueue', () => ({ getWalletQueue: jest.fn(async () =
 const findOne = jest.fn();
 const insertOne = jest.fn(async () => ({ insertedId: 'MATERIAL_TOKEN_OID' }));
 const deleteMany = jest.fn(async () => ({ deletedCount: 2 }));
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     materialTokensCollection: { findOne, insertOne },
     userInventoryCollection: { deleteMany },
   })),
 }));
 
-jest.mock('@/lib/serverWallet', () => ({ getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID') }));
-jest.mock('@/utils/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'MINTTX' })) }));
-jest.mock('@/utils/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
-jest.mock('@/utils/tokenDerivation', () => ({ generateNonce: jest.fn(() => 'NONCE'), deriveRecipientKey: jest.fn(async () => 'USERKEY') }));
-jest.mock('@/utils/ordinalP2PKH', () => ({ OrdinalsP2PKH: class { lock() { return { toHex: () => 'LOCKHEX' }; } } }));
+jest.mock('@server/lib/serverWallet', () => ({ getServerIdentityPublicKey: jest.fn(async () => 'SERVER_ID') }));
+jest.mock('@shared/overlayFunctions', () => ({ broadcastTX: jest.fn(async () => ({ txid: 'MINTTX' })) }));
+jest.mock('@shared/beefEncoding', () => ({ decodeBeef: jest.fn(() => [1, 2, 3]), encodeBeef: jest.fn(() => 'BEEF_B64') }));
+jest.mock('@shared/tokenDerivation', () => ({ generateNonce: jest.fn(() => 'NONCE'), deriveRecipientKey: jest.fn(async () => 'USERKEY') }));
+jest.mock('@shared/ordinalP2PKH', () => ({ OrdinalsP2PKH: class { lock() { return { toHex: () => 'LOCKHEX' }; } } }));
 jest.mock('@bsv/wallet-helper', () => ({ WalletP2PKH: class { unlock() { return { estimateLength: async () => 100 }; } } }));
 jest.mock('@bsv/sdk', () => ({
   Transaction: {
@@ -34,7 +34,7 @@ jest.mock('@bsv/sdk', () => ({
 import request from 'supertest';
 import { buildApp } from '@server/app';
 import { Transaction } from '@bsv/sdk';
-import { broadcastTX } from '@/utils/overlayFunctions';
+import { broadcastTX } from '@shared/overlayFunctions';
 
 const stubWallet = {
   createAction: jest.fn(async () => ({ signableTransaction: { reference: 'REF', tx: [7, 7] } })),

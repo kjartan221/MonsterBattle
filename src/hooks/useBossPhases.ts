@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import type { MonsterFrontend, BossPhase, SpecialAttack } from '@/lib/types';
+import type { MonsterFrontend, BossPhase, SpecialAttack } from '@shared/types';
 
 interface UseBossPhasesProps {
   monster: MonsterFrontend | null;

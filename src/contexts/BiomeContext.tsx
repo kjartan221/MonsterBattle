@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { BiomeId, Tier } from '@/lib/biome-config';
+import { BiomeId, Tier } from '@shared/biome-config';
 
 interface BiomeContextType {
   selectedBiome: BiomeId | null;

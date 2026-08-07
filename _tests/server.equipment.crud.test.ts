@@ -7,9 +7,9 @@
 // mirroring _tests/server.challenge.test.ts. connectToMongo is mocked per test.
 // @/lib/loot-table is NOT mocked — it is pure data, so real lookups are used.
 
-jest.mock('@/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@server/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 const playerStatsFindOne = jest.fn();
 const playerStatsUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
@@ -17,7 +17,7 @@ const userInventoryFindOne = jest.fn();
 let inventoryFindResults: any[] = [];
 const userInventoryFind = jest.fn(() => ({ toArray: async () => inventoryFindResults }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     playerStatsCollection: { findOne: playerStatsFindOne, updateOne: playerStatsUpdateOne },
     userInventoryCollection: { findOne: userInventoryFindOne, find: userInventoryFind },
@@ -29,8 +29,8 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { ObjectId } from 'mongodb';
 import { equipmentRouter } from '@server/routes/equipment';
-import { createJWT } from '@/utils/jwt';
-import { authServer } from '@/lib/authProof';
+import { createJWT } from '@server/lib/jwt';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

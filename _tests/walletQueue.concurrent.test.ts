@@ -1,12 +1,12 @@
 // Mock the server wallet with an async gap so concurrent first-calls race the init window.
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest
     .fn()
     .mockImplementation(() => new Promise((r) => setTimeout(() => r({}), 10))),
 }));
 
 import { getWalletQueue, WalletQueue } from '@server/lib/walletQueue';
-import { getServerWallet } from '@/lib/serverWallet';
+import { getServerWallet } from '@server/lib/serverWallet';
 
 describe('getWalletQueue concurrency', () => {
   it('returns ONE instance under concurrent first-calls (wallet built once)', async () => {

@@ -10,7 +10,7 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' }); // Next auto-loads this for the app; a bare script does not
 
-import { connectRaw, ensureSchema } from '../src/lib/mongodb';
+import { connectRaw, ensureSchema } from '@server/lib/mongodb';
 
 async function main() {
   const { db } = await connectRaw();

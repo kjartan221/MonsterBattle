@@ -5,8 +5,8 @@ import {
   calculateMonsterAttackInterval,
   calculateEffectiveAutoClickRate,
   type TotalEquipmentStats
-} from '../src/utils/equipmentCalculations';
-import type { EquippedItem } from '../src/contexts/EquipmentContext';
+} from '@shared/equipmentCalculations';
+import type { EquippedItem } from '@shared/types';
 
 describe('equipmentCalculations', () => {
   describe('calculateClickDamage', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { authClient } from '@/lib/authProof';
+import { authClient } from '@shared/authProof';
 import type { WalletClient } from '@bsv/sdk';
 
 let cachedServerIdentityKey: string | null = null;

@@ -3,8 +3,8 @@
  * Handles per-zone streak tracking (5 biomes × 5 tiers = 25 independent streaks)
  */
 
-import type { BiomeId, Tier } from '@/lib/biome-config';
-import type { PlayerStats } from '@/contexts/PlayerContext';
+import type { BiomeId, Tier } from '@shared/biome-config';
+import type { PlayerStats } from '@shared/types';
 
 export type BiomeStreaks = {
   forest: number[];
@@ -154,13 +154,15 @@ export function getHighestStreak(
 /**
  * Migrate legacy global streak to current zone
  * Used for backward compatibility when updating existing players
+ * Only needs the `stats` sub-shape, so it structurally accepts both the
+ * server's PlayerStats (types.ts) and the client's PlayerContext PlayerStats.
  * @param playerStats - Player stats with legacy battlesWonStreak
  * @param currentBiome - Current biome
  * @param currentTier - Current tier
  * @returns Initialized streak structure with legacy value in current zone
  */
 export function migrateLegacyStreak(
-  playerStats: PlayerStats,
+  playerStats: Pick<PlayerStats, 'stats'>,
   currentBiome: BiomeId,
   currentTier: Tier
 ): BiomeStreaks {

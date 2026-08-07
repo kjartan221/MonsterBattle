@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { LootItem } from '@/lib/loot-table';
+import { LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
-import { tierToRoman } from '@/utils/tierUtils';
+import { tierToRoman } from '@shared/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
-import { getInscribedItemName } from '@/utils/itemNameHelpers';
-import type { Inscription } from '@/lib/types';
-import { getDisplayEquipmentStats } from '@/utils/equipmentCalculations';
+import { getInscribedItemName } from '@shared/itemNameHelpers';
+import type { Inscription } from '@shared/types';
+import { getDisplayEquipmentStats } from '@shared/equipmentCalculations';
 import { useMintItemNFT } from '@/hooks/useMintItemNFT';
 import { useCreateMaterialToken } from '@/hooks/useCreateMaterialToken';
 import { useUpdateMaterialToken } from '@/hooks/useUpdateMaterialToken';

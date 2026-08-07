@@ -12,14 +12,14 @@ import { WalletOrdLock, WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 import { requireSession } from '@server/middleware/requireSession';
 import { getWalletQueue } from '@server/lib/walletQueue';
-import { connectToMongo, getClient } from '@/lib/mongodb';
-import { getServerIdentityPublicKey } from '@/lib/serverWallet';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX, getTransactionByTxID } from '@/utils/overlayFunctions';
-import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
-import { generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
-import { getLootItemById, type LootItem, type EquipmentStats } from '@/lib/loot-table';
-import type { MarketplaceItem } from '@/lib/types';
+import { connectToMongo, getClient } from '@server/lib/mongodb';
+import { getServerIdentityPublicKey } from '@server/lib/serverWallet';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
+import { broadcastTX, getTransactionByTxID } from '@shared/overlayFunctions';
+import { decodeBeef, encodeBeef } from '@shared/beefEncoding';
+import { generateNonce, deriveRecipientKey } from '@shared/tokenDerivation';
+import { getLootItemById, type LootItem, type EquipmentStats } from '@shared/loot-table';
+import type { MarketplaceItem } from '@shared/types';
 
 export const marketplaceRouter = Router();
 

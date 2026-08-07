@@ -1,6 +1,6 @@
 'use client';
 
-import { LootItem } from '@/lib/loot-table';
+import { LootItem } from '@shared/loot-table';
 
 interface LootItemDetailsModalProps {
   item: LootItem;

@@ -1,4 +1,4 @@
-import { recordTokenDerivation, getTokenDerivation } from '../src/lib/tokenIndex';
+import { recordTokenDerivation, getTokenDerivation } from '@server/lib/tokenIndex';
 
 describe('tokenIndex', () => {
   it('records the nonce + counterparty on the matched document', async () => {

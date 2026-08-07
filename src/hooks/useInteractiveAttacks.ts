@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { InteractiveAttack } from '@/lib/types';
+import type { InteractiveAttack } from '@shared/types';
 
 interface UseInteractiveAttacksProps {
   onImpact: (damage: number, visualEffect?: string) => void; // Callback when attack impacts

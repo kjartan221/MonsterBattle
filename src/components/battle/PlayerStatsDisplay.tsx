@@ -3,11 +3,11 @@
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useEquipment } from '@/contexts/EquipmentContext';
 import { useBiome } from '@/contexts/BiomeContext';
-import { calculateTotalEquipmentStats, calculateEffectiveAutoClickRate } from '@/utils/equipmentCalculations';
-import { getXPForLevel, getBaseCritChance } from '@/utils/playerProgression';
+import { calculateTotalEquipmentStats, calculateEffectiveAutoClickRate } from '@shared/equipmentCalculations';
+import { getXPForLevel, getBaseCritChance } from '@shared/playerProgression';
 import DebuffIndicators from '@/components/battle/effect-indicators/PlayerDebuffIndicators';
 import PlayerBuffIndicators from '@/components/battle/effect-indicators/PlayerBuffIndicators';
-import type { ActiveDebuff } from '@/lib/types';
+import type { ActiveDebuff } from '@shared/types';
 import type { Buff } from '@/types/buffs';
 import { BuffType } from '@/types/buffs';
 

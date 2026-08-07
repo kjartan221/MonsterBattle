@@ -3,8 +3,8 @@
 // Ported verbatim from src/app/api/player-stats/route.ts.
 
 import { Router, type Request, type Response } from 'express';
-import { connectToMongo } from '@/lib/mongodb';
-import { sanitizePlayerStatsUpdate } from '@/lib/playerStatsSanitize';
+import { connectToMongo } from '@server/lib/mongodb';
+import { sanitizePlayerStatsUpdate } from '@server/lib/playerStatsSanitize';
 import { requireSession } from '@server/middleware/requireSession';
 
 export const playerRouter = Router();

@@ -1,5 +1,5 @@
 // _tests/tokenDerivation.test.ts
-import { generateNonce, TOKEN_PROTOCOL } from '../src/utils/tokenDerivation';
+import { generateNonce, TOKEN_PROTOCOL } from '../shared/tokenDerivation';
 import { Utils } from '@bsv/sdk';
 
 describe('tokenDerivation', () => {

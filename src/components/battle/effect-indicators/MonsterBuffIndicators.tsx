@@ -1,7 +1,7 @@
 'use client';
 
-import { MonsterBuff } from '@/lib/types';
-import { getBuffDisplayInfo } from '@/utils/monsterBuffs';
+import { MonsterBuff } from '@shared/types';
+import { getBuffDisplayInfo } from '@shared/monsterBuffs';
 
 interface BuffIndicatorsProps {
   buffs?: MonsterBuff[];

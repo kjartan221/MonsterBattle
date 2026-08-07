@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { MonsterFrontend, BattleSessionFrontend, DebuffEffect } from '@/lib/types';
+import type { MonsterFrontend, BattleSessionFrontend, DebuffEffect } from '@shared/types';
 import type { PlayerStats } from '@/contexts/PlayerContext';
-import type { TotalEquipmentStats } from '@/utils/equipmentCalculations';
-import { calculateMonsterDamage, calculateMonsterAttackInterval } from '@/utils/equipmentCalculations';
+import type { TotalEquipmentStats } from '@shared/equipmentCalculations';
+import { calculateMonsterDamage, calculateMonsterAttackInterval } from '@shared/equipmentCalculations';
 
 interface UseMonsterAttackProps {
   monster: MonsterFrontend | null;
@@ -20,7 +20,7 @@ interface UseMonsterAttackProps {
   onSummonDamage?: (amount: number) => void; // Report summon damage for cheat detection
   onThornsDamage?: (amount: number) => void; // Apply thorns damage to monster
   onDefensiveLifesteal?: (amount: number) => void; // Report defensive lifesteal healing for cheat detection
-  activeDebuffs?: import('@/lib/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
+  activeDebuffs?: import('@shared/types').ActiveDebuff[]; // Player debuffs (for defense reduction)
   onSkillShotTrigger?: () => void; // Callback to check for skillshot triggers
 }
 

@@ -7,10 +7,10 @@ import {
   P2PKH,
   PublicKey
 } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '../src/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '../shared/ordinalP2PKH';
 import { WalletOrdLock as OrdLock } from '@bsv/wallet-helper';
 import { makeWallet } from './helpers/mockWallet';
-import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveOwnKey } from '../src/utils/tokenDerivation';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveOwnKey } from '../shared/tokenDerivation';
 
 describe('OrdLock - Marketplace Transaction Validation', () => {
   const storageURL = 'https://store-us-1.bsvb.tech';

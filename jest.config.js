@@ -10,6 +10,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@server/(.*)$': '<rootDir>/server/$1',
+    '^@shared/(.*)$': '<rootDir>/shared/$1',
     '^jose$': '<rootDir>/_tests/mocks/jose.ts',
   },
   // Increase timeout for blockchain transaction tests

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SpecialAttack } from '@/lib/types';
+import type { SpecialAttack } from '@shared/types';
 
 interface SpecialAttackFlashProps {
   attack: SpecialAttack | null;

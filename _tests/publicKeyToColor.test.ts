@@ -1,4 +1,4 @@
-import { publicKeyToColor, publicKeyToGradient, colorToRGBA } from '../src/utils/publicKeyToColor';
+import { publicKeyToColor, publicKeyToGradient, colorToRGBA } from '@shared/publicKeyToColor';
 
 describe('publicKeyToColor', () => {
   it('should generate a consistent color from the same public key', () => {

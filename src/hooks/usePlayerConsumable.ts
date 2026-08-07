@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { getLootItemById } from '@/lib/loot-table';
+import { getLootItemById } from '@shared/loot-table';
 
 interface ConsumableSlot {
   itemId: string | null;

@@ -11,12 +11,12 @@ import { WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 import { requireSession } from '@server/middleware/requireSession';
 import { getWalletQueue } from '@server/lib/walletQueue';
-import { connectToMongo } from '@/lib/mongodb';
-import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@/lib/serverWallet';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX } from '@/utils/overlayFunctions';
-import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
-import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveSelfKey } from '@/utils/tokenDerivation';
+import { connectToMongo } from '@server/lib/mongodb';
+import { getServerWallet, getServerPublicKey, getServerIdentityPublicKey } from '@server/lib/serverWallet';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
+import { broadcastTX } from '@shared/overlayFunctions';
+import { decodeBeef, encodeBeef } from '@shared/beefEncoding';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey, deriveSelfKey } from '@shared/tokenDerivation';
 
 export const materialsRouter = Router();
 

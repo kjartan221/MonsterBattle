@@ -1,5 +1,5 @@
-import { calcDeathPenalty, buildVictoryStatMutation, buildDefeatStatMutation } from '@/lib/battleOutcome';
-import { initializeStreaks, getStreakForZone } from '@/utils/streakHelpers';
+import { calcDeathPenalty, buildVictoryStatMutation, buildDefeatStatMutation } from '@shared/battleOutcome';
+import { initializeStreaks, getStreakForZone } from '@shared/streakHelpers';
 
 describe('calcDeathPenalty', () => {
   it('is 10% floored, and safe on zero/negative/NaN', () => {

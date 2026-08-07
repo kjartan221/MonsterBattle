@@ -12,7 +12,7 @@ import {
      Signature,
      PublicKey
  } from "@bsv/sdk";
-import { calculatePreimage } from "./createPreimage";
+import { calculatePreimage } from "@shared/createPreimage";
 import type { Derivation } from "./tokenDerivation";
 
 const LEGACY_DERIVATION: Derivation = {

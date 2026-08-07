@@ -1,6 +1,6 @@
 'use client';
 
-import { getStatRollQuality } from '@/utils/statRollUtils';
+import { getStatRollQuality } from '@shared/statRollUtils';
 
 interface StatRangeIndicatorProps {
   statRoll: number; // 0.8 to 1.2

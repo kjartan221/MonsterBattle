@@ -8,16 +8,16 @@
 // connectToMongo is mocked per test. The wallet-mutating deps used by the existing
 // mint-and-transfer/add-and-merge routes in this file are untouched and unused here.
 
-jest.mock('@/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
-jest.mock('@/lib/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
-jest.mock('@/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
+jest.mock('@server/lib/serverWallet', () => ({ getServerWallet: jest.fn().mockResolvedValue({}) }));
+jest.mock('@shared/authProof', () => ({ authServer: { verifyAuthProof: jest.fn() } }));
+jest.mock('@server/lib/authNonceStore', () => ({ consumeNonce: jest.fn() }));
 
 const materialTokensFindOne = jest.fn();
 const materialTokensUpdateOne = jest.fn(async () => ({ modifiedCount: 1 }));
 const materialTokensDeleteOne = jest.fn(async () => ({ deletedCount: 1 }));
 const userInventoryDeleteMany = jest.fn(async () => ({ deletedCount: 1 }));
 
-jest.mock('@/lib/mongodb', () => ({
+jest.mock('@server/lib/mongodb', () => ({
   connectToMongo: jest.fn(async () => ({
     materialTokensCollection: {
       findOne: materialTokensFindOne,
@@ -32,8 +32,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { materialsRouter } from '@server/routes/materials';
-import { createJWT } from '@/utils/jwt';
-import { authServer } from '@/lib/authProof';
+import { createJWT } from '@server/lib/jwt';
+import { authServer } from '@shared/authProof';
 
 const mockVerify = (authServer as unknown as { verifyAuthProof: jest.Mock }).verifyAuthProof;
 

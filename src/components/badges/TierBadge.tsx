@@ -1,6 +1,6 @@
 'use client';
 
-import { tierToRoman } from '@/utils/tierUtils';
+import { tierToRoman } from '@shared/tierUtils';
 
 interface TierBadgeProps {
   tier: number; // 1-5

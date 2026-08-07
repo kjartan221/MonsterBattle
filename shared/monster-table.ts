@@ -1,4 +1,4 @@
-import { BiomeId, Tier, applyTierScaling, applyTierHPScaling, applyTierDamageScaling, BIOMES } from './biome-config';
+import { BiomeId, Tier, applyTierScaling, applyTierHPScaling, applyTierDamageScaling, BIOMES } from '@shared/biome-config';
 import type { DebuffEffect, SpecialAttack, BossPhase, MonsterBuff } from './types';
 import {
   FOREST_MONSTERS,

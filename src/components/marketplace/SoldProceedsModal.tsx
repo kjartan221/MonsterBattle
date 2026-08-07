@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WalletClient } from '@bsv/sdk';
 import toast from 'react-hot-toast';
-import { getTransactionByTxID } from '@/utils/overlayFunctions';
-import { internalizeToBasket } from '@/utils/internalizeToBasket';
+import { getTransactionByTxID } from '@shared/overlayFunctions';
+import { internalizeToBasket } from '@shared/internalizeToBasket';
 import { createAuthProof } from '@/utils/authProofClient';
 
 interface SaleItem {

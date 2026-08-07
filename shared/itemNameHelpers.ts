@@ -1,4 +1,4 @@
-import type { Inscription, InscriptionType } from '@/lib/types';
+import type { Inscription, InscriptionType } from '@shared/types';
 
 /**
  * Get the full inscribed item name with prefix and/or suffix

@@ -1,4 +1,4 @@
-import { connectToMongo } from '@/lib/mongodb';
+import { connectToMongo } from '@server/lib/mongodb';
 import { getWalletQueue } from '@server/lib/walletQueue';
 
 /**

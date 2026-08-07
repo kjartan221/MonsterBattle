@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { DebuffEffect, ActiveDebuff, DebuffType } from '@/lib/types';
+import type { DebuffEffect, ActiveDebuff, DebuffType } from '@shared/types';
 import { Buff, BuffType } from '@/types/buffs';
 
 interface UseDebuffsProps {

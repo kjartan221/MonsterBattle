@@ -1,6 +1,6 @@
 'use client';
 
-import type { SummonedCreature } from '@/lib/types';
+import type { SummonedCreature } from '@shared/types';
 
 interface SummonCardProps {
   summon: SummonedCreature;

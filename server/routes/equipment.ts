@@ -13,13 +13,13 @@ import { WalletP2PKH } from '@bsv/wallet-helper';
 import { requireAuthProof } from '@server/middleware/requireAuthProof';
 import { requireSession } from '@server/middleware/requireSession';
 import { getWalletQueue } from '@server/lib/walletQueue';
-import { connectToMongo } from '@/lib/mongodb';
-import { getServerWallet, getServerIdentityPublicKey } from '@/lib/serverWallet';
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
-import { broadcastTX } from '@/utils/overlayFunctions';
-import { decodeBeef, encodeBeef } from '@/utils/beefEncoding';
-import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@/utils/tokenDerivation';
-import { getLootItemById } from '@/lib/loot-table';
+import { connectToMongo } from '@server/lib/mongodb';
+import { getServerWallet, getServerIdentityPublicKey } from '@server/lib/serverWallet';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
+import { broadcastTX } from '@shared/overlayFunctions';
+import { decodeBeef, encodeBeef } from '@shared/beefEncoding';
+import { TOKEN_PROTOCOL, generateNonce, deriveRecipientKey } from '@shared/tokenDerivation';
+import { getLootItemById } from '@shared/loot-table';
 
 export const equipmentRouter = Router();
 

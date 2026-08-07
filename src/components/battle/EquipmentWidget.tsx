@@ -2,10 +2,10 @@
 
 import { useEquipment, EquipmentSlot } from '@/contexts/EquipmentContext';
 import { useState } from 'react';
-import { tierToRoman, getTierBadgeClassName } from '@/utils/tierUtils';
+import { tierToRoman, getTierBadgeClassName } from '@shared/tierUtils';
 import StatRangeIndicator from '@/components/crafting/StatRangeIndicator';
-import { getInscribedItemName } from '@/utils/itemNameHelpers';
-import type { Inscription } from '@/lib/types';
+import { getInscribedItemName } from '@shared/itemNameHelpers';
+import type { Inscription } from '@shared/types';
 
 interface EquipmentWidgetProps {
   onSlotClick: (slot: EquipmentSlot) => void;

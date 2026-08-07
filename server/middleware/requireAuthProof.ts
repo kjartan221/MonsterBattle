@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthProof } from '@bsv/auth';
 import { getUserIdFromCookie } from '@server/middleware/requireSession';
-import { getServerWallet } from '@/lib/serverWallet';
-import { authServer } from '@/lib/authProof';
-import { consumeNonce } from '@/lib/authNonceStore';
-import { assertOwnIdentityKey, IdentityMismatchError } from '@/lib/identityGuard';
+import { getServerWallet } from '@server/lib/serverWallet';
+import { authServer } from '@shared/authProof';
+import { consumeNonce } from '@server/lib/authNonceStore';
+import { assertOwnIdentityKey, IdentityMismatchError } from '@server/lib/identityGuard';
 
 /**
  * Two-layer guard for value-moving routes: a valid login session (JWT cookie)

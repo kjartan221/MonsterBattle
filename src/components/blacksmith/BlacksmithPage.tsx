@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getLootItemById, LootItem } from '@/lib/loot-table';
+import { getLootItemById, LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
-import { tierToRoman } from '@/utils/tierUtils';
-import { getInscribedItemName, getInscriptionStatLabel, formatInscriptionStat, getInscriptionRarityColor } from '@/utils/itemNameHelpers';
-import type { Inscription } from '@/lib/types';
+import { tierToRoman } from '@shared/tierUtils';
+import { getInscribedItemName, getInscriptionStatLabel, formatInscriptionStat, getInscriptionRarityColor } from '@shared/itemNameHelpers';
+import type { Inscription } from '@shared/types';
 import { useUpdateEquipmentNFT } from '@/hooks/useUpdateEquipmentNFT';
 import { useAuthContext } from '@/contexts/WalletContext';
 import { useEquipment } from '@/contexts/EquipmentContext';

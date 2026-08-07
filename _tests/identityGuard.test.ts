@@ -1,4 +1,4 @@
-import { assertOwnIdentityKey, IdentityMismatchError } from '@/lib/identityGuard';
+import { assertOwnIdentityKey, IdentityMismatchError } from '@server/lib/identityGuard';
 
 describe('assertOwnIdentityKey', () => {
   it('throws IdentityMismatchError when a claimed key differs from userId', () => {

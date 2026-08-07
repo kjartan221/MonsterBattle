@@ -1,6 +1,6 @@
 'use client';
 
-import { BIOMES, BiomeId, Tier, formatBiomeTierKey, getBiomeTierDisplayName } from '@/lib/biome-config';
+import { BIOMES, BiomeId, Tier, formatBiomeTierKey, getBiomeTierDisplayName } from '@shared/biome-config';
 import { useBiome } from '@/contexts/BiomeContext';
 import { useState } from 'react';
 

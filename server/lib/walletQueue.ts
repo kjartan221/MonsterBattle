@@ -1,5 +1,5 @@
 import type { WalletClient } from '@bsv/sdk';
-import { getServerWallet } from '@/lib/serverWallet';
+import { getServerWallet } from '@server/lib/serverWallet';
 
 export type WalletAction<T> = (wallet: WalletClient) => Promise<T>;
 

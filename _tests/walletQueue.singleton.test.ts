@@ -1,10 +1,10 @@
 // Mock the server wallet so no network/env is needed.
-jest.mock('@/lib/serverWallet', () => ({
+jest.mock('@server/lib/serverWallet', () => ({
   getServerWallet: jest.fn().mockResolvedValue({}),
 }));
 
 import { getWalletQueue, WalletQueue } from '@server/lib/walletQueue';
-import { getServerWallet } from '@/lib/serverWallet';
+import { getServerWallet } from '@server/lib/serverWallet';
 
 describe('getWalletQueue', () => {
   it('returns a WalletQueue singleton (same instance, wallet built once)', async () => {

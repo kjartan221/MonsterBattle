@@ -1,6 +1,6 @@
 'use client';
 
-import { LootItem } from '@/lib/loot-table';
+import { LootItem } from '@shared/loot-table';
 import StatRangeIndicator from './StatRangeIndicator';
 import CorruptionOverlay from '@/components/battle/CorruptionOverlay';
 import EmpoweredBadge from '@/components/badges/EmpoweredBadge';

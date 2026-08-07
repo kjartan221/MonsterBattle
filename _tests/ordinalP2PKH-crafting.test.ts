@@ -9,7 +9,7 @@ import {
   MerklePath,
   Script,
 } from '@bsv/sdk';
-import { OrdinalsP2PKH } from '../src/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '../shared/ordinalP2PKH';
 import { makeWallet } from './helpers/mockWallet';
 
 describe('OrdinalsP2PKH - Crafting Flow', () => {

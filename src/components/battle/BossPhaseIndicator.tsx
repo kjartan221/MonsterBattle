@@ -1,6 +1,6 @@
 'use client';
 
-import { MonsterFrontend } from '@/lib/types';
+import { MonsterFrontend } from '@shared/types';
 
 interface BossPhaseIndicatorProps {
   monster: MonsterFrontend;

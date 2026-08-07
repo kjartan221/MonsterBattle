@@ -1,5 +1,5 @@
 import type { Collection } from 'mongodb';
-import { getDatabase } from './mongodb';
+import { getDatabase } from '@server/lib/mongodb';
 
 // Single-use store for auth-proof nonces. A record is kept (TTL-evicted) until
 // the proof expires, giving replay protection without unbounded growth.

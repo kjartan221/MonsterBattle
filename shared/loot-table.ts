@@ -25,7 +25,7 @@ export interface LootItem {
   type: 'weapon' | 'armor' | 'consumable' | 'material' | 'artifact' | 'spell_scroll' | 'inscription_scroll';
   equipmentStats?: EquipmentStats; // Optional stats for equippable items
   spellData?: SpellData; // Optional spell data for spell scrolls
-  inscriptionData?: import('@/lib/types').InscriptionData; // Optional inscription data for inscription scrolls
+  inscriptionData?: import('@shared/types').InscriptionData; // Optional inscription data for inscription scrolls
   cooldown?: number; // Optional cooldown for consumables
   healing?: number; // Optional healing amount for consumables (HP restored)
   buffData?: ConsumableBuffData; // Optional buff data for consumables (temporary buffs)

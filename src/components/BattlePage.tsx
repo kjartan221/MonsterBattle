@@ -11,7 +11,7 @@ import { usePlayerBuffs } from '@/hooks/usePlayerBuffs';
 import { BuffSource } from '@/types/buffs';
 import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import { usePlayerSpell } from '@/hooks/usePlayerSpell';
-import { calculateTotalEquipmentStats } from '@/utils/equipmentCalculations';
+import { calculateTotalEquipmentStats } from '@shared/equipmentCalculations';
 import PlayerStatsDisplay from '@/components/battle/PlayerStatsDisplay';
 import BiomeMapWidget from '@/components/battle/BiomeMapWidget';
 import EquipmentWidget from '@/components/battle/EquipmentWidget';
@@ -24,7 +24,7 @@ import MonsterManualModal from '@/components/battle/MonsterManualModal';
 import GuidebookModal from '@/components/battle/GuidebookModal';
 import LootItemDetailsModal from '@/components/battle/LootItemDetailsModal';
 import ChallengeSettingsModal from '@/components/battle/ChallengeSettingsModal';
-import { LootItem } from '@/lib/loot-table';
+import { LootItem } from '@shared/loot-table';
 import toast from 'react-hot-toast';
 import NavigationButtons from '@/components/navigation/NavigationButtons';
 
@@ -164,7 +164,7 @@ export default function BattlePage() {
     const slot = consumableSlots[slotIndex];
     if (!slot.itemId) return;
 
-    const { getLootItemById } = await import('@/lib/loot-table');
+    const { getLootItemById } = await import('@shared/loot-table');
     const consumableItem = getLootItemById(slot.itemId);
     if (!consumableItem) return;
 

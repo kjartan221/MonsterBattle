@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { MonsterFrontend, SpecialAttack } from '@/lib/types';
+import type { MonsterFrontend, SpecialAttack } from '@shared/types';
 
 interface UseSpecialAttacksProps {
   monster: MonsterFrontend | null;
