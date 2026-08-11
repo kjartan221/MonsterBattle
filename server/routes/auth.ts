@@ -1,6 +1,5 @@
 // Auth router: login (verifies signed proof, upserts user, mints session cookie),
 // logout, check-session, and the two public server-key lookups.
-// Ported verbatim from src/app/api/{login,logout,check-session,server-public-key,server-identity-key}/route.ts.
 
 import { Router, type Request, type Response } from 'express';
 import { connectToMongo } from '@server/lib/mongodb';
@@ -11,12 +10,12 @@ import { consumeNonce } from '@server/lib/authNonceStore';
 
 export const authRouter = Router();
 
-// Same cookie name/options the Next side sets on NextResponse.cookies — requireSession reads req.cookies.verified.
+// httpOnly session cookie; SameSite=Strict is safe since SPA and API are same-site. requireSession reads req.cookies.verified.
 const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: 60 * 60 * 24 * 7 * 1000, // 7 days, in ms (Express maxAge is ms; Next's was seconds)
+  sameSite: 'strict' as const,
+  maxAge: 60 * 60 * 24 * 7 * 1000, // 7 days (Express maxAge is in ms)
   path: '/',
 };
 

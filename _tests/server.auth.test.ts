@@ -102,6 +102,7 @@ describe('POST /api/login', () => {
     expect(cookieStr).toMatch(/verified=/);
     expect(cookieStr).toMatch(/HttpOnly/i);
     expect(cookieStr).toMatch(/Path=\//i);
+    expect(cookieStr).toMatch(/SameSite=Strict/i);
   });
 
   it('mints a cookie that satisfies a requireSession-guarded route', async () => {

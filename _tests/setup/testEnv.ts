@@ -5,3 +5,4 @@ process.env.MONGODB_URI ||= 'mongodb://localhost:27017/monster_battle_test';
 process.env.SERVER_PRIVATE_KEY ||= 'ab'.repeat(32);
 process.env.WALLET_STORAGE_URL ||= 'https://store-us-1.bsvb.tech';
 process.env.BSV_NETWORK ||= 'test';
+process.env.ALLOWED_ORIGINS ||= '';

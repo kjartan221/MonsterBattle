@@ -1,3 +1,8 @@
+// config.ts self-loads server/.env via dotenv on import. Mock it here so these
+// unit tests are driven purely by the process.env this file sets/deletes, not
+// by whatever happens to be in the real (gitignored) server/.env file.
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+
 describe('server/config', () => {
   const OLD_ENV = process.env;
 

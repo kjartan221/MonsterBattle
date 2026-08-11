@@ -1,15 +1,15 @@
 import 'express-async-errors';
 import express, { type Express } from 'express';
 import cookieParser from 'cookie-parser';
-import path from 'path';
-import fs from 'fs';
 import { mountRoutes } from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { config } from './config';
 
 /**
- * Build the Express app: JSON + cookies, health, feature routers, an optional
- * static SPA (client/dist), and a terminal error handler. `express-async-errors`
- * (imported for its side effect above) forwards async-handler rejections to it.
+ * Build the Express app: JSON + cookies, health, feature routers, and a
+ * terminal error handler. API-only — the SPA is deployed separately.
+ * `express-async-errors` (imported for its side effect above) forwards
+ * async-handler rejections to it.
  */
 export function buildApp(): Express {
   const app = express();
@@ -24,6 +24,22 @@ export function buildApp(): Express {
     next();
   });
 
+  // Credentialed CORS: echo the request Origin only if it's in the allowlist.
+  if (config.allowedOrigins.length > 0) {
+    app.use((req, res, next) => {
+      const origin = req.headers.origin;
+      if (origin && config.allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Headers', 'Content-Type');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+        res.header('Vary', 'Origin');
+      }
+      if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
+      next();
+    });
+  }
+
   app.use(express.json());
   app.use(cookieParser());
 
@@ -32,14 +48,6 @@ export function buildApp(): Express {
   });
 
   mountRoutes(app);
-
-  const clientDist = path.resolve(process.cwd(), 'client', 'dist');
-  if (fs.existsSync(clientDist)) {
-    app.use(express.static(clientDist));
-    app.get(/^(?!\/api).*/, (_req, res) => {
-      res.sendFile(path.join(clientDist, 'index.html'));
-    });
-  }
 
   app.use(errorHandler);
 

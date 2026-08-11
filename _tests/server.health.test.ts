@@ -8,7 +8,7 @@ describe('Express app shell', () => {
     expect(res.body).toEqual({ ok: true });
   });
 
-  it('returns 404 (no crash) for a non-/api route when client/dist is absent', async () => {
+  it('returns 404 (no crash) for a non-/api route (API-only, no SPA static-serve)', async () => {
     const res = await request(buildApp()).get('/some/spa/route');
     expect(res.status).toBe(404);
   });
