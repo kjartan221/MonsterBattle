@@ -1,6 +1,6 @@
 # Monster Battle - BSV Blockchain Game
 
-A Next.js 16 game demonstrating advanced BSV blockchain integration with server-controlled minting, overlay network broadcasting, and on-chain provable item crafting.
+A BSV blockchain game — a **Vite + React SPA** talking to a **single-instance Express API** — demonstrating server-controlled minting, overlay network broadcasting, and on-chain provable item crafting.
 
 ---
 
@@ -42,7 +42,7 @@ Client Request → Server Validates → Server Mints → Server Transfers → Da
 
 Every token output is locked to a unique, freshly-derived child key (type-42 / BRC-42) using a per-output **nonce**, instead of one reused key — improving privacy/linkability and key-exposure hygiene.
 
-- **Protocol**: `TOKEN_PROTOCOL = [2, 'monsterbattle token']` (security level 2, counterparty-bound). Helpers in `src/utils/tokenDerivation.ts`.
+- **Protocol**: `TOKEN_PROTOCOL = [2, 'monsterbattle token']` (security level 2, counterparty-bound). Helpers in `shared/tokenDerivation.ts`.
 - **Nonce storage (dual)**: written to the owner's **wallet basket** via `internalizeAction` (basket `monsterbattle.tokens`) for self-custody/recovery, **and** to a DB index (`tokenId → {keyId, counterparty}`) for O(1) hot-path lookup. The wallet basket is the source of truth; the DB index is a rebuildable cache (`reindexFromBasket`).
 - **Creator carries the BEEF**: whoever builds a transfer provides its BEEF (the server holds what it built; clients post base64 BEEF in the request body). The overlay is a fallback only (`fetchTokenSourceTx`). BEEFs cross the wire **base64**-encoded.
 - **Dual-path unlock**: the `OrdinalsP2PKH` template defaults to the legacy fixed scheme, so pre-migration tokens still spend; new outputs use the derived scheme.
@@ -126,7 +126,7 @@ Transfer TX: Crafted item → User
 All game tokens use `OrdinalP2PKH` for BSV-20/BSV-21 compliance:
 
 ```typescript
-import { OrdinalsP2PKH } from '@/utils/ordinalP2PKH';
+import { OrdinalsP2PKH } from '@shared/ordinalP2PKH';
 
 const ordinalP2PKH = new OrdinalsP2PKH();
 
@@ -162,7 +162,7 @@ const unlockingScript = await unlockTemplate.sign(transaction, outputIndex);
 Custom overlay for broadcasting and querying game transactions:
 
 ```typescript
-// src/utils/overlayFunctions.ts
+// shared/overlayFunctions.ts
 import { LookupResolver, TopicBroadcaster } from "@bsv/sdk";
 
 const overlay = new LookupResolver({
@@ -208,7 +208,7 @@ All blockchain operations in this application follow a **standardized 3-step pat
 ```
 
 This pattern provides:
-- ✅ **Consistency**: Same flow across all 5 backend routes
+- ✅ **Consistency**: Same flow across the wallet-touching Express routes
 - ✅ **BSV-20/21 Support**: Handles fungible (materials) and non-fungible (items) tokens
 - ✅ **On-Chain Credibility**: Full provenance for every game item and operation
 - ✅ **Server Control**: Prevents fraudulent minting and ensures game rule enforcement
@@ -216,12 +216,14 @@ This pattern provides:
 
 Every item minted, crafted, transferred, or updated has a **verifiable on-chain record**, demonstrating a production-ready blockchain-based game economy.
 
-**Example Routes Using This Pattern**:
-- `src/app/api/items/mint-and-transfer/route.ts` - Item NFT minting
-- `src/app/api/materials/mint-and-transfer/route.ts` - Material token minting
-- `src/app/api/crafting/mint-and-transfer/route.ts` - Crafting with material consumption
-- `src/app/api/equipment/update/route.ts` - Equipment inscription updates
-- `src/app/api/materials/add-and-merge/route.ts` - Material token merging
+All wallet-touching work runs through **one serialized wallet queue** (`server/lib/walletQueue.ts`) in the single-instance server, so concurrent mints can never race the server wallet's UTXOs.
+
+**Example Routes Using This Pattern** (all in `server/routes/`):
+- `server/routes/items.ts` — Item NFT minting (`POST /api/items/mint-and-transfer`)
+- `server/routes/materials.ts` — Material token minting + merging (`/mint-and-transfer`, `/add-and-merge`)
+- `server/routes/crafting.ts` — Crafting with material consumption (`/mint-and-transfer`)
+- `server/routes/equipment.ts` — Equipment inscription updates (`/update`)
+- `server/routes/marketplace.ts` — Purchase (`/purchase-listing`)
 
 ### Outpoint Tracking
 
@@ -253,101 +255,58 @@ authOutpoint:  "mno012...pqr.2"  // Consumption transaction output 2
 
 ---
 
-## 🛒 OrderLock Marketplace (Coming Soon)
+## 🛒 OrderLock Marketplace
 
-### Architecture Overview
-
-**OrderLock** enables trustless P2P trading using BSV smart contracts:
+**OrderLock** enables trustless P2P trading using BSV smart contracts — implemented and live.
 
 ```
-Seller → Creates Order (locks item + price) → Order available on marketplace
-Buyer  → Fulfills Order (sends BSV) → Atomic swap (item↔BSV)
+Seller → list-item        (locks the item in an OrderLock UTXO at a set price) → listing browsable
+Buyer  → purchase-listing  (pays the seller's address, unlocks the item to self) → atomic item↔BSV swap
 ```
 
-### Implementation Plan
+### Routes (`server/routes/marketplace.ts`)
 
-**Order Creation** _(to be implemented)_:
-```typescript
-// Future: useCreateOrder.ts
-const orderLock = new OrderLock();
-const orderScript = orderLock.lock(
-  itemOutpoint,      // Item being sold
-  priceInSatoshis,   // Asking price
-  sellerPublicKey,   // Seller's public key
-  payoutPublicKey    // Where seller receives payment
-);
-```
+| Method | Path | Guard | Purpose |
+|---|---|---|---|
+| POST | `/api/marketplace/list-item` | authProof `list` | Create an OrderLock listing (validates client BEEF + recomputes the lock) |
+| GET  | `/api/marketplace/items` | public | Browse listings (filter: search / itemType / rarity / tier / price) |
+| GET  | `/api/marketplace/listing/:id` | session | One listing (+ its stored BEEF) |
+| GET  | `/api/marketplace/my-sales` | session | The caller's active/sold listings |
+| POST | `/api/marketplace/purchase-listing` | authProof `purchase` | Buy — atomic item↔BSV swap |
+| POST | `/api/marketplace/cancel-listing` | authProof `cancel` | Seller reclaims the item |
+| POST | `/api/marketplace/claim-proceeds` | authProof `claim` | Seller internalizes the sale payout |
 
-**Order Fulfillment** _(to be implemented)_:
-```typescript
-// Future: useFulfillOrder.ts
-const unlockScript = orderLock.unlock(
-  buyerWallet,
-  itemLockingScript,
-  priceInSatoshis
-);
-// Atomic swap: Buyer gets item, seller gets payment
-```
+**Safety:**
+- **BEEF backup** — each listing's OrderLock tx is stored in the `marketplace_listing_beefs` collection, so buy/cancel never depend on the overlay being reachable.
+- **Concurrency-safe purchase** — the buy path atomically claims the listing (`status: active → pending` via `findOneAndUpdate`, 409 if already taken), runs the wallet op through the serialized queue, finalizes in a Mongo `withTransaction`, and rolls the claim back (`releaseListing`) on any failure.
 
-### Marketplace Features _(planned)_
-
-- [ ] List minted items for sale (OrderLock)
-- [ ] Browse available orders (filter by type/rarity)
-- [ ] Purchase items with BSV wallet
-- [ ] Cancel orders (seller reclaims item)
-- [ ] Order history and trade analytics
-- [ ] Escrow-free atomic swaps
-- [ ] On-chain price discovery
-
-**Route Structure** _(planned)_:
-```
-POST /api/marketplace/create-order    - Create OrderLock
-POST /api/marketplace/fulfill-order   - Buy item
-POST /api/marketplace/cancel-order    - Cancel listing
-GET  /api/marketplace/list-orders     - Browse marketplace
-```
-
-**Database** _(planned)_:
-```typescript
-interface MarketplaceOrder {
-  _id: ObjectId;
-  itemOutpoint: string;        // Item being sold
-  sellerUserId: string;        // Seller's userId
-  priceInSatoshis: number;     // Asking price
-  orderLockOutpoint: string;   // OrderLock UTXO
-  status: 'active' | 'fulfilled' | 'cancelled';
-  createdAt: Date;
-  fulfilledAt?: Date;
-  fulfilledBy?: string;        // Buyer's userId
-}
-```
-
-**References**:
-- `src/utils/orderLock.ts` - OrderLock implementation
-- `_tests/orderLock.test.ts` - Comprehensive test suite
+**References**: `shared/orderLock.ts` (OrderLock template), `_tests/orderLock.test.ts` (tests), `MarketplaceItem` / `MarketplaceListingBeef` in `shared/types.ts`.
 
 ---
 
 ## 🔧 Technology Stack
 
-### Frontend
-- **Next.js 16** - App Router, Server Components
-- **React 19** - Latest features
-- **TypeScript** - Strict mode
-- **TailwindCSS v4** - Styling
-- **BSV SDK** - Wallet integration (@bsv/sdk)
+**Monorepo (npm workspaces):** `client/` (SPA) · `server/` (API) · `shared/` (framework-agnostic game logic + BSV utils, imported by both). Split-origin — the static SPA and the API deploy separately.
 
-### Backend
-- **Next.js API Routes** - Server-side logic
-- **MongoDB** - Database (via native driver)
-- **JWT** - Authentication (jose library)
-- **BSV Wallet** - Server wallet for minting
+### Frontend (`client/`)
+- **Vite 6** + **@vitejs/plugin-react** - build/dev
+- **React 19** + **React Router v7** - SPA routing
+- **TypeScript** - strict mode
+- **TailwindCSS v4** - via `@tailwindcss/vite`
+- **@bsv/sdk** / **@bsv/wallet-helper** - browser wallet, BEEF/proof building
+
+### Backend (`server/`)
+- **Express 4** - the API (single always-on instance)
+- **Serialized wallet queue** - one server `WalletClient`, one UTXO op at a time (the concurrency-safe minting primitive)
+- **MongoDB** - native driver
+- **JWT** (jose) - httpOnly-cookie sessions + single-use `@bsv/auth` ownership proofs on value-moving routes
+- **BSV server wallet** - minting/transfer
 
 ### Blockchain
 - **BSV Blockchain** - Layer 1
 - **OrdinalP2PKH** - Token standard (BSV-20/BSV-21)
 - **Overlay Network** - Custom transaction routing
-- **OrderLock** - P2P trading smart contracts _(coming soon)_
+- **OrderLock** - P2P trading smart contracts
 
 ---
 
@@ -355,99 +314,90 @@ interface MarketplaceOrder {
 
 ### Required Environment Variables
 
-See .env.example for environment variables.
-
+**`server/.env`** (the API — server-only; these must never reach the client bundle):
 ```bash
-# MongoDB
 MONGODB_URI=mongodb+srv://...
-
-# Authentication
 JWT_SECRET=your-secret-key-minimum-32-chars
-
-# Server Wallet (for minting)
-SERVER_WALLET_PRIVATE_KEY=your-server-wallet-private-key-hex
-SERVER_WALLET_STORAGE_URL=your-wallet-storage-url
-SERVER_WALLET_CHAIN=main-or-test
-
-# Node Environment
+SERVER_PRIVATE_KEY=your-server-wallet-private-key-hex
+WALLET_STORAGE_URL=https://store-us-1.bsvb.tech   # optional (has a default)
+BSV_NETWORK=main                                   # 'main' | 'test' (default 'main')
+ALLOWED_ORIGINS=http://localhost:5173              # comma-separated SPA origins allowed via CORS
+PORT=4000                                          # optional (default 4000)
 NODE_ENV=development
+```
+
+**`client/.env`** (Vite — only `VITE_`-prefixed vars are exposed to the browser):
+```bash
+VITE_API_BASE=http://localhost:4000    # the API origin the SPA calls
 ```
 
 ### Installation
 
 ```bash
-# Install dependencies
+# Install all workspaces (client + server + shared)
 npm install
 
-# Run development server
-npm run dev
+# Dev — API + SPA in two terminals (split-origin):
+npm run server:dev     # Express API on :4000 (tsx watch)
+npm run client:dev     # Vite SPA on :5173
 
-# Build for production
-npm run build
+# Build the SPA (static output → client/dist)
+npm run client:build
 
-# Start production server
-npm start
-
-# Run tests
+# Run tests (server-route + logic suites)
 npm test
 
-# Type checking
-npx tsc --noEmit
+# Type-check
+npx tsc --noEmit                          # root/server + shared
+npx tsc -p client/tsconfig.json --noEmit  # client
 
-# Linting
+# Lint
 npm run lint
 ```
+
+> Dev is split-origin: set `client/.env` `VITE_API_BASE=http://localhost:4000` and `server/.env` `ALLOWED_ORIGINS` to the Vite origin (`:5173`, or whatever port Vite prints). The API server must be running for the SPA to work.
 
 ---
 
 ## Database migration
 
-Index creation is **not** on the app's request path, and it is **not** a deploy step. Because MongoDB is a persistent, shared cloud cluster, indexes created once **persist** and every serverless invocation reuses them. So this is a **dev/ops one-off**: run it against the cloud cluster only when indexes change (a fresh DB, or after editing `ensureSchema()`), then deploy normally — Vercel does not run it.
+Index creation is **not** on the app's request path and **not** a deploy step. MongoDB is a persistent cloud cluster, so indexes created once **persist**. This is a **dev/ops one-off**: run it against the cluster only when indexes change (a fresh DB, or after editing `ensureSchema()`).
 
 ```bash
-npm run db:migrate    # needs MONGODB_URI in env / .env.local; runs against whatever cluster that points to
+npm run db:migrate    # needs MONGODB_URI in env / server/.env; runs against whatever cluster that points to
 ```
 
-This runs `ensureSchema()` (`src/lib/mongodb.ts`) against `MONGODB_URI`, creating every index the app relies on. Run it once per cluster you deploy to (e.g. if prod and staging are separate DBs). The app itself only **verifies** (does not create) the security-critical unique indexes on boot, via `verifyCriticalIndexes()` — if any are missing it **fails fast** with an error telling you to run `npm run db:migrate`. That fail-fast is the safety net if someone deploys a schema change without migrating the cluster first.
+This runs `ensureSchema()` (`server/lib/mongodb.ts`) against `MONGODB_URI`, creating every index the app relies on. Run it once per cluster you deploy to (e.g. if prod and staging are separate DBs). On boot the API only **verifies** (does not create) the security-critical unique indexes via `verifyCriticalIndexes()` — if any are missing it **fails fast** with an error telling you to run `npm run db:migrate`. That fail-fast is the safety net against deploying a schema change without migrating the cluster first.
 
 ---
 
 ## 📂 Project Structure
 
 ```
-src/
-├── app/
-│   ├── api/                          # API Routes
-│   │   ├── items/mint-and-transfer/  # Regular item minting
-│   │   ├── materials/mint-and-transfer/ # Material token minting
-│   │   ├── crafting/mint-and-transfer/  # Crafted item minting
-│   │   └── materials/check-token/    # Material token smart updates
-│   ├── battle/                       # Battle page
-│   ├── inventory/                    # Inventory page
-│   └── crafting/                     # Crafting page
-├── components/                       # React components
-├── contexts/                         # React Context (Player, Equipment, etc.)
-├── hooks/                            # Custom React hooks
-│   ├── useMintItemNFT.ts            # Regular item minting hook
-│   ├── useMintMaterialTokens.ts     # Material minting hook
-│   └── useCraftItemNFT.ts           # Hybrid crafting hook
-├── lib/
-│   ├── mongodb.ts                   # MongoDB connection
-│   ├── serverWallet.ts              # Server wallet utilities
-│   ├── types.ts                     # TypeScript interfaces
-│   └── loot-table.ts                # Item definitions
-├── utils/
-│   ├── ordinalP2PKH.ts              # OrdinalP2PKH implementation
-│   ├── overlayFunctions.ts          # Overlay broadcast/query
-│   ├── orderLock.ts                 # OrderLock smart contract
-│   └── jwt.ts                       # JWT utilities
-└── _tests/                          # Unit tests
-    ├── ordinalP2PKH.test.ts         # Token script tests
-    └── orderLock.test.ts            # Marketplace tests
+client/                     # Vite + React Router SPA (builds to static)
+├── index.html · vite.config.ts · tsconfig.json
+└── src/
+    ├── main.tsx · App.tsx           # entry, router, providers, route guard
+    ├── components/ contexts/ hooks/ # React UI + state (Player, Equipment, Challenge, ...)
+    ├── lib/                         # apiFetch, apiFetchStepUp (the API choke-points)
+    ├── utils/                       # client wallet utils (orderLock, createWalletPayment, authProofClient)
+    └── shared/                      # client-only framework-agnostic utils (internalizeToBasket, tierUtils, reindexFromBasket, ...)
 
-docs/                                 # Documentation
-├── SERVER_SIDE_MINTING.md           # Minting architecture
-└── [other docs]
+server/                     # Express API — single always-on instance; owns the wallet
+├── index.ts · app.ts · config.ts    # boot, buildApp, validated env (self-loads dotenv)
+├── routes/                          # /api/* handlers (items, materials, crafting, equipment,
+│                                    #   marketplace, spells, consumables, inscriptions,
+│                                    #   battle, inventory, player, challenge, auth)
+├── middleware/                      # requireSession, requireAuthProof, errorHandler
+└── lib/                             # walletQueue, serverWallet, mongodb, jwt, authNonceStore, ...
+
+shared/                     # framework-agnostic — imported by BOTH client and server
+├── types.ts · loot-table.ts · monster-table.ts · biome-config.ts · recipe-table.ts
+├── equipmentCalculations.ts · playerProgression.ts · monsterBuffs.ts · streakHelpers.ts
+└── ordinalP2PKH.ts · overlayFunctions.ts · tokenDerivation.ts · beefEncoding.ts · authProof.ts
+
+_tests/                     # jest — server-route + blockchain/logic tests
+docs/                       # design docs & implementation plans (gitignored)
 ```
 
 ---
@@ -550,4 +500,4 @@ MIT
 
 ---
 
-**Built with BSV Blockchain and Next.js**
+**Built with BSV Blockchain, Vite, and Express**
