@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# client build output
+client/dist
+client/.env
+
 # production
 /build
 

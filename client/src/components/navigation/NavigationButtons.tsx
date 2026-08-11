@@ -1,0 +1,95 @@
+
+import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '@/lib/apiFetch';
+import toast from 'react-hot-toast';
+
+interface NavigationButtonsProps {
+  showMarketplace?: boolean;
+  showInventory?: boolean;
+  showBlacksmith?: boolean;
+  showCrafting?: boolean;
+  showBattle?: boolean;
+  showLogout?: boolean;
+  containerClassName?: string;
+}
+
+export default function NavigationButtons({
+  showMarketplace = false,
+  showInventory = false,
+  showBlacksmith = false,
+  showCrafting = false,
+  showBattle = false,
+  showLogout = false,
+  containerClassName,
+}: NavigationButtonsProps) {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/api/logout', { method: 'POST' });
+      toast.success('Logged out successfully');
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to logout');
+    }
+  };
+
+  return (
+    <div className={containerClassName || 'flex flex-wrap gap-2'}>
+      {showMarketplace && (
+        <button
+          onClick={() => navigate('/marketplace')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          🏪 <span className="hidden sm:inline">Marketplace</span>
+        </button>
+      )}
+
+      {showInventory && (
+        <button
+          onClick={() => navigate('/inventory')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          📦 <span className="hidden sm:inline">Inventory</span>
+        </button>
+      )}
+
+      {showBlacksmith && (
+        <button
+          onClick={() => navigate('/blacksmith')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          🔨 <span className="hidden sm:inline">Blacksmith</span>
+        </button>
+      )}
+
+      {showCrafting && (
+        <button
+          onClick={() => navigate('/crafting')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          ⚒️ <span className="hidden sm:inline">Crafting</span>
+        </button>
+      )}
+
+      {showBattle && (
+        <button
+          onClick={() => navigate('/battle')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          ⚔️ <span className="hidden sm:inline">Battle</span>
+        </button>
+      )}
+
+      {showLogout && (
+        <button
+          onClick={handleLogout}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-br from-red-900/80 to-purple-900/80 backdrop-blur-lg border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-purple-500/50 cursor-pointer text-sm md:text-base"
+        >
+          🚪 <span className="hidden sm:inline">Logout</span>
+        </button>
+      )}
+    </div>
+  );
+}

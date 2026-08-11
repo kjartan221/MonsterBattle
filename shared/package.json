@@ -1,0 +1,10 @@
+{
+  "name": "@mb/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@bsv/sdk": "^2.0.13",
+    "@bsv/auth": "^0.0.1"
+  }
+}

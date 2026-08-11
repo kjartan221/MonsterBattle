@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --font-geist-sans: 'Geist Sans', sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hide scrollbars globally while maintaining scroll functionality */
+/* Webkit browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Ensure scroll functionality is preserved */
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@keyframes critFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(1);
+  }
+}
+
+.animate-crit-float {
+  animation: critFloat 1s ease-out forwards;
+}
+
+/* Phase 3.5: Enhanced consumable glow animation */
+@keyframes enhanced-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 40px rgba(0, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5), 0 0 80px rgba(0, 255, 255, 0.2);
+  }
+}
+
+/* Skillshot timer ring shrink — GPU-composited so it interpolates smoothly
+   (replaces a 50ms setInterval that stepped the scale at ~20fps) */
+@keyframes skillshot-ring-shrink {
+  from { transform: translate(-50%, -50%) scale(1); }
+  to   { transform: translate(-50%, -50%) scale(0); }
+}

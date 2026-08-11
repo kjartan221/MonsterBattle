@@ -1,4 +1,4 @@
-import { calcDeathPenalty, buildVictoryStatMutation, buildDefeatStatMutation } from '@shared/battleOutcome';
+import { calcDeathPenalty, buildVictoryStatMutation, buildDefeatStatMutation } from '@server/lib/battleOutcome';
 import { initializeStreaks, getStreakForZone } from '@shared/streakHelpers';
 
 describe('calcDeathPenalty', () => {

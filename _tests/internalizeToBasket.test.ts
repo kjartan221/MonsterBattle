@@ -1,5 +1,5 @@
 // _tests/internalizeToBasket.test.ts
-import { internalizeToBasket, TOKEN_BASKET } from '../shared/internalizeToBasket';
+import { internalizeToBasket, TOKEN_BASKET } from '../client/src/shared/internalizeToBasket';
 
 describe('internalizeToBasket', () => {
   it('calls internalizeAction with basket insertion + nonce in customInstructions', async () => {

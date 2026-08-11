@@ -13,8 +13,8 @@ import { getStreakForZone, resetStreakForZone } from '@shared/streakHelpers';
 import { MonsterBuffType } from '@shared/types';
 import { getRandomLoot, getLootItemById } from '@shared/loot-table';
 import { calculateTotalEquipmentStats, calculateMonsterDamage, calculateMonsterAttackInterval } from '@shared/equipmentCalculations';
-import type { EquippedItem } from '@/contexts/EquipmentContext';
-import { buildVictoryStatMutation, buildDefeatStatMutation } from '@shared/battleOutcome';
+import type { EquippedItem } from '@shared/types';
+import { buildVictoryStatMutation, buildDefeatStatMutation } from '@server/lib/battleOutcome';
 import { publicKeyToGradient } from '@shared/publicKeyToColor';
 import { requireSession } from '@server/middleware/requireSession';
 
