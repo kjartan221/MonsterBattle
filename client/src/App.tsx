@@ -16,7 +16,7 @@ import CraftingPage from '@/components/crafting/CraftingPage';
 import InventoryPage from '@/components/inventory/InventoryPage';
 import MarketplacePage from '@/components/marketplace/MarketplacePage';
 
-// Ports src/app/layout.tsx: same provider nesting (outer -> inner) and Toaster config.
+// Root layout: provider nesting (outer -> inner) + Toaster config.
 export default function App() {
   return (
     <ErrorBoundary>

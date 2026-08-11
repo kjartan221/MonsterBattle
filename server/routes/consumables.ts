@@ -1,6 +1,6 @@
 // Consumables router: list owned consumables, equip/unequip to a 4-slot hotbar,
 // use an equipped consumable (transactional), and enhance a consumable to infinite-use.
-// Ported verbatim from src/app/api/consumables/{get,equip,unequip,use,enhance}/route.ts.
+// Logic unchanged from the original API handlers.
 
 import { Router, type Request, type Response } from 'express';
 import { ObjectId } from 'mongodb';

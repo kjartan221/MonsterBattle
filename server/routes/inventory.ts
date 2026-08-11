@@ -1,6 +1,6 @@
 // Inventory router: read the authenticated user's collected loot (regular
 // inventory items + minted material tokens), enriched with loot-table data
-// and on-chain mint info. Ported verbatim from src/app/api/inventory/get/route.ts.
+// and on-chain mint info. Logic unchanged from the original API handler.
 
 import { Router, type Request, type Response } from 'express';
 import { connectToMongo } from '@server/lib/mongodb';

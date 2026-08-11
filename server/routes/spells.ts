@@ -1,7 +1,7 @@
 // Spell scroll router: equip/unequip the spell slot, cast the equipped spell
 // (with server-side cooldown anti-cheat), and upgrade a spell scroll's tier
 // by consuming duplicates + gold.
-// Ported verbatim from src/app/api/spells/{equip,unequip,cast,upgrade}/route.ts.
+// Logic unchanged from the original API handlers.
 
 import { Router, type Request, type Response } from 'express';
 import { ObjectId } from 'mongodb';

@@ -1,5 +1,5 @@
 // Inscriptions router: apply an inscription scroll to equipment.
-// Ported verbatim from src/app/api/inscriptions/apply/route.ts.
+// Logic unchanged from the original API handler.
 
 import { Router, type Request, type Response } from 'express';
 import { connectToMongo } from '@server/lib/mongodb';

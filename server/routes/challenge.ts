@@ -1,8 +1,7 @@
 // Challenge-mode config router: get/update the player's battle challenge settings.
-// Ported verbatim from src/app/api/challenge/{get,update}/route.ts.
-// GET uses requireSession (matches its source); POST uses requireAuthProof('challenge')
-// (matches its source, which reads body.proof — the client already sends it, see
-// src/contexts/ChallengeContext.tsx).
+// GET uses requireSession; POST uses requireAuthProof('challenge') (reads body.proof —
+// the client sends it, see client/src/contexts/ChallengeContext.tsx). Logic unchanged
+// from the original API handlers.
 
 import { Router, type Request, type Response } from 'express';
 import { connectToMongo } from '@server/lib/mongodb';

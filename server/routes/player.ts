@@ -1,6 +1,6 @@
 // Player-stats router: get-or-create player stats (with legacy migrations),
 // and PATCH currentHealth (only client-writable field).
-// Ported verbatim from src/app/api/player-stats/route.ts.
+// Logic unchanged from the original API handler.
 
 import { Router, type Request, type Response } from 'express';
 import { connectToMongo } from '@server/lib/mongodb';

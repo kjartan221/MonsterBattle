@@ -1,6 +1,6 @@
 // Battle-loop router: start/resume battle, battle timer, attack resolution
 // (anti-cheat + rewards + loot), end battle (death/escape), and loot selection.
-// Ported verbatim from src/app/api/{start-battle,start-battle-timer,attack-monster,end-battle,select-loot}/route.ts.
+// Logic unchanged from the original API handlers.
 
 import { Router, type Request, type Response } from 'express';
 import { ObjectId } from 'mongodb';

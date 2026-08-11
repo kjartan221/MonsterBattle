@@ -43,8 +43,8 @@ const options = {
   maxIdleTimeMS: 30000, // Close connections that have been idle for 30 seconds
 };
 
-// Cache the client on globalThis so warm serverless invocations and Next dev HMR
-// re-evaluation reuse one connection instead of leaking a new one each reload.
+// Cache the client on globalThis so tsx-watch reloads / repeated module eval in the
+// long-running server reuse one connection instead of leaking a new one each reload.
 // Only cached AFTER a successful client.connect() - never cache an in-flight/rejectable promise.
 const globalForMongo = globalThis as unknown as {
   _mbMongoClient?: MongoClient;
