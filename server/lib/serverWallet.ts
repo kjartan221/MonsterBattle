@@ -7,7 +7,7 @@
  */
 
 import { WalletClient, PrivateKey } from '@bsv/sdk';
-import { makeWallet } from '../../_tests/helpers/mockWallet';
+import { makeWallet } from './walletFactory';
 
 let serverWallet: WalletClient | null = null;
 

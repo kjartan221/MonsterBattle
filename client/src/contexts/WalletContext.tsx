@@ -17,6 +17,7 @@ type authContextType = {
     checkAuth: () => Promise<boolean>;
     hasSession: boolean | null; // app session (verified cookie) valid, distinct from wallet connection
     refreshSession: () => Promise<boolean>;
+    clearSession: () => void; // drop session state on logout (server clears the cookie)
 }
 
 const AuthContext = createContext<authContextType>({
@@ -30,6 +31,7 @@ const AuthContext = createContext<authContextType>({
     checkAuth: async () => { return false; },
     hasSession: null,
     refreshSession: async () => { return false; },
+    clearSession: () => { },
 });
 export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => {
     const [userWallet, setUserWallet] = useState<authContextType['userWallet']>(null);
@@ -51,6 +53,12 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
             setHasSession(false);
             return false;
         }
+    }, []);
+
+    // Drop app-session state immediately on logout so the route guard bounces
+    // the user out without waiting for a check-session round-trip.
+    const clearSession = useCallback((): void => {
+        setHasSession(false);
     }, []);
 
     const checkAuth = useCallback(async (): Promise<boolean> => {
@@ -139,7 +147,7 @@ export const AuthContextProvider = ({ children }: { children: React.ReactNode })
     }, [userWallet, checkAuth]);
 
     return (
-        <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth, hasSession, refreshSession }}>
+        <AuthContext.Provider value={{ userWallet, userPubKey, userIdentityKey, userDerivedKey, initializeWallet, isAuthenticated, setIsAuthenticated, checkAuth, hasSession, refreshSession, clearSession }}>
             {children}
         </AuthContext.Provider>
     );

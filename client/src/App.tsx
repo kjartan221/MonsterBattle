@@ -7,7 +7,7 @@ import { EquipmentProvider } from '@/contexts/EquipmentContext';
 import { GameStateProvider } from '@/contexts/GameStateContext';
 import { ChallengeProvider } from '@/contexts/ChallengeContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import RouteGuard from '@/components/RouteGuard';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/components/NotFound';
 import LoginPage from '@/components/LoginPage';
 import BattlePage from '@/components/BattlePage';
@@ -26,17 +26,15 @@ export default function App() {
             <EquipmentProvider>
               <ChallengeProvider>
                 <GameStateProvider>
-                  <RouteGuard>
-                    <Routes>
-                      <Route path="/" element={<LoginPage />} />
-                      <Route path="/battle" element={<BattlePage />} />
-                      <Route path="/blacksmith" element={<BlacksmithPage />} />
-                      <Route path="/crafting" element={<CraftingPage />} />
-                      <Route path="/inventory" element={<InventoryPage />} />
-                      <Route path="/marketplace" element={<MarketplacePage />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </RouteGuard>
+                  <Routes>
+                    <Route path="/" element={<LoginPage />} />
+                    <Route path="/battle" element={<ProtectedRoute><BattlePage /></ProtectedRoute>} />
+                    <Route path="/blacksmith" element={<ProtectedRoute><BlacksmithPage /></ProtectedRoute>} />
+                    <Route path="/crafting" element={<ProtectedRoute><CraftingPage /></ProtectedRoute>} />
+                    <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
+                    <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
                   <Toaster
                     position="top-center"
                     toastOptions={{

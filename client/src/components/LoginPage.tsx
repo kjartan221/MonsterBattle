@@ -1,16 +1,25 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/WalletContext';
 import toast from 'react-hot-toast';
 import { apiFetchStepUp } from '@/lib/apiFetchStepUp';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { initializeWallet, userWallet, refreshSession } = useAuthContext();
+  const location = useLocation();
+  const { initializeWallet, userWallet, refreshSession, hasSession } = useAuthContext();
   const [username, setUsername] = useState('');
   const [identityKey, setIdentityKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Post-login target: the route ProtectedRoute bounced us from, else /battle.
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/battle';
+
+  // Already authenticated — skip the form. Only on confirmed true (null = still checking).
+  if (hasSession === true) {
+    return <Navigate to={from} replace />;
+  }
 
   // Validation for manual login
   const isManualLoginValid = username.trim().length > 0 && identityKey.trim().length >= 32;
@@ -62,8 +71,8 @@ export default function LoginPage() {
 
       toast.success('Login successful!', { id: loadingToast });
 
-      // Navigate to battle page
-      navigate('/battle');
+      // Navigate to the intended route (or /battle by default)
+      navigate(from, { replace: true });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       toast.error(errorMessage, { id: loadingToast });

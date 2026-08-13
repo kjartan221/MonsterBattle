@@ -1,6 +1,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '@/lib/apiFetch';
+import { useAuthContext } from '@/contexts/WalletContext';
 import toast from 'react-hot-toast';
 
 interface NavigationButtonsProps {
@@ -23,10 +24,12 @@ export default function NavigationButtons({
   containerClassName,
 }: NavigationButtonsProps) {
   const navigate = useNavigate();
+  const { clearSession } = useAuthContext();
 
   const handleLogout = async () => {
     try {
       await apiFetch('/api/logout', { method: 'POST' });
+      clearSession(); // flip hasSession false so ProtectedRoute/LoginPage don't bounce back in
       toast.success('Logged out successfully');
       navigate('/');
     } catch (error) {
