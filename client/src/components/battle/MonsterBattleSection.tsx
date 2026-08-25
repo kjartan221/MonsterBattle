@@ -16,7 +16,8 @@ import { useSummonedCreatures } from '@/hooks/useSummonedCreatures';
 import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
-import { useBattleAccumulators } from '@/hooks/useBattleAccumulators';
+import { freshAttempt } from '@/stores/battleAttempt';
+import { useBattleStore } from '@/stores/battleStore';
 import { elapsedStunTime } from '@/utils/stunAccounting';
 import { useSkillShot } from '@/hooks/useSkillShot';
 import type { DebuffEffect, SpecialAttack } from '@shared/types';
@@ -71,13 +72,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
 
-  // Single owner of the per-attempt anti-cheat counters. One reset() covers every key, so a
-  // new battle can't inherit the last one's totals (see useBattleAccumulators).
-  const accumulators = useBattleAccumulators();
+  // The attempt lives in the store and is constructed by transitions, so there is nothing
+  // to reset by hand here. Null outside a battle; the fallbacks keep render paths simple.
+  const attempt = gameState.attempt;
   const {
     totalDamage, totalHealing, totalShieldGained, totalDamageReduction, invulnerabilityTime,
     summonDamage, thornsDamage, totalStunTime, skillshotBonusDamage, clickCount,
-  } = accumulators.values;
+    shieldHP, escapeTimer, isStunned, stunStartTime, stunEndTime,
+    damageWindow, damageWindowEndTime, monsterDebuffs, lastHPPercent, triggeredThresholds,
+  } = attempt ?? freshAttempt();
   const [critTrigger, setCritTrigger] = useState(0);
   const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
     goldLost: 0,
@@ -88,27 +91,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     message: ''
   });
 
-  // Monster buff tracking
-  const [shieldHP, setShieldHP] = useState<number>(0);
-  const [escapeTimer, setEscapeTimer] = useState<number | null>(null); // Seconds remaining
-
-  // SkillShot system state
-  const [isStunned, setIsStunned] = useState(false); // Monster is stunned
-  const [stunStartTime, setStunStartTime] = useState<number>(0); // When stun began (timestamp)
-  const [stunEndTime, setStunEndTime] = useState<number>(0); // When stun ends (timestamp)
-  const [damageWindow, setDamageWindow] = useState<number>(1.0); // Damage multiplier (1.0 = normal, 2.0 = double)
-  const [damageWindowEndTime, setDamageWindowEndTime] = useState<number>(0); // When damage window ends
-  const [lastHPPercent, setLastHPPercent] = useState<number>(100); // Track HP% for boss skillshot triggers
-  const [triggeredThresholds, setTriggeredThresholds] = useState<Set<number>>(new Set()); // Track which thresholds already triggered
-
   // Phase attack visual feedback (separate from regular special attacks)
   const [phaseAttack, setPhaseAttack] = useState<SpecialAttack | null>(null);
 
   // Phase 2.6: Spell cast visual feedback
   const [spellCast, setSpellCast] = useState<SpecialAttack | null>(null);
 
-  // Phase 2.6: Monster debuffs from player spells
-  const [monsterDebuffs, setMonsterDebuffs] = useState<MonsterDebuff[]>([]);
+  // Phase 2.6: Monster debuffs from player spells (in the attempt; see destructure above)
   const debuffIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Ref to store applyDamageToMonster to prevent interval resets
@@ -217,8 +206,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         // Simple mode: Small damage boost, no stun
 
         const damageBoostDuration = 3000; // 3 seconds
-        setDamageWindow(1.25); // 25% damage boost
-        setDamageWindowEndTime(now + damageBoostDuration);
+        gameState.patchAttempt({
+          damageWindow: 1.25, // 25% damage boost
+          damageWindowEndTime: now + damageBoostDuration,
+        });
 
         toast.success('✓ HIT! +25% damage for 3s!', { duration: 2000 });
       } else {
@@ -227,14 +218,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         const stunDuration = 2000; // 2 seconds stun
         const damageWindowDuration = 5000; // 5 seconds of 2x damage
 
-        // Stun the monster (pause attacks)
-        setIsStunned(true);
-        setStunStartTime(now);
-        setStunEndTime(now + stunDuration);
-
-        // Open damage window (2x damage)
-        setDamageWindow(2.0);
-        setDamageWindowEndTime(now + damageWindowDuration);
+        gameState.patchAttempt({
+          // Stun the monster (pause attacks)
+          isStunned: true,
+          stunStartTime: now,
+          stunEndTime: now + stunDuration,
+          // Open damage window (2x damage)
+          damageWindow: 2.0,
+          damageWindowEndTime: now + damageWindowDuration,
+        });
 
         toast.success('💫 PERFECT! Stunned 2s + 2x damage for 5s!', { duration: 3000 });
       }
@@ -275,20 +267,21 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       if (isStunned && now >= stunEndTime) {
         // Real elapsed stun, not the 100ms polling slice. Under-reporting this inflates the
         // monster's active attack time server-side and can flag legitimate stun-chaining.
-        accumulators.add('totalStunTime', elapsedStunTime({ startedAt: stunStartTime, endsAt: stunEndTime, now }));
+        gameState.addToAttempt('totalStunTime', elapsedStunTime({ startedAt: stunStartTime, endsAt: stunEndTime, now }));
 
-        setIsStunned(false);
-        setStunStartTime(0);
+        gameState.patchAttempt({ isStunned: false, stunStartTime: 0 });
       }
 
       if (damageWindow > 1.0 && now >= damageWindowEndTime) {
-        setDamageWindow(1.0);
+        gameState.patchAttempt({ damageWindow: 1.0 });
         toast('⏱️ Damage window ended', { duration: 2000 });
       }
     }, 100);
 
+    // Every value the callback reads is a dependency, so the closure is rebuilt whenever
+    // one changes - reading them from render scope is safe here.
     return () => clearInterval(interval);
-  }, [isStunned, stunStartTime, stunEndTime, damageWindow, damageWindowEndTime, accumulators.add]);
+  }, [isStunned, stunStartTime, stunEndTime, damageWindow, damageWindowEndTime, gameState.addToAttempt, gameState.patchAttempt]);
 
   // Callback for handling special attacks (damage, summon, heal, interactive)
   // Note: Healing is handled internally by useBossPhases hook
@@ -333,7 +326,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       // Healing is handled internally by useBossPhases hook
       // Also reduce total damage for tracking
       const healAmount = Math.ceil(attack.healing);
-      accumulators.add('totalDamage', -(healAmount));
+      gameState.addToAttempt('totalDamage', -(healAmount));
     }
     if (attack.type === 'summon' && attack.summons && gameState.monster) {
       addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired, gameState.monster.tier);
@@ -344,7 +337,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   useEffect(() => {
     if (healingReportHandler) {
       healingReportHandler.current = (amount: number) => {
-        accumulators.add('totalHealing', amount);
+        gameState.addToAttempt('totalHealing', amount);
       };
     }
     return () => {
@@ -359,9 +352,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (buffReportHandler) {
       buffReportHandler.current = (buffType: string, buffValue: number) => {
         if (buffType === 'shield') {
-          accumulators.add('totalShieldGained', buffValue);
+          gameState.addToAttempt('totalShieldGained', buffValue);
         } else if (buffType === 'damage_reduction') {
-          accumulators.add('totalDamageReduction', buffValue);
+          gameState.addToAttempt('totalDamageReduction', buffValue);
         }
       };
     }
@@ -377,7 +370,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (removeMonsterShieldHandler) {
       removeMonsterShieldHandler.current = (): boolean => {
         if (shieldHP > 0) {
-          setShieldHP(0);
+          gameState.patchAttempt({ shieldHP: 0 });
           return true; // Shield was removed
         }
         return false; // No shield existed
@@ -399,7 +392,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Handled in the effect below (needs latest damage/click values)
   }, []);
   const handleInvulnerabilityStart = useCallback((duration: number) => {
-    accumulators.add('invulnerabilityTime', duration);
+    gameState.addToAttempt('invulnerabilityTime', duration);
   }, []);
 
   // Boss phase management with stacked HP bar system (only for bosses)
@@ -429,7 +422,14 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Calculate defeat status for UI
   const isDefeated = isBoss
     ? (currentPhaseHP === 0 && phasesRemaining === 1 && maxPhaseHP > 0) // Only defeated if initialized
-    : (gameState.monster ? totalDamage >= gameState.monster.clicksRequired : false);
+    // The damage clause is the status quo, but the attempt is null once we leave the battle,
+    // so totalDamage reads 0 in victory. The HP fallback survives the phase change and keeps
+    // the defeat overlay and the victory panel rendered. This is display only — the victory
+    // trigger still keys on totalDamage alone.
+    : (gameState.monster
+        ? totalDamage >= gameState.monster.clicksRequired
+          || (regularMonsterHP.maxHP > 0 && regularMonsterHP.currentHP === 0)
+        : false);
   const remainingHP = currentPhaseHP;
   const maxHP = maxPhaseHP;
 
@@ -461,21 +461,26 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         // Trigger chain mode skillshot
         const success = skillShot.triggerSkillShot('chain');
         if (success) {
-          setTriggeredThresholds(prev => new Set(prev).add(threshold));
+          // Replaced, never mutated: Zustand compares by reference.
+          gameState.patchAttempt({ triggeredThresholds: new Set(triggeredThresholds).add(threshold) });
           toast(`⚠️ Boss at ${threshold}% HP! Quick Time Event!`, { duration: 2000 });
         }
         break; // Only trigger one at a time
       }
     }
 
-    setLastHPPercent(currentPercent);
+    // This effect runs on every render (`gameState` is a fresh object each time). setState
+    // bailed out on an unchanged value; patchAttempt always builds a new attempt, so an
+    // unconditional write here would re-render forever. Only write on a real change.
+    if (currentPercent !== lastHPPercent) {
+      gameState.patchAttempt({ lastHPPercent: currentPercent });
+    }
   }, [currentPhaseHP, maxPhaseHP, lastHPPercent, triggeredThresholds, gameState.monster, gameState, skillShot]);
 
   // Reset threshold tracking when new monster spawns
   useEffect(() => {
     if (gameState.monster) {
-      setLastHPPercent(100);
-      setTriggeredThresholds(new Set());
+      gameState.patchAttempt({ lastHPPercent: 100, triggeredThresholds: new Set() });
     }
   }, [gameState.monster?._id]);
 
@@ -517,18 +522,18 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Stable callback references for useMonsterAttack (prevent interval recreation)
   const handleSummonDamage = useCallback((amount: number) => {
-    accumulators.add('summonDamage', amount);
+    gameState.addToAttempt('summonDamage', amount);
   }, []);
 
   const handleThornsDamage = useCallback((amount: number) => {
     // Apply thorns damage to monster HP (doesn't count as click)
     damagePhase(amount);
-    accumulators.add('thornsDamage', amount); // Track for anti-cheat
+    gameState.addToAttempt('thornsDamage', amount); // Track for anti-cheat
   }, [damagePhase]);
 
   const handleDefensiveLifesteal = useCallback((amount: number) => {
     // Track defensive lifesteal healing for anti-cheat
-    accumulators.add('totalHealing', amount);
+    gameState.addToAttempt('totalHealing', amount);
   }, []);
 
   // Monster attack system with debuff application
@@ -563,37 +568,31 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   useEffect(() => {
     if (!gameState.monster) return;
 
-    // Initialize shield HP
     const shieldBuff = gameState.monster.buffs?.find(b => b.type === 'shield');
-    if (shieldBuff) {
-      setShieldHP(shieldBuff.value);
-    } else {
-      setShieldHP(0);
-    }
-
-    // Initialize escape timer
     const fastBuff = gameState.monster.buffs?.find(b => b.type === 'fast');
-    if (fastBuff && gameState.gameState === 'BATTLE_IN_PROGRESS') {
-      setEscapeTimer(fastBuff.value);
-    } else {
-      setEscapeTimer(null);
-    }
+
+    gameState.patchAttempt({
+      shieldHP: shieldBuff ? shieldBuff.value : 0,
+      escapeTimer: fastBuff && gameState.gameState === 'BATTLE_IN_PROGRESS' ? fastBuff.value : null,
+    });
   }, [gameState.monster, gameState.gameState]);
 
   // Escape timer countdown
   useEffect(() => {
     if (escapeTimer === null || !gameState.canAttackMonster()) return;
 
+    // `escapeTimer` is a dependency, so the interval is rebuilt on every tick and the
+    // closure never goes stale. The escape side effect also moves out of what used to be
+    // a setState updater, where StrictMode double-invocation could fire it twice.
     const interval = setInterval(() => {
-      setEscapeTimer(prev => {
-        if (prev === null || prev <= 0) {
-          clearInterval(interval);
-          // Monster escaped!
-          handleMonsterEscape();
-          return null;
-        }
-        return prev - 1;
-      });
+      if (escapeTimer <= 0) {
+        clearInterval(interval);
+        // Monster escaped!
+        gameState.patchAttempt({ escapeTimer: null });
+        handleMonsterEscape();
+        return;
+      }
+      gameState.patchAttempt({ escapeTimer: escapeTimer - 1 });
     }, 1000);
 
     return () => clearInterval(interval);
@@ -616,15 +615,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Clear all active debuffs and interactive attacks
     clearDebuffs();
     clearInteractiveAttacks();
-    setMonsterDebuffs([]); // stale DoTs would keep ticking into the next monster
-    accumulators.reset();  // these are submitted as-is next battle; never carry them over
-
-    // Clear skillshot mechanics
-    setIsStunned(false);
-    setStunEndTime(0);
-    setStunStartTime(0);
-    setDamageWindow(1.0);
-    setDamageWindowEndTime(0);
+    // Shield, escape timer, stun, damage window and monster debuffs all live in the attempt,
+    // which playerDefeated below discards. Nothing to clear by hand.
     if (skillShot.isActive) {
       skillShot.handleComplete(); // Force close any active skillshot overlay
     }
@@ -647,7 +639,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     // Store defeat data and transition to defeat screen
     setDefeatData({ goldLost, streakLost });
-    gameState.setPlayerDefeated();
+    gameState.playerDefeated('death');
   };
 
   const handleDefeatContinue = async () => {
@@ -658,7 +650,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   const startBattle = async (useBiome?: BiomeId, useTier?: Tier, isConsecutiveBattle = false) => {
     try {
-      gameState.setBattleLoading();
+      gameState.loadingStarted();
       hasHandledDeathRef.current = false; // new battle: allow death to be handled again
 
       const biome = useBiome || selectedBiome;
@@ -680,10 +672,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       const data = await response.json();
 
-      // Every battle starts from zero. Mid-battle click progress is not persisted server-side
-      // (there is no update-clicks endpoint), so a resumed session has nothing to restore and
-      // the old damage estimate only fabricated phantom damage the HP bars never reflected.
-      accumulators.reset();
+      // Every battle starts from zero: mid-battle click progress is not persisted server-side
+      // (there is no update-clicks endpoint), so a resumed session has nothing to restore.
+      // The transitions below build the fresh attempt.
 
       // Sync biome/tier selection
       if (data.monster) {
@@ -694,32 +685,40 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       if (data.session.isDefeated && data.session.lootOptions && !data.session.selectedLootId) {
         // Restore pending loot selection
         const restoredLoot = getLootItemsByIds(data.session.lootOptions);
-        gameState.setLootSelection(restoredLoot);
+        // Seed the session first: on a cold load the store is `loading` with a null session,
+        // and lootOffered no-ops without one — which stranded the page on the spinner.
+        gameState.sessionLoaded(data.session, 'startScreen');
+        gameState.lootOffered(restoredLoot);
       } else if (data.session.isDefeated && data.session.selectedLootId) {
         // Session already complete, start fresh battle
-        gameState.setBattleLoading();
+        gameState.loadingStarted();
         startBattle(biome || undefined, tier || undefined, false);
         return;
       } else if (!data.isNewSession) {
         // Resuming in-progress battle
         toast.success('Resuming battle', { duration: 2000 });
-        gameState.setBattleStartScreen(data.session);
+        gameState.sessionLoaded(data.session, 'startScreen');
       } else if (isConsecutiveBattle) {
         // Consecutive battle - skip start screen
-        gameState.setBattleInProgress(data.session);
+        gameState.sessionLoaded(data.session, 'inProgress');
       } else {
         // New battle - show start screen
-        gameState.setBattleStartScreen(data.session);
+        gameState.sessionLoaded(data.session, 'startScreen');
       }
 
     } catch (err) {
       console.error('Error starting battle:', err);
       toast.error('Failed to start battle. Please refresh the page.');
-      gameState.setInitializing();
+      gameState.reset();
     }
   };
 
   const submitBattleCompletion = async (finalClickCount: number, finalTotalDamage: number) => {
+    // The player is already dying: handlePlayerDeath has latched but is still awaiting
+    // /api/end-battle. Submitting here would race it — if this POST won, playerDefeated
+    // would land afterwards and yank away the loot modal. The store's lootOffered guard
+    // covers the other ordering.
+    if (hasHandledDeathRef.current) return;
     // Validation checks
     if (!gameState.monster || !gameState.session || !gameState.session.startedAt) return;
     if (gameState.gameState === 'BATTLE_COMPLETING') return;
@@ -734,17 +733,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       ? elapsedStunTime({ startedAt: stunStartTime, endsAt: stunEndTime, now: Date.now() })
       : 0);
 
-    // Clear skillshot mechanics
-    setIsStunned(false);
-    setStunEndTime(0);
-    setStunStartTime(0);
-    setDamageWindow(1.0);
-    setDamageWindowEndTime(0);
     if (skillShot.isActive) {
       skillShot.handleComplete(); // Force close any active skillshot overlay
     }
 
-    gameState.setBattleCompleting();
+    gameState.submissionStarted();
 
     try {
       const response = await apiFetch('/api/attack-monster', {
@@ -772,7 +765,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       if (!response.ok && data.error) {
         console.error('Battle completion error:', data.error);
         toast.error(`Failed to complete battle: ${data.error}`);
-        gameState.setBattleInProgress();
+        gameState.submissionFailed();
         return;
       }
 
@@ -782,32 +775,24 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           show: true,
           message: data.message || 'Suspicious click rate detected!'
         });
-        accumulators.reset();
-        setMonsterDebuffs([]); // Clear debuffs on cheat reset
         clearInteractiveAttacks(); // Clear interactive attacks on cheat reset
 
-        // Clear skillshot mechanics
-        setIsStunned(false);
-        setStunEndTime(0);
-        setStunStartTime(0);
-        setDamageWindow(1.0);
-        setDamageWindowEndTime(0);
+        // Debuffs, stun and the damage window ride the attempt that attemptRestarted rebuilds.
         if (skillShot.isActive) {
           skillShot.handleComplete(); // Force close any active skillshot overlay
         }
 
-        // The penalty is "restart at double HP". The server persisted the new value; mirror it
-        // onto the session so the HP hooks re-initialise instead of leaving the bar at 0 —
-        // which, for bosses, fired the defeat effect immediately for a free win.
+        // The penalty is "restart at double HP". attemptRestarted mirrors the server's new
+        // value onto the session so the HP hooks re-initialise instead of leaving the bar at
+        // 0 — which, for bosses, fired the defeat effect immediately for a free win — and
+        // builds the fresh attempt in the same transition.
         const penalisedClicksRequired = data.newClicksRequired;
-        if (penalisedClicksRequired && gameState.session && gameState.monster) {
-          gameState.updateSession({
-            ...gameState.session,
-            monster: { ...gameState.monster, clicksRequired: penalisedClicksRequired },
-          });
+        if (penalisedClicksRequired) {
+          gameState.attemptRestarted(penalisedClicksRequired);
+        } else {
+          // No penalty to apply; hand control back rather than stranding the player mid-submit.
+          gameState.submissionFailed();
         }
-
-        gameState.setBattleInProgress();
         return;
       }
 
@@ -877,7 +862,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         if (gameState.session) {
           gameState.updateSession({ ...gameState.session, isDefeated: true, lootOptions: data.lootOptions });
         }
-        gameState.setLootSelection(lootItems);
+        gameState.lootOffered(lootItems);
 
         // Show level up notification
         if (data.levelUp) {
@@ -902,13 +887,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         // If we reach here without success, something went wrong
         console.error('Unexpected response from battle completion:', data);
         toast.error('Failed to complete battle. Please try again.');
-        gameState.setBattleInProgress();
+        gameState.submissionFailed();
       }
 
     } catch (err) {
       console.error('Error submitting battle completion:', err);
       toast.error('Failed to complete battle. Please try again.');
-      gameState.setBattleInProgress();
+      gameState.submissionFailed();
     }
   };
 
@@ -954,7 +939,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const baseDamage = damage;
       damage = Math.floor(damage * damageWindow);
       const bonusDamage = damage - baseDamage;
-      accumulators.add('skillshotBonusDamage', bonusDamage);
+      gameState.addToAttempt('skillshotBonusDamage', bonusDamage);
     }
 
     if (isCrit) {
@@ -964,8 +949,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Damage shield first if it exists (with 25% damage reduction)
     if (shieldHP > 0) {
       const reducedDamage = Math.ceil(damage * 0.75); // 25% damage reduction
-      const newShieldHP = Math.max(0, shieldHP - reducedDamage);
-      setShieldHP(newShieldHP);
+      gameState.patchAttempt({ shieldHP: Math.max(0, shieldHP - reducedDamage) });
       return; // Shield absorbs all damage, excess is ignored
     }
 
@@ -975,7 +959,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
       healHealth(healAmount, equipmentStats.maxHpBonus);
       // Track healing for cheat detection
-      accumulators.add('totalHealing', healAmount);
+      gameState.addToAttempt('totalHealing', healAmount);
     }
 
     // For bosses: use phase HP system via useBossPhases hook
@@ -986,17 +970,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       damagePhase(damage);
 
       // Track total damage and actual click count
-      accumulators.add('totalDamage', damage);
+      gameState.addToAttempt('totalDamage', damage);
       if (!isAutoHit) {
-        accumulators.add('clickCount', 1);
+        gameState.addToAttempt('clickCount', 1);
       }
     } else {
       // Non-boss: use regular click tracking
       const newTotalDamage = totalDamage + damage;
       const newClickCount = isAutoHit ? clickCount : clickCount + 1;
-      accumulators.set('totalDamage', newTotalDamage);
+      gameState.patchAttempt({ totalDamage: newTotalDamage });
       if (!isAutoHit) {
-        accumulators.set('clickCount', newClickCount);
+        gameState.patchAttempt({ clickCount: newClickCount });
       }
       damagePhase(damage); // Also use hook for consistency
 
@@ -1049,8 +1033,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       // Damage shield first if it exists (with 25% damage reduction)
       if (shieldHP > 0) {
         const reducedDamage = Math.ceil(damage * 0.75); // 25% damage reduction
-        const newShieldHP = Math.max(0, shieldHP - reducedDamage);
-        setShieldHP(newShieldHP);
+        gameState.patchAttempt({ shieldHP: Math.max(0, shieldHP - reducedDamage) });
         return; // Shield absorbs all damage, excess is ignored
       }
 
@@ -1060,11 +1043,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       if (isBoss) {
         // Apply damage via useBossPhases hook (caps at phase boundary)
         damagePhase(damage);
-        accumulators.add('totalDamage', damage);
+        gameState.addToAttempt('totalDamage', damage);
       } else {
         // Non-boss: use regular damage tracking
         const newTotalDamage = totalDamage + damage;
-        accumulators.set('totalDamage', newTotalDamage);
+        gameState.patchAttempt({ totalDamage: newTotalDamage });
         damagePhase(damage);
 
         // Check victory condition
@@ -1085,11 +1068,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         startTime: Date.now(),
         tickInterval: 1000 // DoT ticks every second
       };
-      setMonsterDebuffs(prev => [...prev, newDebuff]);
+      // New array, not a push: Zustand compares by reference.
+      gameState.patchAttempt({ monsterDebuffs: [...monsterDebuffs, newDebuff] });
     }
 
     // Healing is handled by parent (BattlePage) via healHealth
-  }, [gameState, shieldHP, totalDamage, clickCount, damagePhase, submitBattleCompletion]);
+  }, [gameState, shieldHP, totalDamage, clickCount, monsterDebuffs, damagePhase, submitBattleCompletion]);
 
   // Phase 2.6: Assign spell damage handler to ref so parent can call it
   useEffect(() => {
@@ -1113,32 +1097,43 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
     if (monsterDebuffs.length === 0) return;
 
-    // Create new interval and store reference
+    // Create new interval and store reference.
+    // The dep array only carries `monsterDebuffs.length`, so a render-scope read of the array
+    // would go stale whenever the contents change without the length changing (one debuff
+    // expiring as another is applied). Read the live attempt out of the store instead.
     debuffIntervalRef.current = setInterval(() => {
       const now = Date.now();
+      const liveState = useBattleStore.getState().state;
+      const current = liveState.phase === 'inProgress' || liveState.phase === 'completing'
+        ? liveState.attempt.monsterDebuffs
+        : [];
+      if (current.length === 0) return;
 
       // Remove expired debuffs and apply DoT damage
-      setMonsterDebuffs(prev => {
-        const stillActive = prev.filter(debuff => {
-          const elapsed = now - debuff.startTime;
-          const expired = elapsed >= debuff.duration;
+      const stillActive = current.filter(debuff => {
+        const elapsed = now - debuff.startTime;
+        const expired = elapsed >= debuff.duration;
 
-          // Apply DoT damage if debuff is still active and is a DoT type
-          if (!expired && debuff.damageAmount && ['poison', 'burn', 'bleed'].includes(debuff.type)) {
-            const shouldTick = Math.floor(elapsed / (debuff.tickInterval || 1000)) > Math.floor((elapsed - 500) / (debuff.tickInterval || 1000));
-            if (shouldTick) {
-              // Apply debuff damage to monster (bypasses shield)
-              // DoT damage should NEVER crit - it's flat damage based on debuff.damageAmount
-              const damage = debuff.damageAmount; // Store to satisfy TypeScript
-              damagePhase(damage);
-              accumulators.add('totalDamage', damage);
-            }
+        // Apply DoT damage if debuff is still active and is a DoT type
+        if (!expired && debuff.damageAmount && ['poison', 'burn', 'bleed'].includes(debuff.type)) {
+          const shouldTick = Math.floor(elapsed / (debuff.tickInterval || 1000)) > Math.floor((elapsed - 500) / (debuff.tickInterval || 1000));
+          if (shouldTick) {
+            // Apply debuff damage to monster (bypasses shield)
+            // DoT damage should NEVER crit - it's flat damage based on debuff.damageAmount
+            const damage = debuff.damageAmount; // Store to satisfy TypeScript
+            damagePhase(damage);
+            gameState.addToAttempt('totalDamage', damage);
           }
+        }
 
-          return !expired;
-        });
-        return stillActive;
+        return !expired;
       });
+
+      // filter only ever removes, so a length match means nothing expired. Skipping the
+      // write avoids a new attempt object - and a whole-tree re-render - every 500ms.
+      if (stillActive.length !== current.length) {
+        gameState.patchAttempt({ monsterDebuffs: stillActive });
+      }
     }, 500); // Check every 500ms
 
     // Cleanup: clear interval on unmount or when dependencies change
@@ -1250,7 +1245,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     await fetchPlayerStats(); // pull the server-applied penalty
 
     setDefeatData({ goldLost, streakLost });
-    gameState.setPlayerDefeated();
+    gameState.playerDefeated('escape');
   };
 
   const closeCheatModal = () => {
@@ -1273,7 +1268,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to save loot selection');
 
-      setTimeout(() => gameState.setBattleVictory(), 500);
+      setTimeout(() => gameState.lootResolved(), 500);
     } catch (err) {
       console.error('Error saving loot selection:', err);
       toast.error('Failed to save loot selection. Please try again.');
@@ -1296,7 +1291,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to skip loot selection');
 
-      setTimeout(() => gameState.setBattleVictory(), 300);
+      setTimeout(() => gameState.lootResolved(), 300);
     } catch (err) {
       console.error('Error skipping loot selection:', err);
       toast.error('Failed to skip loot selection. Please try again.');
@@ -1306,17 +1301,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     clearDebuffs();
     clearInteractiveAttacks();
-    accumulators.reset();
-    setShieldHP(0);
-    setEscapeTimer(null);
-    setMonsterDebuffs([]); // Clear debuffs on new monster
-
-    // Clear skillshot mechanics
-    setIsStunned(false);
-    setStunEndTime(0);
-    setStunStartTime(0);
-    setDamageWindow(1.0);
-    setDamageWindowEndTime(0);
+    // startBattle below transitions through a fresh attempt, which is what clears the
+    // shield, escape timer, monster debuffs, stun and damage window.
     if (skillShot.isActive) {
       skillShot.handleComplete(); // Force close any active skillshot overlay
     }
@@ -1359,7 +1345,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       console.error('Failed to start battle timer:', error);
     }
 
-    gameState.setBattleInProgress();
+    gameState.battleStarted();
   };
 
   // Loading state
