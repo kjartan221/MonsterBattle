@@ -327,6 +327,62 @@ describe('POST /api/attack-monster', () => {
     expect(battleSessionsFindOneAndUpdate).not.toHaveBeenCalled();
     expect(playerStatsUpdateOne).not.toHaveBeenCalled();
   });
+
+  // The cheat penalty is "restart the fight at double HP". Returning newClicksRequired in the
+  // response without writing it to the session made the penalty a no-op: the client re-entered
+  // the same battle against the same monster, and for bosses (which skip the damage floor) the
+  // already-depleted phase HP settled instantly as a free win.
+  it('persists the doubled monster HP to the session when a cheat is detected', async () => {
+    const startedAt = new Date(Date.now() - 10_000);
+    battleSessionsFindOne.mockResolvedValueOnce({
+      _id: 'SESSION_OID',
+      userId: 'user-123',
+      isDefeated: false,
+      biome: 'forest',
+      tier: 1,
+      monsterTemplateName: 'Forest Wolf',
+      startedAt,
+      monster: { name: 'Forest Wolf', rarity: 'common', isBoss: false, clicksRequired: 5, attackDamage: 5 },
+    });
+    playerStatsFindOne.mockResolvedValueOnce(basePlayerStats());
+
+    const res = await request(appWithBattleRouter())
+      .post('/api/attack-monster')
+      .set('Cookie', await authCookie())
+      .send({ sessionId: '507f1f77bcf86cd799439011', clickCount: 500, totalDamage: 10 });
+
+    expect(res.body.newClicksRequired).toBe(10);
+    expect(battleSessionsUpdateOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.anything(), userId: 'user-123' }),
+      { $set: { 'monster.clicksRequired': 10 } }
+    );
+  });
+
+  it('persists the doubled monster HP when the damage ceiling is exceeded', async () => {
+    const startedAt = new Date(Date.now() - 10_000);
+    battleSessionsFindOne.mockResolvedValueOnce({
+      _id: 'SESSION_OID',
+      userId: 'user-123',
+      isDefeated: false,
+      biome: 'forest',
+      tier: 1,
+      monsterTemplateName: 'Forest Wolf',
+      startedAt,
+      monster: { name: 'Forest Wolf', rarity: 'common', isBoss: false, clicksRequired: 5, attackDamage: 5 },
+    });
+    playerStatsFindOne.mockResolvedValueOnce(basePlayerStats());
+
+    const res = await request(appWithBattleRouter())
+      .post('/api/attack-monster')
+      .set('Cookie', await authCookie())
+      .send({ sessionId: '507f1f77bcf86cd799439011', clickCount: 10, totalDamage: 9_999_999 });
+
+    expect(res.body.cheatingDetected).toBe(true);
+    expect(battleSessionsUpdateOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.anything(), userId: 'user-123' }),
+      { $set: { 'monster.clicksRequired': 10 } }
+    );
+  });
 });
 
 describe('POST /api/end-battle', () => {

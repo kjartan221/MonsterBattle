@@ -16,6 +16,8 @@ import { useSummonedCreatures } from '@/hooks/useSummonedCreatures';
 import { useInteractiveAttacks } from '@/hooks/useInteractiveAttacks';
 import { useBossPhases } from '@/hooks/useBossPhases';
 import { useMonsterHP } from '@/hooks/useMonsterHP';
+import { useBattleAccumulators } from '@/hooks/useBattleAccumulators';
+import { elapsedStunTime } from '@/utils/stunAccounting';
 import { useSkillShot } from '@/hooks/useSkillShot';
 import type { DebuffEffect, SpecialAttack } from '@shared/types';
 import { calculateTotalEquipmentStats, calculateClickDamage, calculateEffectiveAutoClickRate, calculateMonsterDamage } from '@shared/equipmentCalculations';
@@ -69,17 +71,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const { equippedWeapon, equippedArmor, equippedAccessory1, equippedAccessory2 } = useEquipment();
   const gameState = useGameState();
 
-  // Local battle progress state
-  const [totalDamage, setTotalDamage] = useState(0);
-  const [totalHealing, setTotalHealing] = useState(0); // Track all healing for cheat detection
-  const [totalShieldGained, setTotalShieldGained] = useState(0); // Track all shield HP gained
-  const [totalDamageReduction, setTotalDamageReduction] = useState(0); // Track all damage reduction buffs
-  const [invulnerabilityTime, setInvulnerabilityTime] = useState(0); // Track boss invulnerability time (ms)
-  const [summonDamage, setSummonDamage] = useState(0); // Track damage from summons (not reduced by armor)
-  const [thornsDamage, setThornsDamage] = useState(0); // Track damage from thorns reflection (for anti-cheat)
-  const [totalStunTime, setTotalStunTime] = useState(0); // Track time monster was stunned (ms)
-  const [skillshotBonusDamage, setSkillshotBonusDamage] = useState(0); // Track extra damage from skillshot boosts
-  const [clickCount, setClickCount] = useState(0);
+  // Single owner of the per-attempt anti-cheat counters. One reset() covers every key, so a
+  // new battle can't inherit the last one's totals (see useBattleAccumulators).
+  const accumulators = useBattleAccumulators();
+  const {
+    totalDamage, totalHealing, totalShieldGained, totalDamageReduction, invulnerabilityTime,
+    summonDamage, thornsDamage, totalStunTime, skillshotBonusDamage, clickCount,
+  } = accumulators.values;
   const [critTrigger, setCritTrigger] = useState(0);
   const [defeatData, setDefeatData] = useState<{ goldLost: number; streakLost: number }>({
     goldLost: 0,
@@ -96,6 +94,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // SkillShot system state
   const [isStunned, setIsStunned] = useState(false); // Monster is stunned
+  const [stunStartTime, setStunStartTime] = useState<number>(0); // When stun began (timestamp)
   const [stunEndTime, setStunEndTime] = useState<number>(0); // When stun ends (timestamp)
   const [damageWindow, setDamageWindow] = useState<number>(1.0); // Damage multiplier (1.0 = normal, 2.0 = double)
   const [damageWindowEndTime, setDamageWindowEndTime] = useState<number>(0); // When damage window ends
@@ -230,6 +229,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
         // Stun the monster (pause attacks)
         setIsStunned(true);
+        setStunStartTime(now);
         setStunEndTime(now + stunDuration);
 
         // Open damage window (2x damage)
@@ -273,11 +273,12 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const now = Date.now();
 
       if (isStunned && now >= stunEndTime) {
-        // Calculate stun duration and add to total
-        const stunDuration = stunEndTime - (now - 100); // Approximate start time
-        setTotalStunTime(prev => prev + Math.max(0, stunDuration));
+        // Real elapsed stun, not the 100ms polling slice. Under-reporting this inflates the
+        // monster's active attack time server-side and can flag legitimate stun-chaining.
+        accumulators.add('totalStunTime', elapsedStunTime({ startedAt: stunStartTime, endsAt: stunEndTime, now }));
 
         setIsStunned(false);
+        setStunStartTime(0);
       }
 
       if (damageWindow > 1.0 && now >= damageWindowEndTime) {
@@ -287,7 +288,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isStunned, stunEndTime, damageWindow, damageWindowEndTime, totalStunTime]);
+  }, [isStunned, stunStartTime, stunEndTime, damageWindow, damageWindowEndTime, accumulators.add]);
 
   // Callback for handling special attacks (damage, summon, heal, interactive)
   // Note: Healing is handled internally by useBossPhases hook
@@ -332,7 +333,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       // Healing is handled internally by useBossPhases hook
       // Also reduce total damage for tracking
       const healAmount = Math.ceil(attack.healing);
-      setTotalDamage(prev => Math.max(0, prev - healAmount));
+      accumulators.add('totalDamage', -(healAmount));
     }
     if (attack.type === 'summon' && attack.summons && gameState.monster) {
       addSummons(attack.summons.count, attack.summons.creature, gameState.monster.clicksRequired, gameState.monster.tier);
@@ -343,7 +344,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   useEffect(() => {
     if (healingReportHandler) {
       healingReportHandler.current = (amount: number) => {
-        setTotalHealing(prev => prev + amount);
+        accumulators.add('totalHealing', amount);
       };
     }
     return () => {
@@ -358,9 +359,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     if (buffReportHandler) {
       buffReportHandler.current = (buffType: string, buffValue: number) => {
         if (buffType === 'shield') {
-          setTotalShieldGained(prev => prev + buffValue);
+          accumulators.add('totalShieldGained', buffValue);
         } else if (buffType === 'damage_reduction') {
-          setTotalDamageReduction(prev => prev + buffValue);
+          accumulators.add('totalDamageReduction', buffValue);
         }
       };
     }
@@ -398,7 +399,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Handled in the effect below (needs latest damage/click values)
   }, []);
   const handleInvulnerabilityStart = useCallback((duration: number) => {
-    setInvulnerabilityTime(prev => prev + duration);
+    accumulators.add('invulnerabilityTime', duration);
   }, []);
 
   // Boss phase management with stacked HP bar system (only for bosses)
@@ -516,18 +517,18 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
   // Stable callback references for useMonsterAttack (prevent interval recreation)
   const handleSummonDamage = useCallback((amount: number) => {
-    setSummonDamage(prev => prev + amount);
+    accumulators.add('summonDamage', amount);
   }, []);
 
   const handleThornsDamage = useCallback((amount: number) => {
     // Apply thorns damage to monster HP (doesn't count as click)
     damagePhase(amount);
-    setThornsDamage(prev => prev + amount); // Track for anti-cheat
+    accumulators.add('thornsDamage', amount); // Track for anti-cheat
   }, [damagePhase]);
 
   const handleDefensiveLifesteal = useCallback((amount: number) => {
     // Track defensive lifesteal healing for anti-cheat
-    setTotalHealing(prev => prev + amount);
+    accumulators.add('totalHealing', amount);
   }, []);
 
   // Monster attack system with debuff application
@@ -615,10 +616,13 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Clear all active debuffs and interactive attacks
     clearDebuffs();
     clearInteractiveAttacks();
+    setMonsterDebuffs([]); // stale DoTs would keep ticking into the next monster
+    accumulators.reset();  // these are submitted as-is next battle; never carry them over
 
     // Clear skillshot mechanics
     setIsStunned(false);
     setStunEndTime(0);
+    setStunStartTime(0);
     setDamageWindow(1.0);
     setDamageWindowEndTime(0);
     if (skillShot.isActive) {
@@ -676,17 +680,10 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       const data = await response.json();
 
-      // Reset clicks for new sessions, restore for resumed sessions
-      const initialClickCount = data.isNewSession ? 0 : data.session.clickCount;
-      setClickCount(initialClickCount);
-      
-      // Calculate initial totalDamage based on clicks (for resumed sessions)
-      // Estimate: (baseDamage + equipmentBonus) per click, with crit chance factor
-      const baseDmg = (playerStats?.baseDamage || 1) + equipmentStats.damageBonus;
-      const critMultiplier = 1 + (equipmentStats.critChance / 100); // Average damage increase from crits
-      const estimatedDamagePerClick = Math.floor(baseDmg * critMultiplier);
-      const initialTotalDamage = data.isNewSession ? 0 : initialClickCount * estimatedDamagePerClick;
-      setTotalDamage(initialTotalDamage);
+      // Every battle starts from zero. Mid-battle click progress is not persisted server-side
+      // (there is no update-clicks endpoint), so a resumed session has nothing to restore and
+      // the old damage estimate only fabricated phantom damage the HP bars never reflected.
+      accumulators.reset();
 
       // Sync biome/tier selection
       if (data.monster) {
@@ -705,7 +702,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         return;
       } else if (!data.isNewSession) {
         // Resuming in-progress battle
-        toast.success(`Resuming battle (${data.session.clickCount} attacks)`, { duration: 2000 });
+        toast.success('Resuming battle', { duration: 2000 });
         gameState.setBattleStartScreen(data.session);
       } else if (isConsecutiveBattle) {
         // Consecutive battle - skip start screen
@@ -732,9 +729,15 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     clearDebuffs();
     clearInteractiveAttacks();
 
+    // Count the in-flight stun before clearing it; state updates won't land before the POST.
+    const finalStunTimeMs = totalStunTime + (isStunned
+      ? elapsedStunTime({ startedAt: stunStartTime, endsAt: stunEndTime, now: Date.now() })
+      : 0);
+
     // Clear skillshot mechanics
     setIsStunned(false);
     setStunEndTime(0);
+    setStunStartTime(0);
     setDamageWindow(1.0);
     setDamageWindowEndTime(0);
     if (skillShot.isActive) {
@@ -758,7 +761,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           invulnerabilityTimeMs: invulnerabilityTime,
           summonDamage: summonDamage,
           thornsDamage: thornsDamage,
-          stunTimeMs: totalStunTime,
+          stunTimeMs: finalStunTimeMs,
           skillshotBonusDamage: skillshotBonusDamage
         }),
       });
@@ -779,25 +782,29 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
           show: true,
           message: data.message || 'Suspicious click rate detected!'
         });
-        setClickCount(0);
-        setTotalDamage(0);
-        setTotalHealing(0); // Reset healing tracker on cheat reset
-        setTotalShieldGained(0); // Reset shield tracker on cheat reset
-        setTotalDamageReduction(0); // Reset damage reduction tracker on cheat reset
-        setInvulnerabilityTime(0); // Reset invulnerability tracker
-        setSummonDamage(0); // Reset summon damage tracker
-        setTotalStunTime(0); // Reset stun time tracker
-        setSkillshotBonusDamage(0); // Reset skillshot bonus damage tracker
+        accumulators.reset();
         setMonsterDebuffs([]); // Clear debuffs on cheat reset
         clearInteractiveAttacks(); // Clear interactive attacks on cheat reset
 
         // Clear skillshot mechanics
         setIsStunned(false);
         setStunEndTime(0);
+        setStunStartTime(0);
         setDamageWindow(1.0);
         setDamageWindowEndTime(0);
         if (skillShot.isActive) {
           skillShot.handleComplete(); // Force close any active skillshot overlay
+        }
+
+        // The penalty is "restart at double HP". The server persisted the new value; mirror it
+        // onto the session so the HP hooks re-initialise instead of leaving the bar at 0 —
+        // which, for bosses, fired the defeat effect immediately for a free win.
+        const penalisedClicksRequired = data.newClicksRequired;
+        if (penalisedClicksRequired && gameState.session && gameState.monster) {
+          gameState.updateSession({
+            ...gameState.session,
+            monster: { ...gameState.monster, clicksRequired: penalisedClicksRequired },
+          });
         }
 
         gameState.setBattleInProgress();
@@ -947,7 +954,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const baseDamage = damage;
       damage = Math.floor(damage * damageWindow);
       const bonusDamage = damage - baseDamage;
-      setSkillshotBonusDamage(prev => prev + bonusDamage);
+      accumulators.add('skillshotBonusDamage', bonusDamage);
     }
 
     if (isCrit) {
@@ -968,7 +975,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       const healAmount = Math.ceil(damage * (equipmentStats.lifesteal / 100));
       healHealth(healAmount, equipmentStats.maxHpBonus);
       // Track healing for cheat detection
-      setTotalHealing(prev => prev + healAmount);
+      accumulators.add('totalHealing', healAmount);
     }
 
     // For bosses: use phase HP system via useBossPhases hook
@@ -979,17 +986,17 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       damagePhase(damage);
 
       // Track total damage and actual click count
-      setTotalDamage(prev => prev + damage);
+      accumulators.add('totalDamage', damage);
       if (!isAutoHit) {
-        setClickCount(prev => prev + 1);
+        accumulators.add('clickCount', 1);
       }
     } else {
       // Non-boss: use regular click tracking
       const newTotalDamage = totalDamage + damage;
       const newClickCount = isAutoHit ? clickCount : clickCount + 1;
-      setTotalDamage(newTotalDamage);
+      accumulators.set('totalDamage', newTotalDamage);
       if (!isAutoHit) {
-        setClickCount(newClickCount);
+        accumulators.set('clickCount', newClickCount);
       }
       damagePhase(damage); // Also use hook for consistency
 
@@ -1053,11 +1060,11 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       if (isBoss) {
         // Apply damage via useBossPhases hook (caps at phase boundary)
         damagePhase(damage);
-        setTotalDamage(prev => prev + damage);
+        accumulators.add('totalDamage', damage);
       } else {
         // Non-boss: use regular damage tracking
         const newTotalDamage = totalDamage + damage;
-        setTotalDamage(newTotalDamage);
+        accumulators.set('totalDamage', newTotalDamage);
         damagePhase(damage);
 
         // Check victory condition
@@ -1124,7 +1131,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
               // DoT damage should NEVER crit - it's flat damage based on debuff.damageAmount
               const damage = debuff.damageAmount; // Store to satisfy TypeScript
               damagePhase(damage);
-              setTotalDamage(prev => prev + damage);
+              accumulators.add('totalDamage', damage);
             }
           }
 
@@ -1299,15 +1306,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   const handleNextMonster = async (overrideBiome?: BiomeId, overrideTier?: Tier) => {
     clearDebuffs();
     clearInteractiveAttacks();
-    setClickCount(0);
-    setTotalDamage(0);
-    setTotalHealing(0); // Reset healing tracker on new monster
-    setTotalShieldGained(0); // Reset shield tracker on new monster
-    setTotalDamageReduction(0); // Reset damage reduction tracker on new monster
-    setInvulnerabilityTime(0); // Reset invulnerability tracker
-    setSummonDamage(0); // Reset summon damage tracker
-    setTotalStunTime(0); // Reset stun time tracker
-    setSkillshotBonusDamage(0); // Reset skillshot bonus damage tracker
+    accumulators.reset();
     setShieldHP(0);
     setEscapeTimer(null);
     setMonsterDebuffs([]); // Clear debuffs on new monster
@@ -1315,6 +1314,7 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     // Clear skillshot mechanics
     setIsStunned(false);
     setStunEndTime(0);
+    setStunStartTime(0);
     setDamageWindow(1.0);
     setDamageWindowEndTime(0);
     if (skillShot.isActive) {

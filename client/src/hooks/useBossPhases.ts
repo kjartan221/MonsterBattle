@@ -83,7 +83,9 @@ export function useBossPhases({
       return;
     }
 
-    const monsterId = monster._id?.toString() || monster.name;
+    // Keyed on clicksRequired too: the cheat penalty doubles a boss's HP in place, and keying
+    // on identity alone left phase HP at 0, firing the defeat effect for a free win.
+    const monsterId = `${monster._id?.toString() || monster.name}:${monster.clicksRequired}`;
 
     // Skip if already initialized this monster (prevents rerender spam)
     if (lastInitializedMonsterIdRef.current === monsterId) {

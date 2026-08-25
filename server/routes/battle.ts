@@ -22,6 +22,25 @@ const MAX_CLICKS_PER_SECOND = 20;
 const MIN_BATTLE_DURATION_MS_FOR_VALIDATION = 1000;
 const DMG_CEILING_TOLERANCE = 5; // block totalDamage above maxPlausible×this; generous (maxNoBuff excludes crit/damage buffs)
 
+/**
+ * Cheat penalty: restart the fight at double HP.
+ *
+ * This has to be persisted to the session, not just returned. Returning it alone left the
+ * monster at its original (already depleted) HP, so the client re-entered the same battle
+ * unpunished — and bosses, which skip the damage floor below, settled instantly as a free win.
+ */
+async function persistDoubledMonsterHP(
+  battleSessionsCollection: any,
+  sessionObjectId: any,
+  userId: string,
+  newClicksRequired: number
+): Promise<void> {
+  await battleSessionsCollection.updateOne(
+    { _id: sessionObjectId, userId },
+    { $set: { 'monster.clicksRequired': newClicksRequired } }
+  );
+}
+
 export const battleRouter = Router();
 
 // Start a new battle or resume an active session.
@@ -677,6 +696,7 @@ battleRouter.post('/attack-monster', requireSession, async (req: Request, res: R
     if (dmgMaxPlausibleNoBuff > 0 && totalDamage > dmgMaxPlausibleNoBuff * DMG_CEILING_TOLERANCE) {
       console.warn(`⚠️ Damage cheat: user ${userId} totalDamage=${totalDamage} exceeds ceiling ${dmgMaxPlausibleNoBuff}×${DMG_CEILING_TOLERANCE}`);
       const newClicksRequired = monster.clicksRequired * 2;
+      await persistDoubledMonsterHP(battleSessionsCollection, sessionObjectId, userId, newClicksRequired);
       res.status(200).json({
         cheatingDetected: true,
         message: 'That was more damage than possible for this battle.',
@@ -799,6 +819,7 @@ battleRouter.post('/attack-monster', requireSession, async (req: Request, res: R
       console.warn(`   Manual: ${clickCount} (${manualClickRate.toFixed(2)}/sec), Auto: ${expectedAutoClicks} (${equipmentStats.autoClickRate}/sec), Time: ${timeInSeconds.toFixed(2)}s`);
 
       const newClicksRequired = monster.clicksRequired * 2;
+      await persistDoubledMonsterHP(battleSessionsCollection, sessionObjectId, userId, newClicksRequired);
 
       // Return cheat detection response
       res.status(200).json({
@@ -816,6 +837,7 @@ battleRouter.post('/attack-monster', requireSession, async (req: Request, res: R
       console.warn(`⚠️ Cheat detected! User ${userId} exceeded max manual click rate: ${clickRate.toFixed(2)} > ${(MAX_CLICKS_PER_SECOND * 1.2).toFixed(2)} clicks/sec`);
 
       const newClicksRequired = monster.clicksRequired * 2;
+      await persistDoubledMonsterHP(battleSessionsCollection, sessionObjectId, userId, newClicksRequired);
       res.status(200).json({
         cheatingDetected: true,
         message: 'That was quite fast for a human, are you cheating?',

@@ -39,7 +39,9 @@ export function useMonsterHP({ monster }: UseMonsterHPProps): MonsterHPData {
       return;
     }
 
-    const monsterId = monster._id?.toString() || monster.name;
+    // Keyed on clicksRequired too: the cheat penalty doubles a monster's HP in place, and
+    // keying on identity alone left the bar pinned at its depleted value.
+    const monsterId = `${monster._id?.toString() || monster.name}:${monster.clicksRequired}`;
 
     // Skip if already initialized this monster
     if (lastInitializedMonsterIdRef.current === monsterId) {

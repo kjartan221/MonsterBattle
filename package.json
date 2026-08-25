@@ -16,7 +16,9 @@
     "server:dev": "tsx watch server/index.ts",
     "server:start": "tsx server/index.ts",
     "client:dev": "npm run dev -w @mb/client",
-    "client:build": "npm run build -w @mb/client"
+    "client:build": "npm run build -w @mb/client",
+    "test:client": "npm run test -w @mb/client",
+    "test:server": "jest"
   },
   "dependencies": {
     "@bsv/auth": "^0.0.1",

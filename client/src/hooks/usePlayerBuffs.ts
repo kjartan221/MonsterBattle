@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Buff, BuffType, BuffSource } from '@/types/buffs';
+import { pruneExpiredBuffs } from '@/utils/buffExpiry';
 import toast from 'react-hot-toast';
 
 interface UsePlayerBuffsResult {
@@ -34,19 +35,16 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
     buffsRef.current = activeBuffs;
   }, [activeBuffs]);
 
-  // Auto-remove expired buffs
+  // Auto-remove expired buffs. pruneExpiredBuffs returns the same array reference when
+  // nothing expired, so an idle sweep bails out of setState instead of re-rendering at 2Hz.
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now();
-      setActiveBuffs(prev => {
-        const stillActive = prev.filter(buff => {
-          const expired = buff.duration > 0 && now >= buff.expiresAt;
-          if (expired && buff.name) {
-            toast(`${buff.name} expired`, { icon: '⏰', duration: 2000 });
-          }
-          return !expired;
-        });
-        return stillActive;
+      const { buffs, expired } = pruneExpiredBuffs(buffsRef.current, Date.now());
+      if (expired.length === 0) return;
+
+      setActiveBuffs(buffs);
+      expired.forEach(buff => {
+        if (buff.name) toast(`${buff.name} expired`, { icon: '⏰', duration: 2000 });
       });
     }, 500); // Check every 500ms
 
