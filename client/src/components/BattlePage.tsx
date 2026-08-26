@@ -7,6 +7,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDebuffs } from '@/hooks/useDebuffs';
 import { usePlayerBuffs } from '@/hooks/usePlayerBuffs';
 import { BuffSource } from '@/types/buffs';
+import { buffDurationMs } from '@/utils/buffDuration';
 import { usePlayerConsumable } from '@/hooks/usePlayerConsumable';
 import { usePlayerSpell } from '@/hooks/usePlayerSpell';
 import { calculateTotalEquipmentStats } from '@shared/equipmentCalculations';
@@ -220,7 +221,7 @@ export default function BattlePage() {
       applyBuff({
         buffType: buffType as any,
         value: buffValue,
-        duration,
+        durationMs: buffDurationMs(duration),
         source: BuffSource.CONSUMABLE,
         sourceId: consumableItem.lootId,
         name: consumableItem.name,
@@ -294,7 +295,7 @@ export default function BattlePage() {
       applyBuff({
         buffType: result.buffType as any,
         value: result.buffValue,
-        duration: result.duration,
+        durationMs: buffDurationMs(result.duration),
         source: BuffSource.SPELL,
         sourceId: spellSlot.spellId || undefined,
         name: result.spellName,

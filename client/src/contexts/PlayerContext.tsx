@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
 import toast from 'react-hot-toast';
 import type { BiomeId, Tier } from '@shared/biome-config';
@@ -89,6 +89,8 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);
+  // Latches after the first fetch so refreshes never re-raise `loading`.
+  const hasLoadedOnceRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const { hasSession } = useAuthContext();
 
@@ -98,7 +100,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setLoading(true);
+      // Only the first load blocks — BattlePage unmounts its subtree while `loading` is true.
+      if (!hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await apiFetch('/api/player-stats');
@@ -115,6 +120,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setError('Failed to load player stats');
       toast.error('Failed to load player stats');
     } finally {
+      hasLoadedOnceRef.current = true;
       setLoading(false);
     }
   }, [hasSession]);
@@ -178,7 +184,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * Similar to click tracking, HP is calculated on frontend and validated server-side
    *
    * IMPORTANT: Memoized with useCallback to prevent infinite loops in hooks
-   * that depend on this function (useMonsterAttack, useDebuffs)
+   * that depend on this function (useBattleEffects, useDebuffs)
    */
   const takeDamage = useCallback(async (amount: number) => {
     // Use functional setState to avoid stale state issues and dependency on playerStats
@@ -189,17 +195,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const newHealth = Math.max(0, prevStats.currentHealth - amount);
 
-      // Only on the >0 -> 0 transition (stable id) so repeated ticks at 0 HP don't stack toasts
-      if (prevStats.currentHealth > 0 && newHealth === 0) {
-        toast.error('You have been defeated!', { id: 'player-defeated' });
-      }
-
       return {
         ...prevStats,
         currentHealth: newHealth,
       };
     });
   }, []); // Empty dependency array - function uses functional setState
+
+  // Not in takeDamage's updater: updaters run during render, and toasting there hits the
+  // Toaster mid-render. Transition-only, so loading at 0 HP doesn't toast.
+  const prevHealthRef = useRef<number | null>(null);
+  useEffect(() => {
+    const current = playerStats?.currentHealth ?? null;
+    const previous = prevHealthRef.current;
+    prevHealthRef.current = current;
+
+    if (previous !== null && previous > 0 && current === 0) {
+      toast.error('You have been defeated!', { id: 'player-defeated' });
+    }
+  }, [playerStats?.currentHealth]);
 
   /**
    * Client-side only HP restoration

@@ -7,7 +7,7 @@ function makeBuff(overrides: Partial<Buff> = {}): Buff {
     buffId: 'buff_1',
     buffType: BuffType.DAMAGE_BOOST,
     value: 5,
-    duration: 10,
+    durationMs: 10_000,
     appliedAt: 1_000,
     expiresAt: 11_000,
     source: BuffSource.SPELL,
@@ -54,7 +54,7 @@ describe('pruneExpiredBuffs', () => {
   });
 
   test('never expires permanent buffs, whose duration is 0', () => {
-    const permanent = makeBuff({ duration: 0, expiresAt: Infinity });
+    const permanent = makeBuff({ durationMs: 0, expiresAt: Infinity });
     const buffs = [permanent];
 
     const result = pruneExpiredBuffs(buffs, Number.MAX_SAFE_INTEGER);

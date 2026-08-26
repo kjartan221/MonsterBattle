@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Buff, BuffType, BuffSource } from '@/types/buffs';
 import { pruneExpiredBuffs } from '@/utils/buffExpiry';
+import { battleScheduler } from '@/stores/battleScheduler';
+import { useBattleStore } from '@/stores/battleStore';
 import toast from 'react-hot-toast';
+
+/** One scheduler key per buff, so expiry is a deadline rather than a 2Hz sweep. */
+const expiryKey = (buffId: string) => `buff:${buffId}`;
 
 interface UsePlayerBuffsResult {
   activeBuffs: Buff[];
@@ -35,21 +40,36 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
     buffsRef.current = activeBuffs;
   }, [activeBuffs]);
 
-  // Auto-remove expired buffs. pruneExpiredBuffs returns the same array reference when
-  // nothing expired, so an idle sweep bails out of setState instead of re-rendering at 2Hz.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const { buffs, expired } = pruneExpiredBuffs(buffsRef.current, Date.now());
-      if (expired.length === 0) return;
+  // One deadline per buff rather than a 500ms sweep, so an idle battle costs nothing.
+  // pruneExpiredBuffs returns the same array reference when nothing expired, so a spurious
+  // wake bails out of setState.
+  const sweepExpired = useCallback(() => {
+    const { buffs, expired } = pruneExpiredBuffs(buffsRef.current, Date.now());
+    if (expired.length === 0) return;
 
-      setActiveBuffs(buffs);
-      expired.forEach(buff => {
-        if (buff.name) toast(`${buff.name} expired`, { icon: '⏰', duration: 2000 });
-      });
-    }, 500); // Check every 500ms
+    // Advance the ref immediately: two deadlines can land in the same tick, and the second
+    // handler must not sweep a list that predates the first.
+    buffsRef.current = buffs;
+    expired.forEach(buff => battleScheduler.cancel(expiryKey(buff.buffId)));
 
-    return () => clearInterval(interval);
+    setActiveBuffs(buffs);
+    expired.forEach(buff => {
+      if (buff.name) toast(`${buff.name} expired`, { icon: '⏰', duration: 2000 });
+    });
   }, []);
+
+  const scheduleExpiry = useCallback((buff: Buff) => {
+    if (buff.durationMs <= 0 || !Number.isFinite(buff.expiresAt)) return; // permanent
+    battleScheduler.at(expiryKey(buff.buffId), buff.expiresAt, sweepExpired);
+  }, [sweepExpired]);
+
+  // Buffs outlive an attempt, but the scheduler's lifetime clears every registration when the
+  // battle ends. Re-arm after, keyed on phase so this lands on the commit following the clear.
+  // `at` takes an absolute deadline, so re-registering is idempotent (unlike `repeat`).
+  const phase = useBattleStore(store => store.state.phase);
+  useEffect(() => {
+    activeBuffs.forEach(scheduleExpiry);
+  }, [activeBuffs, phase, scheduleExpiry]);
 
   /**
    * Apply a new buff to the player
@@ -57,7 +77,7 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
   const applyBuff = useCallback((buffData: Omit<Buff, 'buffId' | 'appliedAt' | 'expiresAt'>) => {
     const now = Date.now();
     const buffId = `${buffData.buffType}_${now}_${Math.random().toString(36).substr(2, 9)}`;
-    const expiresAt = buffData.duration > 0 ? now + (buffData.duration * 1000) : Infinity;
+    const expiresAt = buffData.durationMs > 0 ? now + buffData.durationMs : Infinity;
 
     const newBuff: Buff = {
       ...buffData,
@@ -67,18 +87,20 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
     };
 
     setActiveBuffs(prev => [...prev, newBuff]);
+    scheduleExpiry(newBuff);
 
     // Show toast notification
     if (newBuff.name) {
-      const durationText = newBuff.duration > 0 ? ` (${newBuff.duration}s)` : '';
+      const durationText = newBuff.durationMs > 0 ? ` (${newBuff.durationMs / 1000}s)` : '';
       toast.success(`${newBuff.icon || '✨'} ${newBuff.name}${durationText}`, { duration: 3000 });
     }
-  }, []);
+  }, [scheduleExpiry]);
 
   /**
    * Remove a specific buff by ID
    */
   const removeBuff = useCallback((buffId: string) => {
+    battleScheduler.cancel(expiryKey(buffId));
     setActiveBuffs(prev => prev.filter(buff => buff.buffId !== buffId));
   }, []);
 
@@ -86,6 +108,7 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
    * Clear all active buffs
    */
   const clearBuffs = useCallback(() => {
+    buffsRef.current.forEach(buff => battleScheduler.cancel(expiryKey(buff.buffId)));
     setActiveBuffs([]);
   }, []);
 
@@ -177,6 +200,9 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
         }
       }
     }
+
+    // A depleted shield is gone for good; drop its expiry deadline with it.
+    removedBuffIds.forEach(buffId => battleScheduler.cancel(expiryKey(buffId)));
 
     // Apply updates to state
     setActiveBuffs(prev => {
