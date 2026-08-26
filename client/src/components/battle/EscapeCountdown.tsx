@@ -1,16 +1,11 @@
 import { useNow } from '@/hooks/useNow';
 
 /**
- * Escape countdown for the Fast buff, derived at render time from the stored deadline.
+ * Fast-buff countdown, derived from the stored deadline. Owns its ticker so the 4Hz
+ * re-render is scoped here and only exists while a Fast monster does.
  *
- * Owns its own ticker so the 4Hz re-render is scoped to this handful of nodes and only
- * exists while a Fast monster does — mounting it unconditionally in the parent would
- * re-render the whole battle tree four times a second for every fight.
- *
- * The trailing `- 1` reproduces the old check-then-decrement display: `deadline` is
- * escapeDeadlineFrom's (V+1)s-out deadline, so subtracting 1 here makes the first rendered
- * frame show V (not V+1), counts down to 1, then hits 0 and is hidden by the `> 0` guard for
- * the final second before the deadline actually fires — matching the original frame-for-frame.
+ * The `- 1` pairs with escapeDeadlineFrom's `+ 1`: renders V first, counts to 1, then hides
+ * for the final silent second - matching the pre-refactor display frame-for-frame.
  */
 export default function EscapeCountdown({ deadline }: { deadline: number }) {
   const now = useNow(250);

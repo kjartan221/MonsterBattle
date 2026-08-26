@@ -106,25 +106,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Synchronous guard so death is handled exactly once (reset when a new battle starts)
   const hasHandledDeathRef = useRef(false);
 
-  // Ref to handleMonsterEscape so the scheduled deadline callback (which outlives the render
-  // that registered it) never calls a stale closure.
+  // The scheduled deadline outlives this render, so it calls through a ref.
   const handleMonsterEscapeRef = useRef<(() => void) | null>(null);
-
-  // Absolute deadlines mean away-time counts against the player, so leaving mid-fight resets
-  // the attempt: returning re-enters via start-battle onto the start screen, and pressing Start
-  // re-stamps actualBattleStartedAt server-side. Only reset when there is an attempt to lose —
-  // lootSelection/victory must be preserved, since the server has already rolled that loot and
-  // the restore path recovers it. The scheduler's lifetime binding (battleScheduler.clearAll())
-  // fires off the resulting phase change, so this also clears any live 'stun'/'damageWindow'
-  // deadlines that otherwise have no unmount cleanup of their own.
-  useEffect(() => {
-    return () => {
-      const phase = useBattleStore.getState().state.phase;
-      if (phase === 'inProgress' || phase === 'completing') {
-        useBattleStore.getState().reset();
-      }
-    };
-  }, []);
 
   // Memoized equipment stats for stable monster attack intervals
   const equipmentStats = useMemo(() =>
@@ -222,9 +205,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     isBoss: gameState.monster?.isBoss || false
   });
 
-  // Stun and damage-window expiry are deadlines, not something to poll for. Each is armed at
-  // the moment it is applied and fires once; the handlers read the live attempt because they
-  // outlive the render that registered them.
+  // Stun and damage-window expiry are one-shot deadlines armed on application. Handlers read
+  // the live attempt, since they outlive the render that registered them.
   const scheduleStunExpiry = useCallback((endsAt: number) => {
     battleScheduler.at('stun', endsAt, () => {
       const store = useBattleStore.getState();
@@ -461,10 +443,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
   // Calculate defeat status for UI
   const isDefeated = isBoss
     ? (currentPhaseHP === 0 && phasesRemaining === 1 && maxPhaseHP > 0) // Only defeated if initialized
-    // The damage clause is the status quo, but the attempt is null once we leave the battle,
-    // so totalDamage reads 0 in victory. The HP fallback survives the phase change and keeps
-    // the defeat overlay and the victory panel rendered. This is display only — the victory
-    // trigger still keys on totalDamage alone.
+    // Display only - the victory trigger still keys on totalDamage alone. The attempt is null
+    // in victory, so the HP fallback is what keeps the defeat overlay and victory panel up.
     : (gameState.monster
         ? totalDamage >= gameState.monster.clicksRequired
           || (regularMonsterHP.maxHP > 0 && regularMonsterHP.currentHP === 0)
@@ -508,9 +488,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
       }
     }
 
-    // This effect runs on every render (`gameState` is a fresh object each time). setState
-    // bailed out on an unchanged value; patchAttempt always builds a new attempt, so an
-    // unconditional write here would re-render forever. Only write on a real change.
+    // Runs every render (`gameState` is a fresh object), and patchAttempt always builds a new
+    // attempt - so an unconditional write would loop forever. Only write on a real change.
     if (currentPercent !== lastHPPercent) {
       gameState.patchAttempt({ lastHPPercent: currentPercent });
     }
@@ -570,9 +549,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     gameState.addToAttempt('totalHealing', amount);
   }, []);
 
-  // The one store->React bridge. The swing loop below and the player-DoT loop in useDebuffs
-  // both run inside the scheduler, where PlayerContext is out of reach; they emit, this
-  // applies. Registered once, so a changing takeDamage identity costs nothing.
+  // The one store->React bridge: the swing loop below and useDebuffs' DoT loop run inside the
+  // scheduler, out of PlayerContext's reach, so they emit and this applies.
   const { isAttacking } = useBattleEffects({
     takeDamage: takeDamageWithShield,
     healHealth,
@@ -603,10 +581,9 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
     checkSkillShotTrigger: skillShot.checkRandomTrigger,
   };
 
-  // The monster's swing. Registered once per battle; `nextDelay` re-reads attack speed every
-  // base tick, so equipment swaps retune the cadence without resetting the anchor. The pauses
-  // (invulnerable, stunned, dead) are handler-side checks for the same reason: pausing must
-  // not tear the loop down and hand out a free extra interval on resume.
+  // The monster's swing. Registered once; `nextDelay` re-reads attack speed each tick so
+  // equipment swaps retune the cadence without resetting the anchor. The pauses are
+  // handler-side for the same reason - tearing the loop down would grant a free interval.
   useEffect(() => {
     const canSwing = gameState.monster && gameState.session && !gameState.session.isDefeated
       && gameState.canAttackMonster();
@@ -641,9 +618,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
         const additionalDamage = live.getTotalSummonDamage();
         const totalDamage = calculateMonsterDamage(monster.attackDamage, effectiveDefense) + additionalDamage;
 
-        // Defensive lifesteal must not revive a player this very swing kills, so the guard
-        // stays here rather than in the bridge - otherwise anti-cheat would be told about
-        // healing that never happened.
+        // Guard stays here, not in the bridge: lifesteal must not revive a player this swing
+        // kills, and anti-cheat must not be told about healing that never happened.
         const hpAfterDamage = Math.max(0, live.playerStats.currentHealth - totalDamage);
         const lifestealHeal = equipment.defensiveLifesteal > 0 && hpAfterDamage > 0
           ? Math.ceil(totalDamage * (equipment.defensiveLifesteal / 100))
@@ -776,9 +752,8 @@ export default function MonsterBattleSection({ onBattleComplete, applyDebuff, cl
 
       const data = await response.json();
 
-      // Every battle starts from zero: mid-battle click progress is not persisted server-side
-      // (there is no update-clicks endpoint), so a resumed session has nothing to restore.
-      // The transitions below build the fresh attempt.
+      // Always from zero: mid-battle click progress is not persisted server-side, so a
+      // resumed session has nothing to restore. The transitions below build the attempt.
 
       // Sync biome/tier selection
       if (data.monster) {

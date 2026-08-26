@@ -37,9 +37,8 @@ interface UseDebuffsProps {
  *   isActive: !monster.isDefeated
  * });
  *
- * @remarks `takeDamage` stays on the props for the monster-debuff shape above, but the player
- * path no longer calls it here: the tick handler runs inside the scheduler, outside React, so
- * it emits `dotTicked` and useBattleEffects applies the damage.
+ * @remarks The player path no longer calls `takeDamage` here: the tick handler runs in the
+ * scheduler, outside React, so it emits `dotTicked` and useBattleEffects applies the damage.
  */
 export function useDebuffs({ maxHP, isActive, activeBuffs = [] }: UseDebuffsProps) {
   const [activeDebuffs, setActiveDebuffs] = useState<ActiveDebuff[]>([]);
@@ -58,11 +57,8 @@ export function useDebuffs({ maxHP, isActive, activeBuffs = [] }: UseDebuffsProp
   }, []);
 
   /**
-   * Register a debuff's tick loop and its expiry deadline.
-   *
-   * Registered once, when the debuff lands. The loop reads live state at fire time, so a
-   * resistance buff arriving or the battle pausing must not tear it down and rebuild it -
-   * re-registering a `repeat` would reset its anchor and hand out a free extra tick interval.
+   * Registers a debuff's tick loop and expiry deadline, once, when it lands. The loop reads
+   * live state at fire time - re-registering a `repeat` would reset its anchor.
    */
   const scheduleDebuff = useCallback((debuff: ActiveDebuff) => {
     battleScheduler.at(expiryKey(debuff.id), debuff.expiresAt, () => {
@@ -193,17 +189,12 @@ export function useDebuffs({ maxHP, isActive, activeBuffs = [] }: UseDebuffsProp
   }, [cancelDebuffTimers]);
 
   /**
-   * Clear all debuffs (e.g., when battle ends or player uses cleanse)
+   * Clear all debuffs (battle end, or a cleanse).
    *
-   * CALLER CONTRACT: this must be called before the battle leaves an attempt-bearing phase
-   * (death, victory, escape, next monster - all four exits do so today).
-   *
-   * The attempt lifetime calls `battleScheduler.clearAll()` on that transition, which cancels a
-   * debuff's `debuffDot:*` and `debuffExpiry:*` registrations while its entry in `activeDebuffs`
-   * survives. Nothing re-arms them: a debuff left behind that way never ticks and never expires,
-   * leaving a stuck indicator and - for `defense_reduction` - a permanent stat penalty. The
-   * pre-migration code self-healed here, because the gated 500ms sweep pruned expired debuffs
-   * whenever it next ran; that net is gone now that expiry is a one-shot deadline.
+   * CALLER CONTRACT: must run before the battle leaves an attempt-bearing phase. That
+   * transition calls `battleScheduler.clearAll()`, which cancels a debuff's timers while its
+   * `activeDebuffs` entry survives - leaving it stuck: never ticking, never expiring, and for
+   * `defense_reduction` a permanent stat penalty. The old gated sweep used to self-heal this.
    */
   const clearDebuffs = useCallback(() => {
     activeDebuffsRef.current.forEach(debuff => cancelDebuffTimers(debuff.id));

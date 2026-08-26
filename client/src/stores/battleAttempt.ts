@@ -1,5 +1,3 @@
-// The debuff shape the battle UI actually produces and renders. `@/types/buffs` declares a
-// second, incompatible `MonsterDebuff` that nothing constructs; this is the live one.
 import type { MonsterDebuff } from '@/components/battle/effect-indicators/MonsterDebuffIndicators';
 
 /** Counters submitted to /api/attack-monster for server-side battle reconstruction. */
@@ -33,19 +31,10 @@ export type BattleAttempt = Record<AccumulatorKey, number> & {
 };
 
 /**
- * Deadline for a monster's Fast-buff escape, given the buff's seconds value.
+ * Deadline for a Fast-buff escape — deliberately `(seconds + 1) * 1000`, not `seconds * 1000`.
  *
- * NOT `now + fastBuffSeconds * 1000`. The pre-refactor loop stored the countdown as a
- * decrementing integer and checked `escapeTimer <= 0` BEFORE decrementing on each 1000ms
- * tick, so a value of V actually took V+1 seconds to fire: one tick per decrement from V
- * down to 0 (V ticks), then one more tick where 0 <= 0 was observed and the escape fired.
- * The visible countdown (which only rendered while the value was > 0) reached 1 and vanished
- * a full second before the monster actually escaped.
- *
- * This function reproduces that exact timing so the deadline-based refactor does not
- * silently change game balance. The `+ 1` is intentional, not a typo — removing it changes
- * when Fast monsters escape, which is a balance decision for the game owner to make
- * separately, not a side effect of moving timers out of React effects.
+ * The pre-refactor loop checked `escapeTimer <= 0` BEFORE decrementing, so a value of V took
+ * V+1 seconds to fire. The `+ 1` reproduces that; removing it is a balance change, not a fix.
  */
 export function escapeDeadlineFrom(now: number, fastBuffSeconds: number): number {
   return now + (fastBuffSeconds + 1) * 1000;

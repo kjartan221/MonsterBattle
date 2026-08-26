@@ -4,9 +4,8 @@ import { useBattleStore, sessionOf, type BattleState } from '@/stores/battleStor
 import type { BattleAttempt } from '@/stores/battleAttempt';
 
 /**
- * Legacy phase names. The store's union is the source of truth; these strings survive
- * because MonsterBattleSection compares against them directly in eleven places.
- * NEXT_MONSTER_READY was defined but never entered, and has been removed.
+ * Legacy phase names, kept because MonsterBattleSection compares against these strings in
+ * eleven places. The store's union is the source of truth. NEXT_MONSTER_READY is gone.
  */
 export enum GameState {
   INITIALIZING = 'INITIALIZING',
@@ -31,11 +30,8 @@ const PHASE_TO_LEGACY: Record<BattleState['phase'], GameState> = {
 };
 
 /**
- * Flat projection over the battle store.
- *
- * Reads stay nullable so existing call sites compile unchanged; the union's guarantees
- * are enforced on the write side, where the bugs were. Narrowing the reads is deferred
- * to the UI rewrite, which rewrites these call sites anyway.
+ * Flat projection over the battle store. Reads stay nullable so existing call sites compile
+ * unchanged; the union's guarantees are enforced on the write side, where the bugs were.
  */
 export function useGameState() {
   const state = useBattleStore(s => s.state);

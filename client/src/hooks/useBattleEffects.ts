@@ -20,15 +20,12 @@ export interface BattleEffectHandlers {
 const ATTACK_FLASH_MS = 300;
 
 /**
- * The single store->React bridge for combat.
+ * The single store->React bridge for combat. Scheduler handlers cannot reach PlayerContext,
+ * so they emit what happened and this applies it - one subscription in place of the old
+ * seventeen-dependency effect.
  *
- * The swing and DoT loops now live in the scheduler, where they can read live state without a
- * dependency array keeping them fresh - but they cannot reach PlayerContext. Rather than
- * hoisting player HP into the store, they emit what happened and this hook applies it. One
- * subscription replaces the seventeen-dependency effect that used to own the swing.
- *
- * Handlers are read through a ref, so the subscriptions are registered exactly once and a
- * changing `takeDamage` identity never re-registers them. Mount this once per battle screen.
+ * Handlers are read through a ref, so a changing `takeDamage` identity never re-registers.
+ * Mount once per battle screen.
  */
 export function useBattleEffects(handlers: BattleEffectHandlers): { isAttacking: boolean } {
   const [isAttacking, setIsAttacking] = useState(false);

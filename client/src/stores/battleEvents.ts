@@ -1,13 +1,9 @@
 import type { DebuffEffect } from '@shared/types';
 
 /**
- * The one seam between store-owned scheduler handlers and React.
- *
- * Combat loops live in the scheduler, but player HP lives in PlayerContext, which a handler
- * outside the tree cannot reach. Rather than hoisting HP into the store, the handlers describe
- * what happened and `useBattleEffects` applies it. Deliberately tiny — a typed callback
- * registry, not a general pub/sub — and synchronous, because ordering against store writes
- * matters.
+ * The one seam between scheduler handlers and React: they describe what happened, and
+ * `useBattleEffects` applies it to PlayerContext. Synchronous - ordering against store
+ * writes matters.
  */
 export interface BattleEventMap {
   monsterAttacked: {

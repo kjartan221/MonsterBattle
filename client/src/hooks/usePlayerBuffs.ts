@@ -40,10 +40,9 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
     buffsRef.current = activeBuffs;
   }, [activeBuffs]);
 
-  // Auto-remove expired buffs. Driven by one scheduler deadline per buff instead of a 500ms
-  // sweep, so an idle battle costs nothing at all. pruneExpiredBuffs still does the work: a
-  // deadline can fire with several buffs due at once, and it returns the same array reference
-  // when nothing expired, so a spurious wake bails out of setState instead of re-rendering.
+  // One deadline per buff rather than a 500ms sweep, so an idle battle costs nothing.
+  // pruneExpiredBuffs returns the same array reference when nothing expired, so a spurious
+  // wake bails out of setState.
   const sweepExpired = useCallback(() => {
     const { buffs, expired } = pruneExpiredBuffs(buffsRef.current, Date.now());
     if (expired.length === 0) return;
@@ -64,10 +63,9 @@ export function usePlayerBuffs(): UsePlayerBuffsResult {
     battleScheduler.at(expiryKey(buff.buffId), buff.expiresAt, sweepExpired);
   }, [sweepExpired]);
 
-  // Buffs outlive a single attempt, but the scheduler's lifetime clears every registration
-  // when the battle ends. Re-register the survivors afterwards, keyed on the phase so this
-  // runs on the React commit that follows the clear, never before it. `at` takes an absolute
-  // deadline, so re-registering is idempotent (unlike `repeat`, which would reset its anchor).
+  // Buffs outlive an attempt, but the scheduler's lifetime clears every registration when the
+  // battle ends. Re-arm after, keyed on phase so this lands on the commit following the clear.
+  // `at` takes an absolute deadline, so re-registering is idempotent (unlike `repeat`).
   const phase = useBattleStore(store => store.state.phase);
   useEffect(() => {
     activeBuffs.forEach(scheduleExpiry);

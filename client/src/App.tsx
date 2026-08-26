@@ -8,6 +8,7 @@ import { EquipmentProvider } from '@/contexts/EquipmentContext';
 import { ChallengeProvider } from '@/contexts/ChallengeContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { startBattleSchedulerLifetime } from '@/stores/battleScheduler';
+import BattleSessionGuard from '@/components/BattleSessionGuard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/components/NotFound';
 import LoginPage from '@/components/LoginPage';
@@ -32,6 +33,7 @@ export default function App() {
           <BiomeProvider>
             <EquipmentProvider>
               <ChallengeProvider>
+                <BattleSessionGuard />
                 <Routes>
                   <Route path="/" element={<LoginPage />} />
                   <Route path="/battle" element={<ProtectedRoute><BattlePage /></ProtectedRoute>} />

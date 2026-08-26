@@ -9,10 +9,7 @@ export type BattlePhase =
   | 'idle' | 'loading' | 'startScreen' | 'inProgress'
   | 'completing' | 'lootSelection' | 'victory' | 'defeated';
 
-/**
- * `attempt` exists in exactly two phases, so an attempt cannot survive a battle
- * boundary. That is the property this store exists for.
- */
+/** `attempt` exists in exactly two phases, so it cannot survive a battle boundary. */
 export type BattleState =
   | { phase: 'idle' }
   | { phase: 'loading'; session: Session | null }
@@ -75,9 +72,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
 
   lootOffered: (loot) => {
     const s = get().state;
-    // Victory, plus the pending-loot restore which seeds the session onto startScreen first.
-    // Anything else — notably `defeated` — must not be dragged into lootSelection by a POST
-    // that resolves after the player has already died.
+    // Victory, plus the pending-loot restore (which seeds the session onto startScreen).
+    // Anything else - `defeated` above all - must not be dragged in by a late POST.
     if (s.phase !== 'completing' && s.phase !== 'startScreen') return;
     set({ state: { phase: 'lootSelection', session: s.session, loot } });
   },
