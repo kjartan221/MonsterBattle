@@ -8,7 +8,7 @@ export interface BuffPruneResult {
 
 /** Split buffs into still-active and newly-expired. Permanent buffs (duration 0) never expire. */
 export function pruneExpiredBuffs(buffs: Buff[], now: number): BuffPruneResult {
-  const expired = buffs.filter(buff => buff.duration > 0 && now >= buff.expiresAt);
+  const expired = buffs.filter(buff => buff.durationMs > 0 && now >= buff.expiresAt);
 
   if (expired.length === 0) return { buffs, expired };
 

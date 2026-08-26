@@ -264,8 +264,8 @@ describe('combat modifiers live and die with the attempt', () => {
     useBattleStore.getState().sessionLoaded(session(), 'inProgress');
     useBattleStore.getState().patchAttempt({
       shieldHP: 30,
-      escapeTimer: 12,
-      monsterDebuffs: [{ id: 'd1', type: 'poison', duration: 5000, startTime: 0 }],
+      escapeAt: 12,
+      monsterDebuffs: [{ id: 'd1', type: 'poison', duration: 5000, startTime: 0, expiresAt: 5000 }],
       triggeredThresholds: new Set([50]),
       isStunned: true,
       damageWindow: 2.0,
@@ -279,7 +279,7 @@ describe('combat modifiers live and die with the attempt', () => {
     const state = useBattleStore.getState().state;
     if (state.phase !== 'inProgress') throw new Error('wrong phase');
     expect(state.attempt.shieldHP).toBe(0);
-    expect(state.attempt.escapeTimer).toBeNull();
+    expect(state.attempt.escapeAt).toBeNull();
     expect(state.attempt.monsterDebuffs).toHaveLength(0);
     expect(state.attempt.triggeredThresholds.size).toBe(0);
     expect(state.attempt.isStunned).toBe(false);
@@ -288,7 +288,7 @@ describe('combat modifiers live and die with the attempt', () => {
 
   test('a cheat restart clears the combat modifiers too', () => {
     useBattleStore.getState().sessionLoaded(session(), 'inProgress');
-    useBattleStore.getState().patchAttempt({ shieldHP: 30, monsterDebuffs: [{ id: 'd1', type: 'burn', duration: 4000, startTime: 0 }] });
+    useBattleStore.getState().patchAttempt({ shieldHP: 30, monsterDebuffs: [{ id: 'd1', type: 'burn', duration: 4000, startTime: 0, expiresAt: 4000 }] });
     useBattleStore.getState().submissionStarted();
     useBattleStore.getState().attemptRestarted(200);
 
@@ -296,5 +296,33 @@ describe('combat modifiers live and die with the attempt', () => {
     if (state.phase !== 'inProgress') throw new Error('wrong phase');
     expect(state.attempt.shieldHP).toBe(0);
     expect(state.attempt.monsterDebuffs).toHaveLength(0);
+  });
+});
+
+describe('leaving the battle mid-fight', () => {
+  test('reset discards an in-flight attempt', () => {
+    useBattleStore.getState().sessionLoaded(session(), 'inProgress');
+    useBattleStore.getState().addToAttempt('totalDamage', 60);
+
+    useBattleStore.getState().reset();
+
+    expect(useBattleStore.getState().state.phase).toBe('idle');
+  });
+
+  test('a resumed session starts a fresh attempt rather than restoring the old one', () => {
+    // Returning from the inventory re-enters via start-battle, which lands on the start
+    // screen; pressing Start re-stamps actualBattleStartedAt server-side, so the server's
+    // clock restarts with the client's.
+    useBattleStore.getState().sessionLoaded(session(), 'inProgress');
+    useBattleStore.getState().addToAttempt('totalDamage', 60);
+    useBattleStore.getState().reset();
+
+    useBattleStore.getState().loadingStarted();
+    useBattleStore.getState().sessionLoaded(session(), 'startScreen');
+    useBattleStore.getState().battleStarted();
+
+    const state = useBattleStore.getState().state;
+    if (state.phase !== 'inProgress') throw new Error('wrong phase');
+    expect(state.attempt.totalDamage).toBe(0);
   });
 });

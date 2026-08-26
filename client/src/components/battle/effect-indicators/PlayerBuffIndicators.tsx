@@ -43,10 +43,10 @@ export default function BuffIndicators({
     <div className="flex gap-1 flex-wrap">
       {buffs.map(buff => {
         const config = getBuffConfig(buff.buffType);
-        const remaining = buff.duration > 0
+        const remaining = buff.durationMs > 0
           ? Math.ceil((buff.expiresAt - Date.now()) / 1000)
           : Infinity;
-        const isPermanent = buff.duration === 0;
+        const isPermanent = buff.durationMs === 0;
 
         return (
           <div
@@ -130,8 +130,8 @@ function getBuffTooltip(buff: Buff, config: { name: string }): string {
   }
 
   // Add duration
-  if (buff.duration > 0) {
-    tooltip += ` (${buff.duration}s)`;
+  if (buff.durationMs > 0) {
+    tooltip += ` (${buff.durationMs / 1000}s)`;
   } else {
     tooltip += ' (Permanent)';
   }

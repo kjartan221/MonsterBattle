@@ -102,7 +102,7 @@ export default function PlayerStatsDisplay({
   const excessCrit = Math.max(0, rawCritChance - 100);
   const critMultiplier = 2.0 + (excessCrit / 100); // Base 2x + excess crit
 
-  // Effective defense after active defense_reduction debuffs (mirrors useMonsterAttack)
+  // Effective defense after active defense_reduction debuffs (mirrors the monsterSwing handler)
   const defenseReduction = Math.round(activeDebuffs
     .filter(d => d.type === 'defense_reduction')
     .reduce((sum, d) => sum + (Number(d.damageAmount) || 0), 0));

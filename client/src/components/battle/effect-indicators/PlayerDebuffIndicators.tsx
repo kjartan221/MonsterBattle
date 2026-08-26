@@ -42,7 +42,7 @@ export default function DebuffIndicators({
     <div className="flex gap-1 flex-wrap">
       {debuffs.map(debuff => {
         const config = getDebuffConfig(debuff.type);
-        const remaining = Math.ceil((debuff.duration - (Date.now() - debuff.startTime)) / 1000);
+        const remaining = Math.ceil((debuff.expiresAt - Date.now()) / 1000);
 
         return (
           <div

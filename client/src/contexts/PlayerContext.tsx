@@ -178,7 +178,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * Similar to click tracking, HP is calculated on frontend and validated server-side
    *
    * IMPORTANT: Memoized with useCallback to prevent infinite loops in hooks
-   * that depend on this function (useMonsterAttack, useDebuffs)
+   * that depend on this function (useBattleEffects, useDebuffs)
    */
   const takeDamage = useCallback(async (amount: number) => {
     // Use functional setState to avoid stale state issues and dependency on playerStats

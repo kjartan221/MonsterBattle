@@ -380,6 +380,7 @@ export interface DebuffEffect {
 export interface ActiveDebuff extends DebuffEffect {
   id: string;                     // Unique ID for tracking
   startTime: number;              // Timestamp when applied
+  expiresAt: number;              // Absolute expiry timestamp (startTime + duration)
   appliedBy?: string;             // Source (monster ID, spell ID, etc.)
   targetMaxHP: number;            // Max HP of target at time of application (for percentage calc)
 }
