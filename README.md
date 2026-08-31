@@ -1,5 +1,9 @@
 # Monster Battle - BSV Blockchain Game
 
+> **⚠️ Personal mirror — not the maintained repository.**
+> Active development lives at **[bsv-blockchain-demos/player-owned-items](https://github.com/bsv-blockchain-demos/player-owned-items)**.
+> Open issues and pull requests there. This mirror is synced occasionally and may lag behind.
+
 A BSV blockchain game — a **Vite + React SPA** talking to a **single-instance Express API** — demonstrating server-controlled minting, overlay network broadcasting, and on-chain provable item crafting.
 
 ---
